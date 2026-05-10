@@ -186,20 +186,7 @@ rollListener:SetScript("OnEvent", function(self, event, msg)
     end
 
     local _, class = UnitClass(name)
-    local unit
-    if UnitName("player") == name then
-        unit = "player"
-    else
-        local raid = GetNumRaidMembers() > 0
-        local count = raid and GetNumRaidMembers() or GetNumPartyMembers()
-        for i = 1, count do
-            local unitId = raid and ("raid" .. i) or ("party" .. i)
-            if UnitName(unitId) == name then
-                unit = unitId
-                break
-            end
-        end
-    end
+    local unit = BadStorms.GetPlayerUnit(name)
     local frame = BadStorms.configFrame
     local currentItemId = frame and frame.data and GetItemID(frame.data.link)
     if currentItemId then

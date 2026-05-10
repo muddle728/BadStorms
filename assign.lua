@@ -201,7 +201,7 @@ BadStorms.PlayersMenu = BadStorms.ShowAwardDialog
 
 hooksecurefunc("ContainerFrameItemButton_OnModifiedClick", function(self, button)
     if not BadStorms.CanManageLoot() then
-        local inGroup = GetNumRaidMembers() > 0 or GetNumPartyMembers() > 0
+        local inGroup = BadStorms.InGroup()
         if inGroup then
             local msg = "You do not have permission to manage loot."
             print("|cff00ff00BadStorms:|r" .. msg)

@@ -25,7 +25,7 @@ local function CheckAutoMasterLoot()
     if not mobID or not BossIDs[mobID] then
         return
     end
-    if not (UnitInRaid("player") or UnitInParty("player")) then
+    if not BadStorms.InGroup() then
         return
     end
     if not IsPartyLeader() and not IsRaidLeader() and not IsRaidOfficer() then
@@ -512,7 +512,7 @@ local function CreateConfigFrame()
     notes:SetWidth(520)
     notes:SetJustifyH("LEFT")
     notes:SetText(
-        "\n|cff66ccffALT+CLICK |r an item in your bag to open the Roll tab.\n|cff66ccffALT+SHIFT+CLICK|r an item in your bag to open the Award tab.")
+        "\n|cff66ccffALT+CLICK |r an item in your bags or loot window to open the Roll tab.\n|cff66ccffALT+SHIFT+CLICK|r an item in your bags or loot window to open the Award tab.")
 
     -- Award panel
     frame.itemIcon = CreateFrame("Button", nil, awardPanel)
@@ -643,7 +643,7 @@ local function CreateConfigFrame()
     frame.awardButton:SetText("Award")
     frame.awardButton:Disable()
     frame.awardButton:SetScript("OnClick", function()
-        local inGroup = GetNumRaidMembers() > 0 or GetNumPartyMembers() > 0
+        local inGroup = BadStorms.InGroup()
         if inGroup and not BadStorms.CanManageLoot() then
             print("|cff00ff00BadStorms:|r You do not have permission to award items.")
             return
@@ -831,7 +831,7 @@ local function CreateConfigFrame()
     frame.rollAssignButton:SetText("Award")
     frame.rollAssignButton:Disable()
     frame.rollAssignButton:SetScript("OnClick", function()
-        local inGroup = GetNumRaidMembers() > 0 or GetNumPartyMembers() > 0
+        local inGroup = BadStorms.InGroup()
         if inGroup and not BadStorms.CanManageLoot() then
             print("|cff00ff00BadStorms:|r You do not have permission to award items.")
             return
@@ -1377,7 +1377,7 @@ local function CreateConfigFrame()
 
     local function UpdateLootMasterState()
         local isLM = BadStorms.IsLootMaster()
-        local inGroup = GetNumRaidMembers() > 0 or GetNumPartyMembers() > 0
+        local inGroup = BadStorms.InGroup()
         local tabsEnabled = not inGroup or isLM
         local text = _G["BadStormsEnableCheckboxText"]
         if tabsEnabled then
@@ -1403,7 +1403,7 @@ local function CreateConfigFrame()
         frame:SelectTab("settings")
     end)
     awardTab:SetScript("OnClick", function()
-        local inGroup = GetNumRaidMembers() > 0 or GetNumPartyMembers() > 0
+        local inGroup = BadStorms.InGroup()
         if inGroup and not BadStorms.IsLootMaster() then
             print("|cff00ff00BadStorms:|r You must be the Master Looter to award items.")
             return
@@ -1411,7 +1411,7 @@ local function CreateConfigFrame()
         frame:SelectTab("award")
     end)
     rollTab:SetScript("OnClick", function()
-        local inGroup = GetNumRaidMembers() > 0 or GetNumPartyMembers() > 0
+        local inGroup = BadStorms.InGroup()
         if inGroup and not BadStorms.IsLootMaster() then
             print("|cff00ff00BadStorms:|r You must be the Master Looter to roll items.")
             return
@@ -1689,6 +1689,96 @@ hooksecurefunc("StaticPopup_Show", function(which)
     end
 end)
 
+local function HookCustomLootButtons()
+    local buttonProvider
+    if getglobal("ElvLootSlot1") then
+        buttonProvider = "ElvUI"
+    elseif getglobal("XLootFrameButton1") then
+        buttonProvider = "XLoot1"
+    elseif getglobal("XLootButton1") then
+        buttonProvider = "XLoot"
+    end
+
+    if not buttonProvider then
+        return
+    end
+
+    for i = 1, LOOTFRAME_NUMBUTTONS do
+        local button
+        if buttonProvider == "ElvUI" then
+            button = getglobal("ElvLootSlot" .. i)
+        elseif buttonProvider == "XLoot1" then
+            button = getglobal("XLootFrameButton" .. i)
+        elseif buttonProvider == "XLoot" then
+            button = getglobal("XLootButton" .. i)
+        end
+
+        if not button then
+            break
+        end
+
+        if not button._badStormsHooked then
+            local slotIdx = i
+            button:SetAttribute("type", nil)
+            button:SetAttribute("loot-slot", nil)
+            button:SetScript("OnClick", function()
+                local slot = tonumber(button.slot) or slotIdx
+                if not slot then
+                    return
+                end
+
+                if IsAltKeyDown() and BadStormsSettings.enabled then
+                    local inGroup = BadStorms.InGroup()
+                    if inGroup and not BadStorms.CanManageLoot() then
+                        local msg = "You do not have permission to manage loot."
+                        print("|cff00ff00BadStorms:|r" .. msg)
+                        return
+                    end
+
+                    local link = GetLootSlotLink(slot)
+                    if not link then
+                        return
+                    end
+
+                    CloseDropDownMenus()
+                    if IsShiftKeyDown() then
+                        BadStorms.ShowAwardDialogForLoot(slot, link)
+                    else
+                        BadStorms.CreateConfigFrame()
+                        local f = BadStorms.configFrame
+                        if BadStorms.isRolling then
+                            print("|cff00ff00BadStorms:|r Cannot change item during an active roll.")
+                            return
+                        end
+                        BadStorms.UpdateItemSelection(f, link)
+                        f.data.lootSlot = slot
+                        BadStorms.currentRolls = {}
+                        f.selectedRollLabel:SetText("Selected Player: None")
+                        for _, btn in ipairs(f.rollButtons) do
+                            btn.selectedTexture:Hide()
+                            btn.rollData = nil
+                            btn:Hide()
+                        end
+                        f.rollAssignButton:Disable()
+                        f:SelectTab("roll")
+                        f:Show()
+                    end
+                else
+                    LootSlot(slot)
+                end
+            end)
+            button._badStormsHooked = true
+        end
+    end
+end
+
+local customLootFrame = CreateFrame("Frame")
+customLootFrame:RegisterEvent("LOOT_OPENED")
+customLootFrame:RegisterEvent("LOOT_READY")
+customLootFrame:SetScript("OnEvent", function()
+    C_Timer.After(0.4, HookCustomLootButtons)
+end)
+
 StaticPopupDialogs["BadStormsConfirmAssign"] = {
     text = "Assign %s to %s?",
     button1 = "Yes",
@@ -1849,4 +1939,60 @@ StaticPopupDialogs["BadStormsConfirmClearPlusOnesOnImport"] = {
     whileDead = true,
     hideOnEscape = false
 }
+
+hooksecurefunc("HandleModifiedItemClick", function(link)
+    if not BadStormsSettings.enabled then
+        return
+    end
+    if not IsAltKeyDown() then
+        return
+    end
+    if not BadStorms.CanManageLoot() then
+        local inGroup = BadStorms.InGroup()
+        if inGroup then
+            local msg = "You do not have permission to manage loot."
+            print("|cff00ff00BadStorms:|r" .. msg)
+            if UIErrorsFrame then
+                msg = "BadStorms: " .. msg
+                UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0)
+                C_Timer.After(1, function() UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0) end)
+                C_Timer.After(2, function() UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0) end)
+            end
+            return
+        end
+    end
+    if not link then
+        return
+    end
+
+    for i = 1, GetNumLootItems() do
+        local slotLink = GetLootSlotLink(i)
+        if slotLink and slotLink == link then
+            CloseDropDownMenus()
+            if IsShiftKeyDown() then
+                BadStorms.ShowAwardDialogForLoot(i, link)
+            else
+                BadStorms.CreateConfigFrame()
+                local f = BadStorms.configFrame
+                if BadStorms.isRolling then
+                    print("|cff00ff00BadStorms:|r Cannot change item during an active roll.")
+                    return
+                end
+                BadStorms.UpdateItemSelection(f, link)
+                f.data.lootSlot = i
+                BadStorms.currentRolls = {}
+                f.selectedRollLabel:SetText("Selected Player: None")
+                for _, btn in ipairs(f.rollButtons) do
+                    btn.selectedTexture:Hide()
+                    btn.rollData = nil
+                    btn:Hide()
+                end
+                f.rollAssignButton:Disable()
+                f:SelectTab("roll")
+                f:Show()
+            end
+            break
+        end
+    end
+end)
 

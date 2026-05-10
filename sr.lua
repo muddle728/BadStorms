@@ -228,7 +228,6 @@ function BadStorms.AppendItemTooltipInfo(itemId)
     local srText = BadStorms.GetSRText(itemId)
 
     local myName = UnitName("player")
-    local myName = UnitName("player")
     local pendingPlayers = {}
     if BadStormsSettings.pendingTrades then
         for playerName, items in pairs(BadStormsSettings.pendingTrades) do

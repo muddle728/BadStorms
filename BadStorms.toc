@@ -1,0 +1,12 @@
+## Interface: 30300
+## Title: BadStorms
+## Notes: Raid Helper Tools
+## Version: 1.0
+## SavedVariables: BadStormsSettings
+
+core.lua
+data.lua
+sr.lua
+roll.lua
+assign.lua
+gui.lua

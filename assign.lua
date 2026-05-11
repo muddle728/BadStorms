@@ -86,6 +86,20 @@ function BadStorms.UpdateItemSelection(frame, link, bag, slot)
     if frame.startRollButton and not BadStorms.isRolling then
         frame.startRollButton:Enable()
     end
+    if frame.disenchantRollButton then
+        if BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" then
+            frame.disenchantRollButton:Enable()
+        else
+            frame.disenchantRollButton:Disable()
+        end
+    end
+    if frame.awardDisenchantButton then
+        if BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" then
+            frame.awardDisenchantButton:Enable()
+        else
+            frame.awardDisenchantButton:Disable()
+        end
+    end
 end
 
 function BadStorms.PopulatePlayerList(frame)

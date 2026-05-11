@@ -521,6 +521,20 @@ local function CreateConfigFrame()
             disenchanterText:Disable()
             disenchanterText:SetBackdropBorderColor(0.3, 0.3, 0.3)
         end
+        if frame.disenchantRollButton then
+            if BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" and frame.data and frame.data.link then
+                frame.disenchantRollButton:Enable()
+            else
+                frame.disenchantRollButton:Disable()
+            end
+        end
+        if frame.awardDisenchantButton then
+            if BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" and frame.data and frame.data.link then
+                frame.awardDisenchantButton:Enable()
+            else
+                frame.awardDisenchantButton:Disable()
+            end
+        end
     end)
 
     local disenchanterHelp = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -808,9 +822,42 @@ local function CreateConfigFrame()
             btn.selectedTexture:Hide()
         end
         frame.awardButton:Disable()
+        if frame.awardDisenchantButton then
+            frame.awardDisenchantButton:Disable()
+        end
     end)
 
-    -- Roll panel
+    frame.awardDisenchantButton = CreateFrame("Button", nil, awardPanel, "GameMenuButtonTemplate")
+    frame.awardDisenchantButton:SetSize(82, 24)
+    frame.awardDisenchantButton:SetPoint("LEFT", frame.awardClearButton, "RIGHT", 4, 0)
+    frame.awardDisenchantButton:SetFrameLevel(awardPanel:GetFrameLevel() + 10)
+    frame.awardDisenchantButton:SetText("Disenchant")
+    frame.awardDisenchantButton:SetScript("OnClick", function()
+        if not BadStormsSettings.disenchanterEnabled or BadStormsSettings.disenchanter == "" then
+            return
+        end
+        local data = frame.data
+        if not data or not data.link then
+            return
+        end
+        StaticPopup_Show("BadStormsDisenchantConfirm", data.link, BadStormsSettings.disenchanter, {
+            link = data.link,
+            lootSlot = data.lootSlot,
+            bag = data.bag,
+            slot = data.slot,
+            disenchanter = BadStormsSettings.disenchanter,
+        })
+    end)
+    frame.awardDisenchantButton:SetScript("OnEnter", function(self)
+        if not BadStormsSettings.disenchanterEnabled or BadStormsSettings.disenchanter == "" then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText("Disenchanter must be enabled and set for this feature.", 1, 0.82, 0, 1)
+            GameTooltip:Show()
+        end
+    end)
+    frame.awardDisenchantButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
     frame.itemIconRoll = CreateFrame("Button", nil, rollPanel)
     frame.itemIconRoll:SetSize(36, 36)
     frame.itemIconRoll:SetPoint("TOPLEFT", rollPanel, "TOPLEFT", 0, 0)
@@ -1062,6 +1109,42 @@ local function CreateConfigFrame()
     frame.endRollButton:SetScript("OnClick", function()
         BadStorms.EndRoll(frame)
     end)
+
+    frame.disenchantRollButton = CreateFrame("Button", nil, rollPanel, "GameMenuButtonTemplate")
+    frame.disenchantRollButton:SetSize(82, 24)
+    frame.disenchantRollButton:SetPoint("LEFT", frame.endRollButton, "RIGHT", 4, 0)
+    frame.disenchantRollButton:SetText("Disenchant")
+    frame.disenchantRollButton:Disable()
+    frame.disenchantRollButton:SetScript("OnClick", function()
+        if not BadStormsSettings.disenchanterEnabled or BadStormsSettings.disenchanter == "" then
+            return
+        end
+        local link = frame.data and frame.data.link
+        if not link then
+            return
+        end
+        StaticPopup_Show("BadStormsDisenchantConfirm", link, BadStormsSettings.disenchanter, {
+            link = link,
+            lootSlot = frame.data.lootSlot,
+            bag = frame.data.bag,
+            slot = frame.data.slot,
+            disenchanter = BadStormsSettings.disenchanter,
+        })
+    end)
+    frame.disenchantRollButton:SetScript("OnEnter", function(self)
+        if not BadStormsSettings.disenchanterEnabled or BadStormsSettings.disenchanter == "" then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText("Disenchanter must be enabled and set for this feature.", 1, 0.82, 0, 1)
+            GameTooltip:Show()
+        end
+    end)
+    frame.disenchantRollButton:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    if BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" and frame.data and frame.data.link then
+        frame.disenchantRollButton:Enable()
+    end
 
     -- Export panel content
     local exportDateButtons = {}
@@ -2008,6 +2091,56 @@ StaticPopupDialogs["BadStormsConfirmAssign"] = {
                 end
                 BadStormsMenuFrame:Hide()
                 InitiateTrade(data.unit)
+            end
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = false
+}
+
+StaticPopupDialogs["BadStormsDisenchantConfirm"] = {
+    text = "Disenchant %s?\n\nWARNING: Award this item to %s for disenchanting.",
+    button1 = "Yes",
+    button2 = "No",
+    OnAccept = function(self, data)
+        SendToChannel("LOOT: " .. data.link .. " sent to " .. data.disenchanter .. " (disenchant)")
+
+        if data.lootSlot then
+            for ci = 1, 40 do
+                local candidate = GetMasterLootCandidate(ci)
+                if not candidate then
+                    break
+                end
+                if candidate == data.disenchanter then
+                    GiveMasterLoot(data.lootSlot, ci)
+                    break
+                end
+            end
+        else
+            BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
+            if not BadStormsSettings.pendingTrades[data.disenchanter] then
+                BadStormsSettings.pendingTrades[data.disenchanter] = {}
+            end
+            local itemId = BadStorms.GetItemID(data.link)
+            local itemName = data.link:match("%[(.-)%]") or "Unknown"
+            table.insert(BadStormsSettings.pendingTrades[data.disenchanter], {
+                itemId = itemId,
+                link = data.link,
+                itemName = itemName,
+                bag = data.bag,
+                slot = data.slot,
+                date = date("%Y-%m-%d %H:%M:%S")
+            })
+            local unit = BadStorms.GetPlayerUnit(data.disenchanter)
+            if unit and not UnitIsUnit(unit, "player") then
+                if not CheckInteractDistance(unit, 2) then
+                    SendChatMessage("WARNING: " .. data.disenchanter .. " is out of trade range. Please open trade with me for " ..
+                                        data.link .. "!", "WHISPER", nil, data.disenchanter)
+                    return
+                end
+                BadStormsMenuFrame:Hide()
+                InitiateTrade(unit)
             end
         end
     end,

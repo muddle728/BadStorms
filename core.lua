@@ -134,6 +134,13 @@ function BadStorms.CanManageLoot()
     return false
 end
 
+function BadStorms.CanRaidWarning()
+    if GetNumRaidMembers() > 0 then
+        return IsRaidLeader() or IsRaidOfficer()
+    end
+    return false
+end
+
 function BadStorms.InGroup()
     return GetNumRaidMembers() > 0 or GetNumPartyMembers() > 0
 end

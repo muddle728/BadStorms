@@ -15,13 +15,13 @@ local function UpdateRollDisplay(frame)
         if aSR > 0 and bSR > 0 then
             return a.roll > b.roll
         end
+        if a.max ~= b.max then
+            return a.max > b.max
+        end
         local aPO = BadStormsSettings.trackPlusOnes and (BadStormsSettings.plusOnes[a.name] or 0) or 0
         local bPO = BadStormsSettings.trackPlusOnes and (BadStormsSettings.plusOnes[b.name] or 0) or 0
         if aPO ~= bPO then
             return aPO < bPO
-        end
-        if a.max ~= b.max then
-            return a.max > b.max
         end
         return a.roll > b.roll
     end)
@@ -49,7 +49,7 @@ local function UpdateRollDisplay(frame)
                 btn.srText:SetText("")
             end
 
-            if plusOnes > 0 then
+            if data.max == 100 and plusOnes > 0 then
                 btn.plusText:SetText("+" .. plusOnes)
                 btn.plusText:SetTextColor(0, 1, 0)
             else
@@ -79,7 +79,7 @@ local function EndRoll(frame)
     end
 
     UpdateRollDisplay(frame)
-
+    
     if #BadStorms.currentRolls > 0 then
         local winner = BadStorms.currentRolls[1]
         frame.selectedRoll = winner
@@ -92,8 +92,20 @@ local function EndRoll(frame)
                 btn.selectedTexture:Hide()
             end
         end
-        SendToChannel(string.format("ROLLS CLOSED! Winner: %s [%d] (%s)", winner.name, winner.roll,
-            winner.max == 100 and "MS" or "OS"))
+        local winMsg = string.format("Winner: %s [%d] (%s)", winner.name, winner.roll,
+            winner.max == 100 and "MS" or "OS")
+        if BadStorms.CanRaidWarning() then
+            SendChatMessage(winMsg, "RAID_WARNING")
+        else
+            SendToChannel(string.format("ROLLS CLOSED! %s", winMsg))
+        end
+    else 
+        local winMsg = string.format("ROLLS CLOSED!")
+        if BadStorms.CanRaidWarning() then
+            SendChatMessage(winMsg, "RAID_WARNING")
+        else
+            SendToChannel(winMsg)
+        end
     end
 
     frame.rollTimerText:SetText("Roll ended")
@@ -116,7 +128,12 @@ local function StartRoll(frame)
     UpdateRollDisplay(frame)
 
     local link = frame.data and frame.data.link or "an item"
-    SendToChannel("Roll for " .. link .. " (/roll for MS or /roll 99 for OS)")
+    local rollMsg = "Roll for " .. link .. " (/roll for MS or /roll 99 for OS)"
+    if BadStorms.CanRaidWarning() then
+        SendChatMessage(rollMsg, "RAID_WARNING")
+    else
+        SendToChannel(rollMsg)
+    end
 
     local currentItemId = frame.data and GetItemID(frame.data.link)
     if currentItemId and BadStormsSettings.srReservations then
@@ -148,10 +165,17 @@ local function StartRoll(frame)
         BadStorms.rollRemaining = BadStorms.rollRemaining - 1
         frame.rollTimerText:SetText("Rolling... " .. BadStorms.rollRemaining)
 
-        if BadStorms.rollRemaining <= 5 and BadStorms.rollRemaining > 0 then
-            local chan = GetChannel()
-            if chan ~= "PRINT" then
-                SendChatMessage("Roll ends in " .. tostring(BadStorms.rollRemaining) .. " seconds...", chan)
+        if BadStorms.rollRemaining > 0 and BadStorms.rollRemaining <= 10 then
+            local remaining = BadStorms.rollRemaining
+            local sec = remaining == 1 and "second" or "seconds"
+            local msg = "Roll ends in " .. tostring(remaining) .. " " .. sec .. "..."
+            if BadStorms.CanRaidWarning() and BadStorms.rollRemaining == 5 then
+                SendChatMessage(msg, "RAID_WARNING")
+            else
+                local chan = GetChannel()
+                if chan ~= "PRINT" then
+                    SendChatMessage(msg, chan)
+                end
             end
         end
 
@@ -191,16 +215,15 @@ rollListener:SetScript("OnEvent", function(self, event, msg)
     local currentItemId = frame and frame.data and GetItemID(frame.data.link)
     if currentItemId then
         local srCount = PlayerHasReservation(currentItemId, name)
-        if srCount > 0 then
-            local rollCount = 0
-            for _, v in ipairs(BadStorms.currentRolls) do
-                if v.name == name then
-                    rollCount = rollCount + 1
-                end
+        local maxRolls = srCount > 0 and srCount or 1
+        local rollCount = 0
+        for _, v in ipairs(BadStorms.currentRolls) do
+            if v.name == name then
+                rollCount = rollCount + 1
             end
-            if rollCount >= srCount then
-                return
-            end
+        end
+        if rollCount >= maxRolls then
+            return
         end
     end
 

@@ -1806,6 +1806,13 @@ StaticPopupDialogs["BadStormsConfirmAssign"] = {
             officer_note = ""
         })
 
+        if BadStormsSettings.trackPlusOnes and data.note and data.note:find("^Roll .- MS") then
+            local hasSR = itemId and BadStorms.PlayerHasReservation(itemId, data.name) or 0
+            if hasSR == 0 then
+                BadStormsSettings.plusOnes[data.name] = (BadStormsSettings.plusOnes[data.name] or 0) + 1
+            end
+        end
+
         if data.lootSlot then
             for ci = 1, 40 do
                 local candidate = GetMasterLootCandidate(ci)
@@ -1846,13 +1853,6 @@ StaticPopupDialogs["BadStormsConfirmAssign"] = {
                 end
                 BadStormsMenuFrame:Hide()
                 InitiateTrade(data.unit)
-            end
-        end
-
-        if BadStormsSettings.trackPlusOnes and data.note and data.note:find("^Roll .- MS") then
-            local hasSR = itemId and BadStorms.PlayerHasReservation(itemId, data.name) or 0
-            if hasSR == 0 then
-                BadStormsSettings.plusOnes[data.name] = (BadStormsSettings.plusOnes[data.name] or 0) + 1
             end
         end
     end,

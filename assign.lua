@@ -13,10 +13,10 @@ function BadStorms.UpdateItemSelection(frame, link, bag, slot)
     frame.selectedRoll = nil
 
     if frame.selectedLabel then
-        frame.selectedLabel:SetText("Selected Player: None")
+        frame.selectedLabel:SetText("Player: None")
     end
     if frame.selectedRollLabel then
-        frame.selectedRollLabel:SetText("Selected Player: None")
+        frame.selectedRollLabel:SetText("Player: None")
     end
     if frame.playerButtons then
         for _, btn in ipairs(frame.playerButtons) do
@@ -248,7 +248,7 @@ hooksecurefunc("ContainerFrameItemButton_OnModifiedClick", function(self, button
             end
             BadStorms.UpdateItemSelection(f, link, bag, slot)
             BadStorms.currentRolls = {}
-            f.selectedRollLabel:SetText("Selected Player: None")
+            f.selectedRollLabel:SetText("Player: None")
             for _, btn in ipairs(f.rollButtons) do
                 btn.selectedTexture:Hide()
                 btn.rollData = nil

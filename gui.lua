@@ -254,7 +254,7 @@ local function CreateConfigFrame()
             end
             UpdateItemSelection(frame, link)
             BadStorms.currentRolls = {}
-            frame.selectedRollLabel:SetText("Selected Player: None")
+            frame.selectedRollLabel:SetText("Player: None")
             for _, btn in ipairs(frame.rollButtons) do
                 btn.selectedTexture:Hide()
                 btn.rollData = nil
@@ -468,7 +468,7 @@ local function CreateConfigFrame()
     autoLootCheckbox = CreateFrame("CheckButton", "BadStormsAutoLootCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
     autoLootCheckbox:SetPoint("TOPLEFT", enableCheckbox, "BOTTOMLEFT", 0, -36)
-    _G["BadStormsAutoLootCheckboxText"]:SetText("Auto-Loot (Hold SHIFT to Bypass)")
+    _G["BadStormsAutoLootCheckboxText"]:SetText("Enable Auto-Loot (Hold SHIFT to Bypass)")
     autoLootCheckbox:SetChecked(BadStormsSettings.autoloot)
     if BadStormsSettings.enabled then
         autoLootCheckbox:Enable()
@@ -490,7 +490,7 @@ local function CreateConfigFrame()
         "InterfaceOptionsCheckButtonTemplate")
     autoMLCheckbox:SetPoint("TOPLEFT", autoLootCheckbox, "BOTTOMLEFT", 0, -27)
     _G["BadStormsAutoMLCheckboxText"]:SetText(
-        "Auto-Switch to Master Looter when targeting a Boss (Requires Group Leader)")
+        "Enable Auto-Switch to Master Looter when targeting a Boss (Requires Group Leader)")
     autoMLCheckbox:SetChecked(BadStormsSettings.autoMasterLoot)
     autoMLCheckbox:SetScript("OnClick", function(self)
         BadStormsSettings.autoMasterLoot = self:GetChecked()
@@ -499,9 +499,104 @@ local function CreateConfigFrame()
         end
     end)
 
+    local disenchanterCheckbox = CreateFrame("CheckButton", "BadStormsDisenchanterCheckbox", settingsPanel,
+        "InterfaceOptionsCheckButtonTemplate")
+    disenchanterCheckbox:SetPoint("TOPLEFT", autoMLCheckbox, "BOTTOMLEFT", 0, -18)
+    _G["BadStormsDisenchanterCheckboxText"]:SetText("Enable Disenchanter")
+    disenchanterCheckbox:SetChecked(BadStormsSettings.disenchanterEnabled)
+    disenchanterCheckbox:SetScript("OnClick", function(self)
+        BadStormsSettings.disenchanterEnabled = self:GetChecked()
+        if BadStormsSettings.disenchanterEnabled then
+            disenchanterText:Enable()
+            disenchanterText:SetBackdropBorderColor(0.6, 0.6, 0.6)
+        else
+            disenchanterText:Disable()
+            disenchanterText:SetBackdropBorderColor(0.3, 0.3, 0.3)
+        end
+    end)
+
+    local disenchanterLabel = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    disenchanterLabel:SetPoint("LEFT", disenchanterCheckbox, "RIGHT", 175, 0)
+    disenchanterLabel:SetText("Player:")
+
+    local disenchanterText = CreateFrame("EditBox", "BadStormsDisenchanterText", settingsPanel, "InputBoxTemplate")
+    disenchanterText:SetPoint("LEFT", disenchanterLabel, "RIGHT", 4, 0)
+    disenchanterText:SetWidth(140)
+    disenchanterText:SetHeight(20)
+    disenchanterText:SetText(BadStormsSettings.disenchanter or "")
+    disenchanterText:SetAutoFocus(false)
+    disenchanterText:SetTextInsets(2, 0, 0, 0)
+    disenchanterText:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
+        CloseDropDownMenus()
+    end)
+    disenchanterText:SetScript("OnEnterPressed", function(self)
+        self:ClearFocus()
+        CloseDropDownMenus()
+    end)
+    disenchanterText:SetScript("OnTabPressed", function(self)
+        self:ClearFocus()
+        CloseDropDownMenus()
+    end)
+    disenchanterText:SetScript("OnTextChanged", function(self)
+        BadStormsSettings.disenchanter = self:GetText()
+    end)
+    disenchanterText:SetBackdropBorderColor(0.6, 0.6, 0.6)
+
+    local disenchanterMenu = CreateFrame("Frame", "BadStormsDisenchanterMenu", UIParent, "UIDropDownMenuTemplate")
+
+    local function InitDisenchanterMenu(self, level, menuList)
+        if not BadStormsSettings.disenchanterEnabled then
+            return
+        end
+        local seen = {}
+        local function AddPlayer(name)
+            if name and not seen[name] then
+                seen[name] = true
+                local info = UIDropDownMenu_CreateInfo()
+                info.text = name
+                info.func = function()
+                    disenchanterText:SetText(name)
+                    BadStormsSettings.disenchanter = name
+                end
+                UIDropDownMenu_AddButton(info, level)
+            end
+        end
+
+        AddPlayer(UnitName("player"))
+        if GetNumRaidMembers() > 0 then
+            for i = 1, GetNumRaidMembers() do
+                AddPlayer(GetRaidRosterInfo(i))
+            end
+        else
+            for i = 1, GetNumPartyMembers() do
+                AddPlayer(UnitName("party" .. i))
+            end
+        end
+    end
+
+    UIDropDownMenu_Initialize(disenchanterMenu, InitDisenchanterMenu)
+
+    disenchanterText:SetScript("OnMouseDown", function(self, button)
+        if button ~= "LeftButton" then
+            return
+        end
+        if not BadStormsSettings.disenchanterEnabled then
+            return
+        end
+        self:ClearFocus()
+        CloseDropDownMenus()
+        ToggleDropDownMenu(1, nil, disenchanterMenu, self:GetName(), 0, 0)
+    end)
+
+    if not BadStormsSettings.disenchanterEnabled then
+        disenchanterText:Disable()
+        disenchanterText:SetBackdropBorderColor(0.3, 0.3, 0.3)
+    end
+
     local hideMinimapCheckbox = CreateFrame("CheckButton", "BadStormsHideMinimapCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
-    hideMinimapCheckbox:SetPoint("TOPLEFT", autoMLCheckbox, "BOTTOMLEFT", 0, -18)
+    hideMinimapCheckbox:SetPoint("TOPLEFT", disenchanterCheckbox, "BOTTOMLEFT", 0, -18)
     _G["BadStormsHideMinimapCheckboxText"]:SetText("Show Minimap Button")
     hideMinimapCheckbox:SetChecked(not BadStormsSettings.hideMinimap)
     hideMinimapCheckbox:SetScript("OnClick", function(self)
@@ -576,7 +671,7 @@ local function CreateConfigFrame()
 
     frame.selectedLabel = awardPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     frame.selectedLabel:SetPoint("TOPLEFT", frame.srText, "BOTTOMLEFT", 0, -12)
-    frame.selectedLabel:SetText("Selected Player: None")
+    frame.selectedLabel:SetText("Player: None")
 
     local awardScroll = CreateFrame("ScrollFrame", nil, awardPanel)
     awardScroll:EnableMouseWheel(true)
@@ -635,7 +730,7 @@ local function CreateConfigFrame()
 
         btn:SetScript("OnClick", function(self)
             frame.selected = self.player
-            frame.selectedLabel:SetText("Selected Player: " .. self.player.name)
+            frame.selectedLabel:SetText("Player: " .. self.player.name)
             for _, other in ipairs(frame.playerButtons) do
                 if other == self then
                     other.selectedTexture:Show()
@@ -693,7 +788,7 @@ local function CreateConfigFrame()
         frame.linkText.text:SetText("ALT+SHIFT+CLICK or Drag & Drop an Item")
         frame.itemIcon.texture:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
         frame.itemIcon:SetBackdropBorderColor(0.5, 0.5, 0.5)
-        frame.selectedLabel:SetText("Selected Player: None")
+        frame.selectedLabel:SetText("Player: None")
         for _, btn in ipairs(frame.playerButtons) do
             btn.selectedTexture:Hide()
         end
@@ -819,7 +914,7 @@ local function CreateConfigFrame()
                 return
             end
             frame.selectedRoll = self.rollData
-            frame.selectedRollLabel:SetText("Selected Player: " .. self.rollData.name)
+            frame.selectedRollLabel:SetText("Player: " .. self.rollData.name)
             for _, other in ipairs(frame.rollButtons) do
                 if other == self then
                     other.selectedTexture:Show()
@@ -836,7 +931,7 @@ local function CreateConfigFrame()
 
     frame.selectedRollLabel = rollPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     frame.selectedRollLabel:SetPoint("TOPLEFT", frame.srTextRoll, "BOTTOMLEFT", 0, -12)
-    frame.selectedRollLabel:SetText("Selected Player: None")
+    frame.selectedRollLabel:SetText("Player: None")
 
     frame.rollAssignButton = CreateFrame("Button", nil, rollPanel, "GameMenuButtonTemplate")
     frame.rollAssignButton:SetSize(76, 24)
@@ -888,7 +983,7 @@ local function CreateConfigFrame()
         frame.linkTextRoll.text:SetText("ALT+CLICK or Drag & Drop an Item")
         frame.itemIconRoll.texture:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
         frame.itemIconRoll:SetBackdropBorderColor(0.5, 0.5, 0.5)
-        frame.selectedRollLabel:SetText("Selected Player: None")
+        frame.selectedRollLabel:SetText("Player: None")
         for _, btn in ipairs(frame.rollButtons) do
             btn.selectedTexture:Hide()
             btn.rollData = nil
@@ -1767,7 +1862,7 @@ local function HookCustomLootButtons()
                         BadStorms.UpdateItemSelection(f, link)
                         f.data.lootSlot = slot
                         BadStorms.currentRolls = {}
-                        f.selectedRollLabel:SetText("Selected Player: None")
+                        f.selectedRollLabel:SetText("Player: None")
                         for _, btn in ipairs(f.rollButtons) do
                             btn.selectedTexture:Hide()
                             btn.rollData = nil
@@ -1995,7 +2090,7 @@ hooksecurefunc("HandleModifiedItemClick", function(link)
                 BadStorms.UpdateItemSelection(f, link)
                 f.data.lootSlot = i
                 BadStorms.currentRolls = {}
-                f.selectedRollLabel:SetText("Selected Player: None")
+                f.selectedRollLabel:SetText("Player: None")
                 for _, btn in ipairs(f.rollButtons) do
                     btn.selectedTexture:Hide()
                     btn.rollData = nil

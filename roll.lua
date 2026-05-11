@@ -83,7 +83,7 @@ local function EndRoll(frame)
     if #BadStorms.currentRolls > 0 then
         local winner = BadStorms.currentRolls[1]
         frame.selectedRoll = winner
-        frame.selectedRollLabel:SetText("Selected Player: " .. winner.name)
+        frame.selectedRollLabel:SetText("Player: " .. winner.name)
         frame.rollAssignButton:Enable()
         for _, btn in ipairs(frame.rollButtons) do
             if btn.rollData and btn.rollData.name == winner.name then

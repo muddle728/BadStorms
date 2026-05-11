@@ -20,7 +20,9 @@ if not BadStormsSettings then
         plusOnes = {},
         pendingTrades = {},
         tradeTotals = {},
-        autoMasterLoot = false
+        autoMasterLoot = false,
+        disenchanterEnabled = false,
+        disenchanter = ""
     }
 end
 BadStormsSettings.srReservations = BadStormsSettings.srReservations or {}
@@ -34,6 +36,8 @@ BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
 BadStormsSettings.tradeTotals = BadStormsSettings.tradeTotals or {}
 BadStormsSettings.autoMasterLoot = BadStormsSettings.autoMasterLoot == nil and false or BadStormsSettings.autoMasterLoot
 BadStormsSettings.minimapPos = BadStormsSettings.minimapPos or 0
+BadStormsSettings.disenchanterEnabled = BadStormsSettings.disenchanterEnabled == nil and false or BadStormsSettings.disenchanterEnabled
+BadStormsSettings.disenchanter = BadStormsSettings.disenchanter or ""
 
 function BadStorms.GetItemID(link)
     if type(link) == "number" then

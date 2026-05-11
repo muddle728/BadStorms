@@ -20,9 +20,24 @@ local function CheckAutoMasterLoot()
     if not guid then
         return
     end
-    local _, _, _, _, _, mobID = strsplit("-", guid)
-    mobID = tonumber(mobID)
-    if not mobID or not BossIDs[mobID] then
+
+    local isBoss
+    if guid:find("-") then
+        local _, _, _, _, _, mobID = strsplit("-", guid)
+        mobID = tonumber(mobID)
+        isBoss = mobID and BossIDs[mobID]
+    else
+        local hex = guid:sub(3)
+        if #hex == 16 then
+            local mobID = tonumber(hex:sub(7, 10), 16)
+            isBoss = mobID and BossIDs[mobID]
+        end
+        if not isBoss then
+            isBoss = UnitClassification("target") == "worldboss" or UnitLevel("target") == -1
+        end
+    end
+
+    if not isBoss then
         return
     end
     if not BadStorms.InGroup() then
@@ -35,7 +50,6 @@ local function CheckAutoMasterLoot()
         return
     end
     SetLootMethod("master", "player")
-    print("|cff00ff00BadStorms:|r Loot method set to Master Looter.")
 end
 
 local function CreateMinimapButton()

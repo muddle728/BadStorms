@@ -463,7 +463,7 @@ local function CreateConfigFrame()
     enableHelp:SetWidth(440)
     enableHelp:SetJustifyH("LEFT")
     enableHelp:SetText(
-        "Enables ALT+CLICK to roll items, ALT+SHIFT+CLICK to award items, drag & drop, and auto-looting all items to the master looter.")
+        "Enables ALT+CLICK to roll items, ALT+SHIFT+CLICK to award items, drag & drop, and auto-looting all items to the Master Looter.")
 
     autoLootCheckbox = CreateFrame("CheckButton", "BadStormsAutoLootCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
@@ -480,7 +480,7 @@ local function CreateConfigFrame()
     end)
 
     local autoLootWarning = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    autoLootWarning:SetPoint("TOPLEFT", autoLootCheckbox, "BOTTOMLEFT", 24, -2)
+    autoLootWarning:SetPoint("TOPLEFT", autoLootCheckbox, "BOTTOMLEFT", 24, 0)
     autoLootWarning:SetWidth(440)
     autoLootWarning:SetJustifyH("LEFT")
     autoLootWarning:SetTextColor(1, 0.5, 0.5)
@@ -488,9 +488,8 @@ local function CreateConfigFrame()
 
     local autoMLCheckbox = CreateFrame("CheckButton", "BadStormsAutoMLCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
-    autoMLCheckbox:SetPoint("TOPLEFT", autoLootCheckbox, "BOTTOMLEFT", 0, -27)
-    _G["BadStormsAutoMLCheckboxText"]:SetText(
-        "Enable Auto-Switch to Master Looter when targeting a Boss (Requires Group Leader)")
+    autoMLCheckbox:SetPoint("TOPLEFT", autoLootCheckbox, "BOTTOMLEFT", 0, -20)
+    _G["BadStormsAutoMLCheckboxText"]:SetText("Enable Auto-Switch to Master Looter (Requires Group Leader)")
     autoMLCheckbox:SetChecked(BadStormsSettings.autoMasterLoot)
     autoMLCheckbox:SetScript("OnClick", function(self)
         BadStormsSettings.autoMasterLoot = self:GetChecked()
@@ -499,7 +498,16 @@ local function CreateConfigFrame()
         end
     end)
 
-    local disenchanterCheckbox = CreateFrame("CheckButton", "BadStormsDisenchanterCheckbox", settingsPanel,
+    local autoMLHelp = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    autoMLHelp:SetPoint("TOPLEFT", autoMLCheckbox, "BOTTOMLEFT", 24, 0)
+    autoMLHelp:SetWidth(440)
+    autoMLHelp:SetJustifyH("LEFT")
+    autoMLHelp:SetText("Attempts set Master Looter when targeting a boss.")
+    autoMLHelp:SetTextColor(1, 0.82, 0)
+
+    local disenchanterCheckbox
+    local disenchanterText
+    disenchanterCheckbox = CreateFrame("CheckButton", "BadStormsDisenchanterCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
     disenchanterCheckbox:SetPoint("TOPLEFT", autoMLCheckbox, "BOTTOMLEFT", 0, -18)
     _G["BadStormsDisenchanterCheckboxText"]:SetText("Enable Disenchanter")
@@ -514,6 +522,13 @@ local function CreateConfigFrame()
             disenchanterText:SetBackdropBorderColor(0.3, 0.3, 0.3)
         end
     end)
+
+    local disenchanterHelp = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    disenchanterHelp:SetPoint("TOPLEFT", disenchanterCheckbox, "BOTTOMLEFT", 24, -2)
+    disenchanterHelp:SetWidth(440)
+    disenchanterHelp:SetJustifyH("LEFT")
+    disenchanterHelp:SetText("Sends items to be disenchanted to the selected player.")
+    disenchanterHelp:SetTextColor(1, 0.82, 0)
 
     local disenchanterLabel = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     disenchanterLabel:SetPoint("LEFT", disenchanterCheckbox, "RIGHT", 175, 0)
@@ -596,7 +611,7 @@ local function CreateConfigFrame()
 
     local hideMinimapCheckbox = CreateFrame("CheckButton", "BadStormsHideMinimapCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
-    hideMinimapCheckbox:SetPoint("TOPLEFT", disenchanterCheckbox, "BOTTOMLEFT", 0, -18)
+    hideMinimapCheckbox:SetPoint("TOPLEFT", disenchanterCheckbox, "BOTTOMLEFT", 0, -20)
     _G["BadStormsHideMinimapCheckboxText"]:SetText("Show Minimap Button")
     hideMinimapCheckbox:SetChecked(not BadStormsSettings.hideMinimap)
     hideMinimapCheckbox:SetScript("OnClick", function(self)
@@ -617,7 +632,7 @@ local function CreateConfigFrame()
     notesTitle:SetText("Usage:")
 
     local notes = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    notes:SetPoint("TOPLEFT", notesTitle, "BOTTOMLEFT", 0, -6)
+    notes:SetPoint("TOPLEFT", notesTitle, "BOTTOMLEFT", 0, 0)
     notes:SetWidth(520)
     notes:SetJustifyH("LEFT")
     notes:SetText(
@@ -1359,7 +1374,7 @@ local function CreateConfigFrame()
             table.insert(list, {
                 name = name,
                 count = BadStormsSettings.plusOnes[name] or 0,
-                class = class,
+                class = class
             })
         end
 
@@ -1598,8 +1613,6 @@ local function CheckLootMasterTransition()
     end
 end
 
-
-
 local BadStormsFrame = CreateFrame("Frame")
 BadStormsFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 BadStormsFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
@@ -1750,11 +1763,41 @@ lootFrame:SetScript("OnEvent", function()
         if quality < 2 and (IsEquippableItem(item) or quantity == 0) then
             LootSlot(i)
         elseif quality > 1 then
-            if isML then
+            if quality == 2 and IsEquippableItem(item) and BadStormsSettings.disenchanterEnabled and
+                BadStormsSettings.disenchanter ~= "" and isML then
+                local dePlayer = BadStormsSettings.disenchanter
+                local deFound = false
+                for ci = 1, 40 do
+                    local candidate = GetMasterLootCandidate(ci)
+                    if not candidate then
+                        break
+                    end
+                    if candidate == dePlayer then
+                        SendToChannel("LOOT: " .. item .. " (disenchant) sent to " .. dePlayer)
+                        GiveMasterLoot(i, ci)
+                        deFound = true
+                        break
+                    end
+                end
+                if not deFound then
+                    for ci = 1, 40 do
+                        local name = GetMasterLootCandidate(ci)
+                        if name == playerName then
+                            if IsEquippableItem(item) then 
+                                SendToChannel("LOOT: " .. item)
+                            end
+                            GiveMasterLoot(i, ci)
+                            break
+                        end
+                    end
+                end
+            elseif isML then
                 for ci = 1, 40 do
                     local name = GetMasterLootCandidate(ci)
                     if name == playerName then
-                        SendToChannel("LOOT: " .. item)
+                        if IsEquippableItem(item) then 
+                            SendToChannel("LOOT: " .. item)
+                        end
                         GiveMasterLoot(i, ci)
                         break
                     end
@@ -1925,7 +1968,9 @@ StaticPopupDialogs["BadStormsConfirmAssign"] = {
         if data.lootSlot then
             for ci = 1, 40 do
                 local candidate = GetMasterLootCandidate(ci)
-                if not candidate then break end
+                if not candidate then
+                    break
+                end
                 if candidate == data.name then
                     GiveMasterLoot(data.lootSlot, ci)
                     break
@@ -1956,8 +2001,9 @@ StaticPopupDialogs["BadStormsConfirmAssign"] = {
 
             if not UnitIsUnit(data.unit, "player") then
                 if not CheckInteractDistance(data.unit, 2) then
-                    SendChatMessage("WARNING: " .. data.name .. " is out of trade range. Please open trade with me for " ..
-                                        data.link .. "!", "WHISPER", nil, data.name)
+                    SendChatMessage(
+                        "WARNING: " .. data.name .. " is out of trade range. Please open trade with me for " ..
+                            data.link .. "!", "WHISPER", nil, data.name)
                     return
                 end
                 BadStormsMenuFrame:Hide()
@@ -2064,8 +2110,12 @@ hooksecurefunc("HandleModifiedItemClick", function(link)
             if UIErrorsFrame then
                 msg = "BadStorms: " .. msg
                 UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0)
-                C_Timer.After(1, function() UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0) end)
-                C_Timer.After(2, function() UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0) end)
+                C_Timer.After(1, function()
+                    UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0)
+                end)
+                C_Timer.After(2, function()
+                    UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0)
+                end)
             end
             return
         end

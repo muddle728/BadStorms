@@ -142,7 +142,7 @@ local function ShowSRImportDialog()
                 ParseSRCSV(text)
                 editBox:SetText("")
                 dialog:Hide()
-                StaticPopup_Show("BadStormsConfirmClearPlusOnesOnImport")
+                StaticPopup_Show("BadStormsConfirmEnablePlusOnes")
             else
                 editBox:SetText("")
                 dialog:Hide()

@@ -48,7 +48,8 @@ if not BadStormsSettings then
         tradeTotals = {},
         autoMasterLoot = false,
         disenchanterEnabled = false,
-        disenchanter = ""
+        disenchanter = "",
+        frameScale = 1.0
     }
 end
 BadStormsSettings.srReservations = BadStormsSettings.srReservations or {}
@@ -64,6 +65,7 @@ BadStormsSettings.autoMasterLoot = BadStormsSettings.autoMasterLoot == nil and f
 BadStormsSettings.minimapPos = BadStormsSettings.minimapPos or 0
 BadStormsSettings.disenchanterEnabled = BadStormsSettings.disenchanterEnabled == nil and false or BadStormsSettings.disenchanterEnabled
 BadStormsSettings.disenchanter = BadStormsSettings.disenchanter or ""
+BadStormsSettings.frameScale = BadStormsSettings.frameScale or 1.0
 
 function BadStorms.GetItemID(link)
     if type(link) == "number" then

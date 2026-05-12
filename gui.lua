@@ -167,6 +167,7 @@ local function CreateConfigFrame()
         end
     end)
 
+    frame:EnableMouseWheel(true)
     frame:SetScript("OnReceiveDrag", function(self)
         local cursorType, link = GetCursorInfo()
         if cursorType == "item" and link then
@@ -753,11 +754,11 @@ local function CreateConfigFrame()
     notesTitle:SetText("Usage:")
 
     local notes = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    notes:SetPoint("TOPLEFT", notesTitle, "BOTTOMLEFT", 0, 0)
+    notes:SetPoint("TOPLEFT", notesTitle, "BOTTOMLEFT", 0, 5)
     notes:SetWidth(520)
     notes:SetJustifyH("LEFT")
     notes:SetText(
-        "\n|cff66ccffALT+CLICK |r an item in your bags or loot window to open the Roll tab.\n|cff66ccffALT+SHIFT+CLICK|r an item in your bags or loot window to open the Award tab.")
+        "\n|cff66ccffALT+CLICK |r an item in your bags or loot window to open the Roll tab.\n|cff66ccffALT+SHIFT+CLICK|r an item in your bags or loot window to open the Award tab.\n|cff66ccffSHIFT+SCROLL|r on the frame to adjust the UI scale.\n|cff66ccffSHIFT+RIGHT CLICK|r on the frame to reset the UI scale to 1.")
 
     -- Award panel
     frame.itemIcon = CreateFrame("Button", nil, awardPanel)
@@ -1792,9 +1793,29 @@ local function CreateConfigFrame()
             UpdateLootMasterState()
         end
     end)
+    frame:SetScript("OnMouseDown", function(self, button)
+        if button == "RightButton" and IsShiftKeyDown() then
+            BadStormsSettings.frameScale = 1.0
+            self:SetScale(1.0)
+        end
+    end)
+    frame:SetScript("OnMouseWheel", function(self, delta)
+        if IsShiftKeyDown() then
+            local s = (tonumber(BadStormsSettings.frameScale) or 1.0) + delta * 0.05
+            s = math.max(0.60, math.min(1.25, s))
+            BadStormsSettings.frameScale = s
+            self:SetScale(s)
+        end
+    end)
 
     BadStorms.configFrame = frame
+
+    local initialScale = tonumber(BadStormsSettings.frameScale) or 1.0
+    initialScale = math.max(0.75, math.min(1.25, initialScale))
+    BadStormsSettings.frameScale = initialScale
+    frame:SetScale(initialScale)
 end
+
 BadStorms.CreateConfigFrame = CreateConfigFrame
 
 function BadStorms:ToggleConfigFrame()

@@ -285,6 +285,72 @@ local function CreateConfigFrame()
     srCountText:SetPoint("RIGHT", srPanel, "TOPRIGHT", 0, 0)
     srCountText:SetText("")
 
+    local srRefreshBtn = CreateFrame("Button", nil, srPanel, "GameMenuButtonTemplate")
+    srRefreshBtn:SetSize(80, 24)
+    srRefreshBtn:SetPoint("RIGHT", srCountText, "LEFT", -8, 0)
+    srRefreshBtn:SetText("Refresh")
+    srRefreshBtn:SetScript("OnClick", function()
+        frame.PopulateSRList()
+    end)
+
+    local srAnnounceBtn = CreateFrame("Button", nil, srPanel, "GameMenuButtonTemplate")
+    srAnnounceBtn:SetSize(130, 24)
+    srAnnounceBtn:SetText("Announce Missing")
+    srAnnounceBtn:SetPoint("RIGHT", srRefreshBtn, "LEFT", -4, 0)
+    srAnnounceBtn:SetScript("OnClick", function()
+        local reservations = BadStormsSettings.srReservations or {}
+        local srNames = {}
+        for _, r in ipairs(reservations) do
+            srNames[r.name:lower()] = true
+        end
+        local missing = {}
+        local raidCount = GetNumRaidMembers()
+        local partyCount = GetNumPartyMembers()
+        if raidCount > 0 then
+            for i = 1, raidCount do
+                local name = GetRaidRosterInfo(i)
+                if name and not srNames[name:lower()] then
+                    table.insert(missing, name)
+                end
+            end
+        elseif partyCount > 0 then
+            local myName = UnitName("player")
+            if myName and not srNames[myName:lower()] then
+                table.insert(missing, myName)
+            end
+            for i = 1, partyCount do
+                local name = UnitName("party" .. i)
+                if name and not srNames[name:lower()] then
+                    table.insert(missing, name)
+                end
+            end
+        end
+        if #missing == 0 then
+            local msg = "All players have soft reserves."
+            if BadStorms.CanRaidWarning() then
+                SendChatMessage(msg, "RAID_WARNING")
+            elseif GetNumRaidMembers() > 0 then
+                SendChatMessage(msg, "RAID")
+            elseif GetNumPartyMembers() > 0 then
+                SendChatMessage(msg, "PARTY")
+            else
+                print("|cff00ff00BadStorms:|r " .. msg)
+            end
+            return
+        end
+        table.sort(missing)
+        local msg = "Missing SR: " .. table.concat(missing, ", ")
+        if BadStorms.CanRaidWarning() then
+            SendChatMessage(msg, "RAID_WARNING")
+        elseif GetNumRaidMembers() > 0 then
+            SendChatMessage(msg, "RAID")
+        elseif GetNumPartyMembers() > 0 then
+            SendChatMessage(msg, "PARTY")
+        else
+            print("|cff00ff00BadStorms:|r " .. msg)
+        end
+    end)
+
     local srScrollIdx = 0
     local SR_VISIBLE = 10
 
@@ -297,8 +363,8 @@ local function CreateConfigFrame()
     frame.srButtons = {}
     for i = 1, SR_VISIBLE do
         local btn = CreateFrame("Button", nil, srPanel)
-        btn:SetPoint("TOPLEFT", srPanel, "TOPLEFT", 4, -35 - (i - 1) * 26)
-        btn:SetPoint("TOPRIGHT", srPanel, "TOPRIGHT", -4, -35 - (i - 1) * 26)
+        btn:SetPoint("TOPLEFT", srPanel, "TOPLEFT", 4, -20 - (i - 1) * 26)
+        btn:SetPoint("TOPRIGHT", srPanel, "TOPRIGHT", -4, -20 - (i - 1) * 26)
         btn:SetHeight(24)
 
         btn.bg = btn:CreateTexture(nil, "BACKGROUND")
@@ -312,26 +378,33 @@ local function CreateConfigFrame()
         hl:Hide()
         btn.highlight = hl
 
-        btn.icon = btn:CreateTexture(nil, "OVERLAY")
-        btn.icon:SetSize(20, 20)
-        btn.icon:SetPoint("LEFT", btn, "LEFT", 4, 0)
-
         btn.nameText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        btn.nameText:SetPoint("LEFT", btn, "LEFT", 28, 0)
+        btn.nameText:SetPoint("LEFT", btn, "LEFT", 4, 0)
         btn.nameText:SetWidth(200)
         btn.nameText:SetJustifyH("LEFT")
 
-        btn.playerText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        btn.playerText:SetPoint("LEFT", btn, "LEFT", 232, 0)
-        btn.playerText:SetWidth(210)
+        btn.itemsText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        btn.itemsText:SetPoint("LEFT", btn, "LEFT", 208, 0)
+        btn.itemsText:SetWidth(234)
+        btn.itemsText:SetJustifyH("LEFT")
 
         btn:SetScript("OnEnter", function(self)
             self.highlight:Show()
-            if self.itemLink then
+            if self.playerItems and #self.playerItems > 0 then
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:SetHyperlink(self.itemLink)
-                if self.itemId then
-                    AppendSRTooltip(self.itemId)
+                local first = self.playerItems[1]
+                GameTooltip:SetHyperlink(first.link)
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine(self.playerName or "Unknown", 1, 1, 1)
+                if #self.playerItems > 1 then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine("Also reserved:", 0.82, 0.82, 0.82)
+                    for i = 2, #self.playerItems do
+                        GameTooltip:AddLine("  " .. (self.playerItems[i].name or ""), 1, 1, 1)
+                    end
+                end
+                if first.id then
+                    AppendSRTooltip(first.id)
                 end
                 GameTooltip:Show()
             end
@@ -347,83 +420,129 @@ local function CreateConfigFrame()
 
     local function PopulateSRList()
         local reservations = BadStormsSettings.srReservations or {}
-        local items = {}
+        local playerMap = {}
         for _, r in ipairs(reservations) do
-            local id = r.itemId
-            if not items[id] then
-                items[id] = {
-                    item = r.item,
-                    itemId = id,
-                    players = {}
-                }
+            if not playerMap[r.name] then
+                playerMap[r.name] = {}
             end
             local count = (tonumber(r.plus) or 0) + 1
-            items[id].players[r.name] = (items[id].players[r.name] or 0) + count
+            local key = tostring(r.itemId)
+            if not playerMap[r.name][key] then
+                playerMap[r.name][key] = {
+                    item = r.item,
+                    itemId = r.itemId,
+                    count = 0
+                }
+            end
+            playerMap[r.name][key].count = playerMap[r.name][key].count + count
         end
-        local itemList = {}
-        for id, data in pairs(items) do
-            table.insert(itemList, data)
+        local playerList = {}
+        for name, itemMap in pairs(playerMap) do
+            local itemList = {}
+            for _, data in pairs(itemMap) do
+                table.insert(itemList, data)
+            end
+            table.sort(itemList, function(a, b) return (a.item or "") < (b.item or "") end)
+            table.insert(playerList, { name = name, items = itemList })
         end
-        table.sort(itemList, function(a, b)
-            return (a.item or "") < (b.item or "")
-        end)
-        frame.srItemList = itemList
+        table.sort(playerList, function(a, b) return a.name < b.name end)
 
-        local uniquePlayers = {}
-        for _, r in ipairs(reservations) do
-            uniquePlayers[r.name] = true
+        local srNames = {}
+        for _, entry in ipairs(playerList) do
+            srNames[entry.name:lower()] = true
         end
-        local totalPlayers = 0
-        for _ in pairs(uniquePlayers) do
-            totalPlayers = totalPlayers + 1
+        local raidCount = GetNumRaidMembers()
+        local partyCount = GetNumPartyMembers()
+        if raidCount > 0 then
+            for i = 1, raidCount do
+                local name = GetRaidRosterInfo(i)
+                if name and not srNames[name:lower()] then
+                    table.insert(playerList, { name = name, items = {}, noSR = true })
+                    srNames[name:lower()] = true
+                end
+            end
+        elseif partyCount > 0 then
+            local myName = UnitName("player")
+            if myName and not srNames[myName:lower()] then
+                table.insert(playerList, { name = myName, items = {}, noSR = true })
+                srNames[myName:lower()] = true
+            end
+            for i = 1, partyCount do
+                local name = UnitName("party" .. i)
+                if name and not srNames[name:lower()] then
+                    table.insert(playerList, { name = name, items = {}, noSR = true })
+                    srNames[name:lower()] = true
+                end
+            end
         end
-        srCountText:SetText(totalPlayers .. " player(s)")
+        table.sort(playerList, function(a, b) return a.name < b.name end)
 
-        if #itemList == 0 then
+        frame.srItemList = playerList
+
+        local srCount = 0
+        for _, entry in ipairs(playerList) do
+            if not entry.noSR then
+                srCount = srCount + 1
+            end
+        end
+        srCountText:SetText(srCount .. " player(s) with SR")
+
+        local hasAnyReservation = next(playerMap) ~= nil
+        if not hasAnyReservation then
             ShowSRImportDialog()
         end
 
         for i, btn in ipairs(frame.srButtons) do
-            local data = itemList[srScrollIdx + i]
-            if data then
-                local itemName, _, quality, _, _, _, _, _, _, texture = GetItemInfo(data.itemId)
-                if not texture then
-                    local testLink = "|cffffffff|Hitem:" .. data.itemId .. ":::::::::::::::::|h[" .. data.item ..
-                                         "]|h|r"
-                    itemName, _, quality, _, _, _, _, _, _, texture = GetItemInfo(testLink)
-                    itemName = itemName or data.item
-                end
-                btn.icon:SetTexture(texture or "Interface\\Icons\\INV_Misc_QuestionMark")
-                btn.nameText:SetText(itemName)
-                if quality then
-                    local qColor = ITEM_QUALITY_COLORS[quality]
-                    btn.nameText:SetTextColor(qColor.r, qColor.g, qColor.b)
+            local entry = playerList[srScrollIdx + i]
+            if entry then
+                if entry.noSR then
+                    btn.nameText:SetText("|cffff4444" .. entry.name .. "|r")
                 else
-                    btn.nameText:SetTextColor(1, 1, 1)
-                end
-
-                local playerParts = {}
-                for pName, count in pairs(data.players) do
-                    local _, class = UnitClass(pName)
+                    local unit = BadStorms.GetPlayerUnit(entry.name)
+                    local _, class
+                    if unit then
+                        _, class = UnitClass(unit)
+                    end
                     if class then
                         local r, g, b = BadStorms.GetClassColor(class)
                         local hex = string.format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
-                        pName = hex .. pName .. "|r"
-                    end
-                    if count > 1 then
-                        table.insert(playerParts, pName .. " x" .. count)
+                        btn.nameText:SetText(hex .. entry.name .. "|r")
                     else
-                        table.insert(playerParts, pName)
+                        btn.nameText:SetText(entry.name)
                     end
                 end
-                btn.playerText:SetText(table.concat(playerParts, ", "))
 
-                local _, itemLink = GetItemInfo(data.itemId)
-                if not itemLink then
-                    itemLink = "|cffffffff|Hitem:" .. data.itemId .. ":::::::::::::::::|h[" .. itemName .. "]|h|r"
+                local itemParts = {}
+                local itemData = {}
+                if entry.noSR then
+                    table.insert(itemParts, "|cffff4444No SR|r")
                 end
-                btn.itemLink = itemLink
-                btn.itemId = data.itemId
+                for _, data in ipairs(entry.items) do
+                    local itemName = data.item or ("Item " .. data.itemId)
+                    local quality
+                    local _, itemLink = GetItemInfo(data.itemId)
+                    if not itemLink then
+                        local testLink = "|cffffffff|Hitem:" .. data.itemId .. ":::::::::::::::::|h[" .. itemName .. "]|h|r"
+                        _, _, quality, _, _, _, _, _, _, _ = GetItemInfo(testLink)
+                        itemLink = testLink
+                    else
+                        _, _, quality = GetItemInfo(itemLink)
+                    end
+                    local displayName = itemName
+                    if data.count > 1 then
+                        displayName = displayName .. " x" .. data.count
+                    end
+                    if quality then
+                        local qColor = ITEM_QUALITY_COLORS[quality]
+                        local hex = string.format("|cff%02x%02x%02x", qColor.r * 255, qColor.g * 255, qColor.b * 255)
+                        displayName = hex .. displayName .. "|r"
+                    end
+                    table.insert(itemParts, displayName)
+                    table.insert(itemData, { link = itemLink, id = data.itemId, name = itemName })
+                end
+                btn.itemsText:SetText(table.concat(itemParts, ", "))
+                btn.playerName = entry.name
+                btn.playerItems = itemData
 
                 btn:Show()
             else
@@ -783,6 +902,10 @@ local function CreateConfigFrame()
         if not data or not data.link then
             return
         end
+        if not BadStorms.ItemExistsInSlot(data) then
+            print("|cff00ff00BadStorms:|r Item is no longer available.")
+            return
+        end
         StaticPopup_Show("BadStormsConfirmAssign", data.link, selected.name, {
             name = selected.name,
             unit = selected.unit,
@@ -826,6 +949,14 @@ local function CreateConfigFrame()
         end
         local data = frame.data
         if not data or not data.link then
+            return
+        end
+        if not BadStorms.ItemExistsInSlot(data) then
+            print("|cff00ff00BadStorms:|r Item is no longer available.")
+            return
+        end
+        if not BadStorms.IsItemEquippable(data.link) then
+            print("|cff00ff00BadStorms:|r Item must be equippable to disenchant.")
             return
         end
         StaticPopup_Show("BadStormsDisenchantConfirm", data.link, BadStormsSettings.disenchanter, {
@@ -1005,6 +1136,10 @@ local function CreateConfigFrame()
             print("|cff00ff00BadStorms:|r No item selected.")
             return
         end
+        if not BadStorms.ItemExistsInSlot(data) then
+            print("|cff00ff00BadStorms:|r Item is no longer available.")
+            return
+        end
         local rollNote = "Roll - " .. (selected.max == 100 and "MS" or "OS") .. " " .. selected.roll
         StaticPopup_Show("BadStormsConfirmAssign", data.link, selected.name, {
             name = selected.name,
@@ -1111,6 +1246,15 @@ local function CreateConfigFrame()
         if not link then
             return
         end
+        local data = frame.data
+        if not BadStorms.ItemExistsInSlot(data) then
+            print("|cff00ff00BadStorms:|r Item is no longer available.")
+            return
+        end
+        if not BadStorms.IsItemEquippable(data.link) then
+            print("|cff00ff00BadStorms:|r Item must be equippable to disenchant.")
+            return
+        end
         StaticPopup_Show("BadStormsDisenchantConfirm", link, BadStormsSettings.disenchanter, {
             link = link,
             lootSlot = frame.data.lootSlot,
@@ -1130,7 +1274,7 @@ local function CreateConfigFrame()
         GameTooltip:Hide()
     end)
 
-    if BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" and frame.data and frame.data.link then
+    if BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" and frame.data and frame.data.link and BadStorms.IsItemEquippable(frame.data.link) then
         frame.disenchantRollButton:Enable()
     end
 
@@ -1579,17 +1723,33 @@ local function CreateConfigFrame()
             text:SetTextColor(1, 1, 1)
             awardTab:Enable()
             rollTab:Enable()
-            plusOneTab:Enable()
             enableCheckbox:Enable()
         else
             text:SetTextColor(1, 0, 0)
             awardTab:Disable()
             rollTab:Disable()
-            plusOneTab:Disable()
             enableCheckbox:Disable()
         end
         srTab:Enable()
         exportTab:Enable()
+        plusOneTab:Enable()
+
+        local data = frame.data
+        local canDisenchant = BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" and data and data.link and BadStorms.IsItemEquippable(data.link)
+        if frame.awardDisenchantButton then
+            if canDisenchant then
+                frame.awardDisenchantButton:Enable()
+            else
+                frame.awardDisenchantButton:Disable()
+            end
+        end
+        if frame.disenchantRollButton then
+            if canDisenchant then
+                frame.disenchantRollButton:Enable()
+            else
+                frame.disenchantRollButton:Disable()
+            end
+        end
     end
     frame.UpdateLootMasterState = UpdateLootMasterState
     UpdateLootMasterState()
@@ -1688,6 +1848,7 @@ local BadStormsFrame = CreateFrame("Frame")
 BadStormsFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 BadStormsFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
 BadStormsFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
+BadStormsFrame:RegisterEvent("LOOT_METHOD_CHANGED")
 BadStormsFrame:SetScript("OnEvent", function(self, event)
     if event == "PLAYER_ENTERING_WORLD" then
         print("|cff00ff00BadStorms:|r Addon loaded.")
@@ -1698,21 +1859,18 @@ BadStormsFrame:SetScript("OnEvent", function(self, event)
             CreateMinimapButton()
         end
         self:UnregisterEvent("PLAYER_ENTERING_WORLD")
-    elseif event == "GROUP_ROSTER_UPDATE" then
-        C_Timer.After(0.1, CheckLootMasterTransition)
+    elseif event == "GROUP_ROSTER_UPDATE" or event == "LOOT_METHOD_CHANGED" then
+        CheckLootMasterTransition()
     elseif event == "PLAYER_TARGET_CHANGED" then
         CheckAutoMasterLoot()
     end
 end)
 BadStormsFrame:SetScript("OnUpdate", function(self, elapsed)
     self.elapsed = (self.elapsed or 0) + elapsed
-    if self.elapsed < 2 then
+    if self.elapsed < 1 then
         return
     end
     self.elapsed = 0
-    if GetNumRaidMembers() == 0 and GetNumPartyMembers() == 0 then
-        return
-    end
     CheckLootMasterTransition()
 end)
 
@@ -2007,6 +2165,10 @@ StaticPopupDialogs["BadStormsConfirmAssign"] = {
     button1 = "Yes",
     button2 = "No",
     OnAccept = function(self, data)
+        if not BadStorms.ItemExistsInSlot(data) then
+            print("|cff00ff00BadStorms:|r Item is no longer available.")
+            return
+        end
 
         SendToChannel("LOOT: " .. data.link .. " awarded to " .. data.name)
 
@@ -2092,6 +2254,10 @@ StaticPopupDialogs["BadStormsDisenchantConfirm"] = {
     button1 = "Yes",
     button2 = "No",
     OnAccept = function(self, data)
+        if not BadStorms.ItemExistsInSlot(data) then
+            print("|cff00ff00BadStorms:|r Item is no longer available.")
+            return
+        end
         SendToChannel("LOOT: " .. data.link .. " sent to " .. data.disenchanter .. " (disenchant)")
 
         if data.lootSlot then

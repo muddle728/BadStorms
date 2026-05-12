@@ -4,6 +4,32 @@ local BadStorms = ns
 
 BadStorms.version = "1.0"
 
+if not C_Timer then
+    C_Timer = {}
+    function C_Timer.After(delay, callback)
+        local timer = CreateFrame("Frame")
+        local start = GetTime()
+        timer:SetScript("OnUpdate", function()
+            if GetTime() - start >= delay then
+                callback()
+                timer:SetScript("OnUpdate", nil)
+            end
+        end)
+    end
+    function C_Timer.NewTicker(interval, callback)
+        local frame = CreateFrame("Frame")
+        local accum = 0
+        frame:SetScript("OnUpdate", function(self, delta)
+            accum = accum + delta
+            if accum >= interval then
+                accum = accum - interval
+                callback()
+            end
+        end)
+        return { Cancel = function() frame:SetScript("OnUpdate", nil) end }
+    end
+end
+
 if not BadStormsSettings then
     BadStormsSettings = {
         enabled = false,
@@ -192,4 +218,25 @@ function BadStorms.FindItemInBags(itemId)
         end
     end
     return nil, nil, nil
+end
+
+function BadStorms.ItemExistsInSlot(data)
+    if not data then
+        return false
+    end
+    if data.lootSlot then
+        return GetLootSlotLink(data.lootSlot) ~= nil
+    end
+    if data.bag and data.slot then
+        return GetContainerItemLink(data.bag, data.slot) ~= nil
+    end
+    return false
+end
+
+function BadStorms.IsItemEquippable(link)
+    if not link then
+        return false
+    end
+    local _, _, _, _, _, _, _, _, equipSlot = GetItemInfo(link)
+    return equipSlot ~= nil and equipSlot ~= ""
 end

@@ -16,7 +16,7 @@ if not BadStormsSettings then
         srReservations = {},
         lastSRImport = "",
         exportData = {},
-        trackPlusOnes = false,
+        trackPlusOnes = true,
         plusOnes = {},
         pendingTrades = {},
         tradeTotals = {},
@@ -30,7 +30,7 @@ BadStormsSettings.lastSRImport = BadStormsSettings.lastSRImport or ""
 BadStormsSettings.altClickLooting = BadStormsSettings.altClickLooting == nil and true or
                                         BadStormsSettings.altClickLooting
 BadStormsSettings.exportData = BadStormsSettings.exportData or {}
-BadStormsSettings.trackPlusOnes = BadStormsSettings.trackPlusOnes == nil and false or BadStormsSettings.trackPlusOnes
+BadStormsSettings.trackPlusOnes = BadStormsSettings.trackPlusOnes == nil and true or BadStormsSettings.trackPlusOnes
 BadStormsSettings.plusOnes = BadStormsSettings.plusOnes or {}
 BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
 BadStormsSettings.tradeTotals = BadStormsSettings.tradeTotals or {}

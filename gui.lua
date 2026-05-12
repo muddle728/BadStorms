@@ -2209,7 +2209,7 @@ StaticPopupDialogs["BadStormsConfirmClearPlusOnes"] = {
 }
 
 StaticPopupDialogs["BadStormsConfirmClearPlusOnesOnImport"] = {
-    text = "Clear all plus one counts?",
+    text = "Clear existing plus one counts?",
     button1 = "Yes",
     button2 = "No",
     OnAccept = function()
@@ -2222,6 +2222,48 @@ StaticPopupDialogs["BadStormsConfirmClearPlusOnesOnImport"] = {
             BadStorms.UpdateRollDisplay(f)
         end
         print("|cff00ff00BadStorms:|r Plus ones cleared after SR import.")
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = false
+}
+
+StaticPopupDialogs["BadStormsConfirmEnablePlusOnes"] = {
+    text = "Enable plus ones tracking?",
+    button1 = "Yes",
+    button2 = "No",
+    OnAccept = function()
+        BadStormsSettings.trackPlusOnes = true
+        local checkbox = _G["BadStormsPlusOneCheckbox"]
+        if checkbox then
+            checkbox:SetChecked(true)
+        end
+        local f = BadStorms.configFrame
+        if f then
+            if f.PopulatePlusOnesList then
+                f.PopulatePlusOnesList()
+            end
+            BadStorms.UpdateRollDisplay(f)
+        end
+        print("|cff00ff00BadStorms:|r Plus ones tracking enabled.")
+        if next(BadStormsSettings.plusOnes) then
+            StaticPopup_Show("BadStormsConfirmClearPlusOnesOnImport")
+        end
+    end,
+    OnCancel = function()
+        BadStormsSettings.trackPlusOnes = false
+        local checkbox = _G["BadStormsPlusOneCheckbox"]
+        if checkbox then
+            checkbox:SetChecked(false)
+        end
+        local f = BadStorms.configFrame
+        if f then
+            if f.PopulatePlusOnesList then
+                f.PopulatePlusOnesList()
+            end
+            BadStorms.UpdateRollDisplay(f)
+        end
+        print("|cff00ff00BadStorms:|r Plus ones tracking disabled.")
     end,
     timeout = 0,
     whileDead = true,

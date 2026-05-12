@@ -514,13 +514,6 @@ local function CreateConfigFrame()
     disenchanterCheckbox:SetChecked(BadStormsSettings.disenchanterEnabled)
     disenchanterCheckbox:SetScript("OnClick", function(self)
         BadStormsSettings.disenchanterEnabled = self:GetChecked()
-        if BadStormsSettings.disenchanterEnabled then
-            disenchanterText:Enable()
-            disenchanterText:SetBackdropBorderColor(0.6, 0.6, 0.6)
-        else
-            disenchanterText:Disable()
-            disenchanterText:SetBackdropBorderColor(0.3, 0.3, 0.3)
-        end
         if frame.disenchantRollButton then
             if BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" and frame.data and frame.data.link then
                 frame.disenchantRollButton:Enable()
@@ -617,11 +610,6 @@ local function CreateConfigFrame()
         CloseDropDownMenus()
         ToggleDropDownMenu(1, nil, disenchanterMenu, self:GetName(), 0, 0)
     end)
-
-    if not BadStormsSettings.disenchanterEnabled then
-        disenchanterText:Disable()
-        disenchanterText:SetBackdropBorderColor(0.3, 0.3, 0.3)
-    end
 
     local hideMinimapCheckbox = CreateFrame("CheckButton", "BadStormsHideMinimapCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")

@@ -758,7 +758,7 @@ local function CreateConfigFrame()
     notes:SetWidth(520)
     notes:SetJustifyH("LEFT")
     notes:SetText(
-        "\n|cff66ccffALT+CLICK |r an item in your bags or loot window to open the Roll tab.\n|cff66ccffALT+SHIFT+CLICK|r an item in your bags or loot window to open the Award tab.\n|cff66ccffSHIFT+SCROLL|r on the frame to adjust the UI scale.\n|cff66ccffSHIFT+RIGHT CLICK|r on the frame to reset the UI scale to 1.")
+        "\n|cff66ccffALT+CLICK |r an item in your bags or loot window to open the Roll tab.\n|cff66ccffALT+SHIFT+CLICK|r an item in your bags or loot window to open the Award tab.\n|cff66ccffCTRL+SCROLL|r on the frame to adjust the UI scale.\n|cff66ccffCTRL+RIGHT CLICK|r on the frame to reset the UI scale to 1.")
 
     -- Award panel
     frame.itemIcon = CreateFrame("Button", nil, awardPanel)
@@ -1794,13 +1794,13 @@ local function CreateConfigFrame()
         end
     end)
     frame:SetScript("OnMouseDown", function(self, button)
-        if button == "RightButton" and IsShiftKeyDown() then
+        if button == "RightButton" and IsControlKeyDown() then
             BadStormsSettings.frameScale = 1.0
             self:SetScale(1.0)
         end
     end)
     frame:SetScript("OnMouseWheel", function(self, delta)
-        if IsShiftKeyDown() then
+        if IsControlKeyDown() then
             local s = (tonumber(BadStormsSettings.frameScale) or 1.0) + delta * 0.05
             s = math.max(0.60, math.min(1.25, s))
             BadStormsSettings.frameScale = s
@@ -2143,7 +2143,7 @@ local function HookCustomLootButtons()
                     end
 
                     CloseDropDownMenus()
-                    if IsShiftKeyDown() then
+        if IsControlKeyDown() then
                         BadStorms.ShowAwardDialogForLoot(slot, link)
                     else
                         BadStorms.CreateConfigFrame()

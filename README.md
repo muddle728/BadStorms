@@ -15,8 +15,8 @@ Raid helper for master loot management, soft reserves, and rolls.
 | **Alt+Click** (loot window) | Start a roll for the item |
 | **Alt+Shift+Click** (loot window) | Open award dialog for the item |
 | **Drag & drop** item onto the frame | Same as Alt+Click |
-| **Shift+Scroll** on the frame | Adjust UI scale (0.60 – 1.25) |
-| **Shift+Right Click** on the frame | Reset UI scale to 1.0 |
+| **Ctrl+Scroll** on the frame | Adjust UI scale (0.60 – 1.25) |
+| **Ctrl+Right Click** on the frame | Reset UI scale to 1.0 |
 
 ## Tabs
 

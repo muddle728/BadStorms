@@ -6,7 +6,7 @@ function BadStorms.PlayerHasReservation(itemId, playerName)
     local playerLower = playerName:lower()
     local total = 0
     for _, r in ipairs(BadStormsSettings.srReservations) do
-        if r.itemId == itemId and r.name:lower() == playerLower then
+        if r.itemId == itemId and r.name:lower() == playerLower and not r.received then
             total = total + (tonumber(r.plus) or 0) + 1
         end
     end
@@ -190,35 +190,49 @@ BadStorms.ShowSRImportDialog = ShowSRImportDialog
 
 function BadStorms.GetSRText(itemId)
     if not itemId or not BadStormsSettings.srReservations then return "" end
-    local players = {}
+    local pending = {}
+    local received = {}
     for _, r in ipairs(BadStormsSettings.srReservations) do
         if r.itemId == itemId then
             local count = (tonumber(r.plus) or 0) + 1
-            players[r.name] = (players[r.name] or 0) + count
+            if r.received then
+                received[r.name] = (received[r.name] or 0) + count
+            else
+                pending[r.name] = (pending[r.name] or 0) + count
+            end
         end
     end
-    local count = 0
-    for _ in pairs(players) do count = count + 1 end
-    if count == 0 then return "" end
+    local totalPlayers = 0
+    for _ in pairs(pending) do totalPlayers = totalPlayers + 1 end
+    for _ in pairs(received) do totalPlayers = totalPlayers + 1 end
+    if totalPlayers == 0 then return "" end
 
-    local sorted = {}
-    for name in pairs(players) do table.insert(sorted, name) end
-    table.sort(sorted)
     local parts = {}
+    local sorted = {}
+    for name in pairs(pending) do table.insert(sorted, name) end
+    table.sort(sorted)
     for _, name in ipairs(sorted) do
-        local total = players[name]
+        local total = pending[name]
         table.insert(parts, name .. (total > 1 and " x" .. total or ""))
+    end
+    sorted = {}
+    for name in pairs(received) do table.insert(sorted, name) end
+    table.sort(sorted)
+    for _, name in ipairs(sorted) do
+        local total = received[name]
+        table.insert(parts, "|cff888888" .. name .. " (received)" .. (total > 1 and " x" .. total or "") .. "|r")
     end
     return "SR: " .. table.concat(parts, ", ")
 end
 
 function BadStorms.AppendSRTooltip(itemId)
     local text = BadStorms.GetSRText(itemId)
-    if text == "" then return end
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine("Bad Storms Loot Assignments", 1, 1, 1)
-    GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("  " .. text, 0.82, 0.82, 0.82)
+    if text ~= "" then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("  " .. text, 0.82, 0.82, 0.82)
+    end
     GameTooltip:AddLine(" ")
     GameTooltip:Show()
 end
@@ -253,6 +267,9 @@ function BadStorms.AppendItemTooltipInfo(itemId)
     for playerName in pairs(pendingPlayers) do
         GameTooltip:AddLine("  Pending award: " .. playerName, 1, 1, 0)
     end
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("  |cff66ccffALT+CLICK|r to roll", 0.82, 0.82, 0.82)
+    GameTooltip:AddLine("  |cff66ccffALT+SHIFT+CLICK|r to award", 0.82, 0.82, 0.82)
     GameTooltip:AddLine(" ")
     GameTooltip:Show()
 end

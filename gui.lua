@@ -354,6 +354,8 @@ local function CreateConfigFrame()
 
     local srScrollIdx = 0
     local SR_VISIBLE = 10
+    local ROW_GAP = 24
+    local ROW_HEIGHT = 22
 
     srPanel:SetScript("OnMouseWheel", function(self, delta)
         local items = frame.srItemList or {}
@@ -364,9 +366,9 @@ local function CreateConfigFrame()
     frame.srButtons = {}
     for i = 1, SR_VISIBLE do
         local btn = CreateFrame("Button", nil, srPanel)
-        btn:SetPoint("TOPLEFT", srPanel, "TOPLEFT", 4, -20 - (i - 1) * 26)
-        btn:SetPoint("TOPRIGHT", srPanel, "TOPRIGHT", -4, -20 - (i - 1) * 26)
-        btn:SetHeight(24)
+        btn:SetPoint("TOPLEFT", srPanel, "TOPLEFT", 4, -20 - (i - 1) * ROW_GAP)
+        btn:SetPoint("TOPRIGHT", srPanel, "TOPRIGHT", -4, -20 - (i - 1) * ROW_GAP)
+        btn:SetHeight(ROW_HEIGHT)
 
         btn.bg = btn:CreateTexture(nil, "BACKGROUND")
         btn.bg:SetAllPoints()
@@ -384,36 +386,40 @@ local function CreateConfigFrame()
         btn.nameText:SetWidth(200)
         btn.nameText:SetJustifyH("LEFT")
 
-        btn.itemsText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        btn.itemsText:SetPoint("LEFT", btn, "LEFT", 208, 0)
-        btn.itemsText:SetWidth(234)
-        btn.itemsText:SetJustifyH("LEFT")
+        btn.itemButtons = {}
+        for j = 1, 10 do
+            local itemBtn = CreateFrame("Button", nil, btn)
+            itemBtn:SetHeight(22)
+            itemBtn:Hide()
 
-        btn:SetScript("OnEnter", function(self)
-            self.highlight:Show()
-            if self.playerItems and #self.playerItems > 0 then
-                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                local first = self.playerItems[1]
-                GameTooltip:SetHyperlink(first.link)
-                GameTooltip:AddLine(" ")
-                GameTooltip:AddLine(self.playerName or "Unknown", 1, 1, 1)
-                if #self.playerItems > 1 then
-                    GameTooltip:AddLine(" ")
-                    GameTooltip:AddLine("Also reserved:", 0.82, 0.82, 0.82)
-                    for i = 2, #self.playerItems do
-                        GameTooltip:AddLine("  " .. (self.playerItems[i].name or ""), 1, 1, 1)
-                    end
+            local hl2 = itemBtn:CreateTexture(nil, "HIGHLIGHT")
+            hl2:SetTexture("Interface\\Buttons\\WHITE8X8")
+            hl2:SetVertexColor(1, 1, 1, 0.15)
+            hl2:SetAllPoints()
+            itemBtn.highlight = hl2
+
+            itemBtn.text = itemBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            itemBtn.text:SetPoint("LEFT", itemBtn, "LEFT", 2, 0)
+            itemBtn.text:SetJustifyH("LEFT")
+
+            itemBtn:SetScript("OnEnter", function(self)
+                local parent = self:GetParent()
+                parent.highlight:Show()
+                self.highlight:Show()
+                if self.itemId then
+                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                    GameTooltip:SetHyperlink("item:" .. self.itemId)
+                    GameTooltip:Show()
                 end
-                if first.id then
-                    AppendSRTooltip(first.id)
-                end
-                GameTooltip:Show()
-            end
-        end)
-        btn:SetScript("OnLeave", function(self)
-            self.highlight:Hide()
-            GameTooltip_Hide()
-        end)
+            end)
+            itemBtn:SetScript("OnLeave", function(self)
+                self:GetParent().highlight:Hide()
+                self.highlight:Hide()
+                GameTooltip_Hide()
+            end)
+
+            btn.itemButtons[j] = itemBtn
+        end
 
         btn:Hide()
         frame.srButtons[i] = btn
@@ -432,10 +438,14 @@ local function CreateConfigFrame()
                 playerMap[r.name][key] = {
                     item = r.item,
                     itemId = r.itemId,
-                    count = 0
+                    count = 0,
+                    received = 0
                 }
             end
             playerMap[r.name][key].count = playerMap[r.name][key].count + count
+            if r.received then
+                playerMap[r.name][key].received = playerMap[r.name][key].received + count
+            end
         end
         local playerList = {}
         for name, itemMap in pairs(playerMap) do
@@ -513,37 +523,49 @@ local function CreateConfigFrame()
                     end
                 end
 
-                local itemParts = {}
-                local itemData = {}
-                if entry.noSR then
-                    table.insert(itemParts, "|cffff4444No SR|r")
-                end
-                for _, data in ipairs(entry.items) do
+                local xOffset = 208
+                for j, data in ipairs(entry.items) do
+                    local itemBtn = btn.itemButtons[j]
+                    if not itemBtn then break end
+
                     local itemName = data.item or ("Item " .. data.itemId)
-                    local quality
-                    local _, itemLink = GetItemInfo(data.itemId)
+                    local itemLink = GetItemInfo(data.itemId)
                     if not itemLink then
-                        local testLink = "|cffffffff|Hitem:" .. data.itemId .. ":::::::::::::::::|h[" .. itemName .. "]|h|r"
-                        _, _, quality, _, _, _, _, _, _, _ = GetItemInfo(testLink)
-                        itemLink = testLink
-                    else
-                        _, _, quality = GetItemInfo(itemLink)
+                        itemLink = "|cffffffff|Hitem:" .. data.itemId .. ":::::::::::::::::|h[" .. itemName .. "]|h|r"
                     end
+
                     local displayName = itemName
                     if data.count > 1 then
                         displayName = displayName .. " x" .. data.count
                     end
-                    if quality then
-                        local qColor = ITEM_QUALITY_COLORS[quality]
-                        local hex = string.format("|cff%02x%02x%02x", qColor.r * 255, qColor.g * 255, qColor.b * 255)
-                        displayName = hex .. displayName .. "|r"
+                    if data.received > 0 and data.received >= data.count then
+                        displayName = "|cff888888" .. displayName .. " (Received)|r"
+                    else
+                        local _, _, quality = GetItemInfo(data.itemId)
+                        if quality then
+                            local qColor = ITEM_QUALITY_COLORS[quality]
+                            local hex = string.format("|cff%02x%02x%02x", qColor.r * 255, qColor.g * 255, qColor.b * 255)
+                            displayName = hex .. displayName .. "|r"
+                        end
+                        if data.received > 0 then
+                            displayName = displayName .. " (" .. (data.count - data.received) .. "/" .. data.count .. ")"
+                        end
                     end
-                    table.insert(itemParts, displayName)
-                    table.insert(itemData, { link = itemLink, id = data.itemId, name = itemName })
+
+                    itemBtn.text:SetText(displayName)
+                    local textWidth = itemBtn.text:GetStringWidth() or 10
+                    itemBtn:SetSize(textWidth + 8, 22)
+                    itemBtn:ClearAllPoints()
+                    itemBtn:SetPoint("LEFT", btn, "LEFT", xOffset, 0)
+                    itemBtn.itemLink = itemLink
+                    itemBtn.itemId = data.itemId
+                    itemBtn:Show()
+
+                    xOffset = xOffset + textWidth + 10
                 end
-                btn.itemsText:SetText(table.concat(itemParts, ", "))
-                btn.playerName = entry.name
-                btn.playerItems = itemData
+                for j = #entry.items + 1, 10 do
+                    btn.itemButtons[j]:Hide()
+                end
 
                 btn:Show()
             else
@@ -2216,6 +2238,16 @@ StaticPopupDialogs["BadStormsConfirmAssign"] = {
             local hasSR = itemId and BadStorms.PlayerHasReservation(itemId, data.name) or 0
             if hasSR == 0 then
                 BadStormsSettings.plusOnes[data.name] = (BadStormsSettings.plusOnes[data.name] or 0) + 1
+            end
+        end
+
+        if itemId and BadStormsSettings.srReservations then
+            local nameLower = data.name:lower()
+            for _, r in ipairs(BadStormsSettings.srReservations) do
+                if r.itemId == itemId and r.name:lower() == nameLower and not r.received then
+                    r.received = true
+                    break
+                end
             end
         end
 

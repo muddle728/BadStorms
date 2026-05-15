@@ -15,11 +15,24 @@ local function UpdateRollDisplay(frame)
         if aSR > 0 and bSR > 0 then
             return a.roll > b.roll
         end
-        if a.max ~= b.max then
-            return a.max > b.max
-        end
         local aPO = BadStormsSettings.trackPlusOnes and (BadStormsSettings.plusOnes[a.name] or 0) or 0
         local bPO = BadStormsSettings.trackPlusOnes and (BadStormsSettings.plusOnes[b.name] or 0) or 0
+        local aIsMS = a.max == 100
+        local bIsMS = b.max == 100
+        local aHasPO = aPO > 0
+        local bHasPO = bPO > 0
+        local function cat(isMS, hasPO)
+            if isMS and not hasPO then return 0 end
+            if isMS and hasPO then return 1 end
+            return 2
+        end
+        local ca, cb = cat(aIsMS, aHasPO), cat(bIsMS, bHasPO)
+        if ca ~= cb then
+            return ca < cb
+        end
+        if ca == 2 then
+            return a.roll > b.roll
+        end
         if aPO ~= bPO then
             return aPO < bPO
         end

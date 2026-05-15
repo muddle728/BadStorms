@@ -387,7 +387,7 @@ local function CreateConfigFrame()
         btn.nameText:SetJustifyH("LEFT")
 
         btn.itemButtons = {}
-        for j = 1, 10 do
+        for j = 1, 1 do
             local itemBtn = CreateFrame("Button", nil, btn)
             itemBtn:SetHeight(22)
             itemBtn:Hide()
@@ -447,16 +447,24 @@ local function CreateConfigFrame()
                 playerMap[r.name][key].received = playerMap[r.name][key].received + count
             end
         end
+
         local playerList = {}
-        for name, itemMap in pairs(playerMap) do
+        local nameOrder = {}
+        for name in pairs(playerMap) do
+            table.insert(nameOrder, name)
+        end
+        table.sort(nameOrder)
+        for _, name in ipairs(nameOrder) do
+            local itemMap = playerMap[name]
             local itemList = {}
             for _, data in pairs(itemMap) do
                 table.insert(itemList, data)
             end
             table.sort(itemList, function(a, b) return (a.item or "") < (b.item or "") end)
-            table.insert(playerList, { name = name, items = itemList })
+            for _, data in ipairs(itemList) do
+                table.insert(playerList, { name = name, item = data })
+            end
         end
-        table.sort(playerList, function(a, b) return a.name < b.name end)
 
         local srNames = {}
         for _, entry in ipairs(playerList) do
@@ -468,33 +476,30 @@ local function CreateConfigFrame()
             for i = 1, raidCount do
                 local name = GetRaidRosterInfo(i)
                 if name and not srNames[name:lower()] then
-                    table.insert(playerList, { name = name, items = {}, noSR = true })
+                    table.insert(playerList, { name = name, noSR = true })
                     srNames[name:lower()] = true
                 end
             end
         elseif partyCount > 0 then
             local myName = UnitName("player")
             if myName and not srNames[myName:lower()] then
-                table.insert(playerList, { name = myName, items = {}, noSR = true })
+                table.insert(playerList, { name = myName, noSR = true })
                 srNames[myName:lower()] = true
             end
             for i = 1, partyCount do
                 local name = UnitName("party" .. i)
                 if name and not srNames[name:lower()] then
-                    table.insert(playerList, { name = name, items = {}, noSR = true })
+                    table.insert(playerList, { name = name, noSR = true })
                     srNames[name:lower()] = true
                 end
             end
         end
-        table.sort(playerList, function(a, b) return a.name < b.name end)
 
         frame.srItemList = playerList
 
         local srCount = 0
-        for _, entry in ipairs(playerList) do
-            if not entry.noSR then
-                srCount = srCount + 1
-            end
+        for _ in pairs(playerMap) do
+            srCount = srCount + 1
         end
         srCountText:SetText(srCount .. " player(s) with SR")
 
@@ -503,10 +508,13 @@ local function CreateConfigFrame()
             ShowSRImportDialog()
         end
 
+        local prevName = ""
         for i, btn in ipairs(frame.srButtons) do
             local entry = playerList[srScrollIdx + i]
             if entry then
-                if entry.noSR then
+                if entry.name == prevName then
+                    btn.nameText:SetText("")
+                elseif entry.noSR then
                     btn.nameText:SetText("|cffff4444" .. entry.name .. "|r")
                 else
                     local unit = BadStorms.GetPlayerUnit(entry.name)
@@ -522,11 +530,11 @@ local function CreateConfigFrame()
                         btn.nameText:SetText(entry.name)
                     end
                 end
+                prevName = entry.name
 
-                local xOffset = 208
-                for j, data in ipairs(entry.items) do
-                    local itemBtn = btn.itemButtons[j]
-                    if not itemBtn then break end
+                local data = entry.item
+                if data then
+                    local itemBtn = btn.itemButtons[1]
 
                     local itemName = data.item or ("Item " .. data.itemId)
                     local itemLink = GetItemInfo(data.itemId)
@@ -553,18 +561,19 @@ local function CreateConfigFrame()
                     end
 
                     itemBtn.text:SetText(displayName)
+                    itemBtn.text:SetWidth(0)
                     local textWidth = itemBtn.text:GetStringWidth() or 10
-                    itemBtn:SetSize(textWidth + 8, 22)
+                    local maxWidth = btn:GetWidth() - 216
+                    local btnWidth = math.min(textWidth + 8, math.max(maxWidth, 20))
+                    itemBtn:SetSize(btnWidth, 22)
+                    itemBtn.text:SetWidth(btnWidth - 4)
                     itemBtn:ClearAllPoints()
-                    itemBtn:SetPoint("LEFT", btn, "LEFT", xOffset, 0)
+                    itemBtn:SetPoint("LEFT", btn, "LEFT", 208, 0)
                     itemBtn.itemLink = itemLink
                     itemBtn.itemId = data.itemId
                     itemBtn:Show()
-
-                    xOffset = xOffset + textWidth + 10
-                end
-                for j = #entry.items + 1, 10 do
-                    btn.itemButtons[j]:Hide()
+                else
+                    btn.itemButtons[1]:Hide()
                 end
 
                 btn:Show()

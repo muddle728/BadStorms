@@ -105,8 +105,33 @@ local function EndRoll(frame)
                 btn.selectedTexture:Hide()
             end
         end
-        local winMsg = string.format("Winner: %s [%d] (%s)", winner.name, winner.roll,
-            winner.max == 100 and "MS" or "OS")
+        local currentItemId = frame.data and GetItemID(frame.data.link)
+        local winnerHasSR = currentItemId and PlayerHasReservation(currentItemId, winner.name) or 0
+        local winMsg
+        if winnerHasSR > 0 then
+            winMsg = string.format("Winner: %s [%d] (SR)", winner.name, winner.roll)
+        elseif winner.max == 100 then
+            local plusParts = {}
+            local anyNonZero = false
+            for _, entry in ipairs(BadStorms.currentRolls) do
+                if entry.max == 100 then
+                    local po = BadStormsSettings.trackPlusOnes and (BadStormsSettings.plusOnes[entry.name] or 0) or 0
+                    if po > 0 then anyNonZero = true end
+                    table.insert(plusParts, entry.name .. "(" .. po .. ")")
+                end
+            end
+            if anyNonZero then
+                local plusStr = table.concat(plusParts, " ")
+                if #plusStr > 250 then
+                    plusStr = plusStr:sub(1, 150) .. "..."
+                end
+                winMsg = string.format("Winner: %s [%d] (MS) - +1s: %s", winner.name, winner.roll, plusStr)
+            else
+                winMsg = string.format("Winner: %s [%d] (MS)", winner.name, winner.roll)
+            end
+        else
+            winMsg = string.format("Winner: %s [%d] (OS)", winner.name, winner.roll)
+        end
         if BadStorms.CanRaidWarning() then
             SendChatMessage(winMsg, "RAID_WARNING")
         else

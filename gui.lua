@@ -2160,10 +2160,9 @@ local function HookCustomLootButtons()
 
         if not button._badStormsHooked then
             local slotIdx = i
-            button:SetAttribute("type", nil)
-            button:SetAttribute("loot-slot", nil)
-            button:SetScript("OnClick", function()
-                local slot = tonumber(button.slot) or slotIdx
+            local oldHandler = button:GetScript("OnClick")
+            button:SetScript("OnClick", function(self, ...)
+                local slot = tonumber(self.slot) or slotIdx
                 if not slot then
                     return
                 end
@@ -2176,14 +2175,14 @@ local function HookCustomLootButtons()
                         return
                     end
 
-            CloseDropDownMenus()
-            if IsShiftKeyDown() then
-                BadStorms.ShowAwardDialogForLoot(i, link)
-            else
-                BadStorms.ShowRollDialogForLoot(link, i)
-            end
-                else
-                    LootSlot(slot)
+                    CloseDropDownMenus()
+                    if IsShiftKeyDown() then
+                        BadStorms.ShowAwardDialogForLoot(slot, link)
+                    else
+                        BadStorms.ShowRollDialogForLoot(link, slot)
+                    end
+                elseif oldHandler then
+                    oldHandler(self, ...)
                 end
             end)
             button._badStormsHooked = true

@@ -232,6 +232,9 @@ function BadStorms.ItemExistsInSlot(data)
     if data.bag and data.slot then
         return GetContainerItemLink(data.bag, data.slot) ~= nil
     end
+    if data.link then
+        return true
+    end
     return false
 end
 

@@ -789,7 +789,7 @@ local function CreateConfigFrame()
     notes:SetWidth(520)
     notes:SetJustifyH("LEFT")
     notes:SetText(
-        "\n|cff66ccffALT+CLICK |r an item in your bags or loot window to open the Roll tab.\n|cff66ccffALT+SHIFT+CLICK|r an item in your bags or loot window to open the Award tab.\n|cff66ccffCTRL+SCROLL|r on the frame to adjust the UI scale.\n|cff66ccffCTRL+RIGHT CLICK|r on the frame to reset the UI scale to 1.")
+        "\n|cff66ccffALT+CLICK |r an item in your bags, loot window, or chat to open the Roll tab.\n|cff66ccffALT+SHIFT+CLICK|r an item in your bags, loot window, or chat to open the Award tab.\n|cff66ccffCTRL+SCROLL|r on the frame to adjust the UI scale.\n|cff66ccffCTRL+RIGHT CLICK|r on the frame to reset the UI scale to 1.")
 
     -- Award panel
     frame.itemIcon = CreateFrame("Button", nil, awardPanel)
@@ -2174,7 +2174,7 @@ local function HookCustomLootButtons()
                     end
 
                     CloseDropDownMenus()
-        if IsControlKeyDown() then
+                    if IsShiftKeyDown() then
                         BadStorms.ShowAwardDialogForLoot(slot, link)
                     else
                         BadStorms.CreateConfigFrame()
@@ -2204,6 +2204,83 @@ local function HookCustomLootButtons()
         end
     end
 end
+
+-- this is needed for ALT+CLICK and ALT+SHIFT+CLICK in chat edit box
+hooksecurefunc("ChatEdit_InsertLink", function(link)
+    if IsAltKeyDown() and BadStormsSettings.enabled and BadStorms.CanManageLoot() then
+        if IsShiftKeyDown() then
+            BadStorms.ShowAwardDialogForLoot(nil, link)
+        end
+    end
+end)
+
+hooksecurefunc("SetItemRef", function(link, text, button, ...)
+    if not link or not string.find(link, "^item:") then
+        return
+    end
+    if not IsAltKeyDown() then
+        return
+    end
+    if not BadStormsSettings.enabled then
+        return
+    end
+    if not BadStorms.CanManageLoot() then
+        local inGroup = BadStorms.InGroup()
+        if inGroup then
+            local msg = "You do not have permission to manage loot."
+            print("|cff00ff00BadStorms:|r" .. msg)
+            if UIErrorsFrame then
+                msg = "BadStorms: " .. msg
+                UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0)
+                C_Timer.After(1, function()
+                    UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0)
+                end)
+                C_Timer.After(2, function()
+                    UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0)
+                end)
+            end
+        end
+        return
+    end
+
+    local itemLink = BadStorms.NormalizeItemLink(link)
+    if not itemLink then
+        local itemId = BadStorms.GetItemID(link)
+        if not itemId then
+            itemId = tonumber(link:match("^item:(%d+)"))
+        end
+        if not itemId then
+            return
+        end
+        local _, fullLink = GetItemInfo(itemId)
+        if not fullLink then
+            return
+        end
+        itemLink = fullLink
+    end
+
+    if IsShiftKeyDown() then
+        BadStorms.ShowAwardDialogForLoot(nil, itemLink)
+    else
+        if BadStorms.isRolling then
+            print("|cff00ff00BadStorms:|r Cannot change item during an active roll.")
+            return
+        end
+        BadStorms.CreateConfigFrame()
+        local f = BadStorms.configFrame
+        BadStorms.UpdateItemSelection(f, itemLink)
+        BadStorms.currentRolls = {}
+        f.selectedRollLabel:SetText("Player: None")
+        for _, btn in ipairs(f.rollButtons) do
+            btn.selectedTexture:Hide()
+            btn.rollData = nil
+            btn:Hide()
+        end
+        f.rollAssignButton:Disable()
+        f:SelectTab("roll")
+        f:Show()
+    end
+end)
 
 local customLootFrame = CreateFrame("Frame")
 customLootFrame:RegisterEvent("LOOT_OPENED")

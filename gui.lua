@@ -2176,6 +2176,11 @@ local function HookCustomLootButtons()
                     end
 
                     CloseDropDownMenus()
+                    local _, _, _, quality = GetLootSlotInfo(slot)
+                    if quality and quality < 2 then
+                        if oldHandler then oldHandler(self, ...) end
+                        return
+                    end
                     if IsShiftKeyDown() then
                         BadStorms.ShowAwardDialogForLoot(slot, link)
                     else
@@ -2523,15 +2528,19 @@ hooksecurefunc("HandleModifiedItemClick", function(link)
 
     for i = 1, GetNumLootItems() do
         local slotLink = GetLootSlotLink(i)
-        if slotLink and slotLink == link then
-            CloseDropDownMenus()
-            if IsShiftKeyDown() then
-                BadStorms.ShowAwardDialogForLoot(i, link)
-            else
-                BadStorms.ShowRollDialogForLoot(link, i)
+            if slotLink and slotLink == link then
+                CloseDropDownMenus()
+                local _, _, _, quality = GetLootSlotInfo(i)
+                if quality and quality < 2 then
+                    break
+                end
+                if IsShiftKeyDown() then
+                    BadStorms.ShowAwardDialogForLoot(i, link)
+                else
+                    BadStorms.ShowRollDialogForLoot(link, i)
+                end
+                break
             end
-            break
-        end
     end
 end)
 

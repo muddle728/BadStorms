@@ -245,3 +245,29 @@ function BadStorms.IsItemEquippable(link)
     local _, _, _, _, _, _, _, _, equipSlot = GetItemInfo(link)
     return equipSlot ~= nil and equipSlot ~= ""
 end
+
+function BadStorms.GetPlayerCandidateIndex()
+    local playerName = UnitName("player")
+    for ci = 1, 40 do
+        local name = GetMasterLootCandidate(ci)
+        if name == playerName then
+            return ci
+        end
+    end
+end
+
+function BadStorms.GetDisenchanterCandidateIndex()
+    local dePlayer = BadStormsSettings.disenchanter
+    if not dePlayer or dePlayer == "" then
+        return nil
+    end
+    for ci = 1, 40 do
+        local candidate = GetMasterLootCandidate(ci)
+        if not candidate then
+            break
+        end
+        if candidate == dePlayer then
+            return ci
+        end
+    end
+end

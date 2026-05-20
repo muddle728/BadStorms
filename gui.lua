@@ -65,7 +65,9 @@ local function ResetRollPanel(frame)
 end
 
 local function UpdateDisenchantButtons(frame)
-    local canDisenchant = BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" and frame.data and frame.data.link and BadStorms.IsItemEquippable(frame.data.link)
+    local canDisenchant =
+        BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" and frame.data and
+            frame.data.link and BadStorms.IsItemEquippable(frame.data.link)
     if frame.disenchantRollButton then
         if canDisenchant then
             frame.disenchantRollButton:Enable()
@@ -83,7 +85,9 @@ local function UpdateDisenchantButtons(frame)
 end
 
 function BadStorms.ShowRollDialogForLoot(link, lootSlot)
-    if not CheckNotRolling() then return end
+    if not CheckNotRolling() then
+        return
+    end
     BadStorms.CreateConfigFrame()
     local f = BadStorms.configFrame
     BadStorms.UpdateItemSelection(f, link)
@@ -335,7 +339,9 @@ local function CreateConfigFrame()
         local cursorType, link = GetCursorInfo()
         if cursorType == "item" and link then
             ClearCursor()
-            if not CheckNotRolling() then return end
+            if not CheckNotRolling() then
+                return
+            end
             UpdateItemSelection(frame, link)
             ResetRollPanel(frame)
             frame.startRollButton:Disable()
@@ -536,9 +542,14 @@ local function CreateConfigFrame()
             for _, data in pairs(itemMap) do
                 table.insert(itemList, data)
             end
-            table.sort(itemList, function(a, b) return (a.item or "") < (b.item or "") end)
+            table.sort(itemList, function(a, b)
+                return (a.item or "") < (b.item or "")
+            end)
             for _, data in ipairs(itemList) do
-                table.insert(playerList, { name = name, item = data })
+                table.insert(playerList, {
+                    name = name,
+                    item = data
+                })
             end
         end
 
@@ -552,20 +563,29 @@ local function CreateConfigFrame()
             for i = 1, raidCount do
                 local name = GetRaidRosterInfo(i)
                 if name and not srNames[name:lower()] then
-                    table.insert(playerList, { name = name, noSR = true })
+                    table.insert(playerList, {
+                        name = name,
+                        noSR = true
+                    })
                     srNames[name:lower()] = true
                 end
             end
         elseif partyCount > 0 then
             local myName = UnitName("player")
             if myName and not srNames[myName:lower()] then
-                table.insert(playerList, { name = myName, noSR = true })
+                table.insert(playerList, {
+                    name = myName,
+                    noSR = true
+                })
                 srNames[myName:lower()] = true
             end
             for i = 1, partyCount do
                 local name = UnitName("party" .. i)
                 if name and not srNames[name:lower()] then
-                    table.insert(playerList, { name = name, noSR = true })
+                    table.insert(playerList, {
+                        name = name,
+                        noSR = true
+                    })
                     srNames[name:lower()] = true
                 end
             end
@@ -628,11 +648,13 @@ local function CreateConfigFrame()
                         local _, _, quality = GetItemInfo(data.itemId)
                         if quality then
                             local qColor = ITEM_QUALITY_COLORS[quality]
-                            local hex = string.format("|cff%02x%02x%02x", qColor.r * 255, qColor.g * 255, qColor.b * 255)
+                            local hex =
+                                string.format("|cff%02x%02x%02x", qColor.r * 255, qColor.g * 255, qColor.b * 255)
                             displayName = hex .. displayName .. "|r"
                         end
                         if data.received > 0 then
-                            displayName = displayName .. " (" .. (data.count - data.received) .. "/" .. data.count .. ")"
+                            displayName = displayName .. " (" .. (data.count - data.received) .. "/" .. data.count ..
+                                              ")"
                         end
                     end
 
@@ -983,7 +1005,9 @@ local function CreateConfigFrame()
     frame.awardButton:SetText("Award")
     frame.awardButton:Disable()
     frame.awardButton:SetScript("OnClick", function()
-        if not CheckPermission(BadStorms.CanManageLoot, "You do not have permission to award items.") then return end
+        if not CheckPermission(BadStorms.CanManageLoot, "You do not have permission to award items.") then
+            return
+        end
         local selected = frame.selected
         if not selected then
             print("|cff00ff00BadStorms:|r Select a player first.")
@@ -993,7 +1017,9 @@ local function CreateConfigFrame()
         if not data or not data.link then
             return
         end
-        if not CheckItemExists(data) then return end
+        if not CheckItemExists(data) then
+            return
+        end
         StaticPopup_Show("BadStormsConfirmAssign", data.link, selected.name, {
             name = selected.name,
             unit = selected.unit,
@@ -1039,7 +1065,9 @@ local function CreateConfigFrame()
         if not data or not data.link then
             return
         end
-        if not CheckItemExists(data) then return end
+        if not CheckItemExists(data) then
+            return
+        end
         if not BadStorms.IsItemEquippable(data.link) then
             print("|cff00ff00BadStorms:|r Item must be equippable to disenchant.")
             return
@@ -1049,7 +1077,7 @@ local function CreateConfigFrame()
             lootSlot = data.lootSlot,
             bag = data.bag,
             slot = data.slot,
-            disenchanter = BadStormsSettings.disenchanter,
+            disenchanter = BadStormsSettings.disenchanter
         })
     end)
     frame.awardDisenchantButton:SetScript("OnEnter", function(self)
@@ -1206,7 +1234,9 @@ local function CreateConfigFrame()
     frame.rollAssignButton:SetText("Award")
     frame.rollAssignButton:Disable()
     frame.rollAssignButton:SetScript("OnClick", function()
-        if not CheckPermission(BadStorms.CanManageLoot, "You do not have permission to award items.") then return end
+        if not CheckPermission(BadStorms.CanManageLoot, "You do not have permission to award items.") then
+            return
+        end
         local selected = frame.selectedRoll
         if not selected then
             print("|cff00ff00BadStorms:|r Select a player from the roll list.")
@@ -1217,7 +1247,9 @@ local function CreateConfigFrame()
             print("|cff00ff00BadStorms:|r No item selected.")
             return
         end
-        if not CheckItemExists(data) then return end
+        if not CheckItemExists(data) then
+            return
+        end
         local rollNote = "Roll - " .. (selected.max == 100 and "MS" or "OS") .. " " .. selected.roll
         StaticPopup_Show("BadStormsConfirmAssign", data.link, selected.name, {
             name = selected.name,
@@ -1236,7 +1268,9 @@ local function CreateConfigFrame()
     frame.rollClearButton:SetFrameLevel(rollPanel:GetFrameLevel() + 10)
     frame.rollClearButton:SetText("Clear")
     frame.rollClearButton:SetScript("OnClick", function()
-        if not CheckNotRolling("Cannot clear during an active roll.") then return end
+        if not CheckNotRolling("Cannot clear during an active roll.") then
+            return
+        end
         frame.data = nil
         frame.selectedRoll = nil
         frame.linkTextRoll.text:SetText("ALT+CLICK or Drag & Drop an Item")
@@ -1315,7 +1349,9 @@ local function CreateConfigFrame()
             return
         end
         local data = frame.data
-        if not CheckItemExists(data) then return end
+        if not CheckItemExists(data) then
+            return
+        end
         if not BadStorms.IsItemEquippable(data.link) then
             print("|cff00ff00BadStorms:|r Item must be equippable to disenchant.")
             return
@@ -1325,7 +1361,7 @@ local function CreateConfigFrame()
             lootSlot = frame.data.lootSlot,
             bag = frame.data.bag,
             slot = frame.data.slot,
-            disenchanter = BadStormsSettings.disenchanter,
+            disenchanter = BadStormsSettings.disenchanter
         })
     end)
     frame.disenchantRollButton:SetScript("OnEnter", function(self)
@@ -1806,11 +1842,15 @@ local function CreateConfigFrame()
         frame:SelectTab("settings")
     end)
     awardTab:SetScript("OnClick", function()
-        if not CheckPermission(BadStorms.IsLootMaster, "You must be the Master Looter to award items.") then return end
+        if not CheckPermission(BadStorms.IsLootMaster, "You must be the Master Looter to award items.") then
+            return
+        end
         frame:SelectTab("award")
     end)
     rollTab:SetScript("OnClick", function()
-        if not CheckPermission(BadStorms.IsLootMaster, "You must be the Master Looter to roll items.") then return end
+        if not CheckPermission(BadStorms.IsLootMaster, "You must be the Master Looter to roll items.") then
+            return
+        end
         frame:SelectTab("roll")
     end)
     srTab:SetScript("OnClick", function()
@@ -2046,50 +2086,38 @@ lootFrame:SetScript("OnEvent", function()
     end
     local playerName = UnitName("player")
     local isML = BadStorms.IsMasterLooter()
+    local playerCI = BadStorms.GetPlayerCandidateIndex()
+    local deCI = BadStorms.GetDisenchanterCandidateIndex()
     for i = GetNumLootItems(), 1, -1 do
         local texture, name, quantity, quality = GetLootSlotInfo(i)
         local item = GetLootSlotLink(i)
-        if quality < 2 and (IsEquippableItem(item) or quantity == 0) then
+        if quality < 2 then
             LootSlot(i)
-        elseif quality > 1 then
-            if quality == 2 and IsEquippableItem(item) and BadStormsSettings.disenchanterEnabled and
-                BadStormsSettings.disenchanter ~= "" and isML then
-                local dePlayer = BadStormsSettings.disenchanter
-                local deFound = false
-                for ci = 1, 40 do
-                    local candidate = GetMasterLootCandidate(ci)
-                    if not candidate then
-                        break
-                    end
-                    if candidate == dePlayer then
-                        SendToChannel("LOOT: " .. item .. " (disenchant) sent to " .. dePlayer)
-                        GiveMasterLoot(i, ci)
-                        deFound = true
-                        break
-                    end
+            if GetLootSlotLink(i) then
+                -- work around odd bug when master looting quest items
+                -- that require to use an object, like a weapon rack.
+                if playerCI then
+                    GiveMasterLoot(i, playerCI)
                 end
-                if not deFound then
-                    for ci = 1, 40 do
-                        local name = GetMasterLootCandidate(ci)
-                        if name == playerName then
-                            if IsEquippableItem(item) then 
-                                SendToChannel("LOOT: " .. item)
-                            end
-                            GiveMasterLoot(i, ci)
-                            break
-                        end
+            end
+        elseif quality > 1 then
+            if quality == 2 and BadStorms.IsItemEquippable(item) and BadStormsSettings.disenchanterEnabled and
+                BadStormsSettings.disenchanter ~= "" and isML then
+                if deCI then
+                    SendToChannel("LOOT: " .. item .. " (disenchant) sent to " .. BadStormsSettings.disenchanter)
+                    GiveMasterLoot(i, deCI)
+                elseif playerCI then
+                    if BadStorms.IsItemEquippable(item) then
+                        SendToChannel("LOOT: " .. item)
                     end
+                    GiveMasterLoot(i, playerCI)
                 end
             elseif isML then
-                for ci = 1, 40 do
-                    local name = GetMasterLootCandidate(ci)
-                    if name == playerName then
-                        if IsEquippableItem(item) then 
-                            SendToChannel("LOOT: " .. item)
-                        end
-                        GiveMasterLoot(i, ci)
-                        break
+                if playerCI then
+                    if BadStorms.IsItemEquippable(item) then
+                        SendToChannel("LOOT: " .. item)
                     end
+                    GiveMasterLoot(i, playerCI)
                 end
             else
                 if item then
@@ -2168,7 +2196,9 @@ local function HookCustomLootButtons()
                 end
 
                 if IsAltKeyDown() and BadStormsSettings.enabled then
-                    if not CheckPermission(BadStorms.CanManageLoot, "You do not have permission to manage loot.") then return end
+                    if not CheckPermission(BadStorms.CanManageLoot, "You do not have permission to manage loot.") then
+                        return
+                    end
 
                     local link = GetLootSlotLink(slot)
                     if not link then
@@ -2178,7 +2208,9 @@ local function HookCustomLootButtons()
                     CloseDropDownMenus()
                     local _, _, _, quality = GetLootSlotInfo(slot)
                     if quality and quality < 2 then
-                        if oldHandler then oldHandler(self, ...) end
+                        if oldHandler then
+                            oldHandler(self, ...)
+                        end
                         return
                     end
                     if IsShiftKeyDown() then
@@ -2214,7 +2246,9 @@ hooksecurefunc("SetItemRef", function(link, text, button, ...)
     if not BadStormsSettings.enabled then
         return
     end
-    if not CheckLootPermissionSpam("You do not have permission to manage loot.") then return end
+    if not CheckLootPermissionSpam("You do not have permission to manage loot.") then
+        return
+    end
 
     local itemLink = BadStorms.NormalizeItemLink(link)
     if not itemLink then
@@ -2251,7 +2285,9 @@ StaticPopupDialogs["BadStormsConfirmAssign"] = {
     button1 = "Yes",
     button2 = "No",
     OnAccept = function(self, data)
-        if not CheckItemExists(data) then return end
+        if not CheckItemExists(data) then
+            return
+        end
 
         SendToChannel("LOOT: " .. data.link .. " awarded to " .. data.name)
 
@@ -2347,7 +2383,9 @@ StaticPopupDialogs["BadStormsDisenchantConfirm"] = {
     button1 = "Yes",
     button2 = "No",
     OnAccept = function(self, data)
-        if not CheckItemExists(data) then return end
+        if not CheckItemExists(data) then
+            return
+        end
         SendToChannel("LOOT: " .. data.link .. " sent to " .. data.disenchanter .. " (disenchant)")
 
         if data.lootSlot then
@@ -2379,8 +2417,9 @@ StaticPopupDialogs["BadStormsDisenchantConfirm"] = {
             local unit = BadStorms.GetPlayerUnit(data.disenchanter)
             if unit and not UnitIsUnit(unit, "player") then
                 if not CheckInteractDistance(unit, 2) then
-                    SendChatMessage("WARNING: " .. data.disenchanter .. " is out of trade range. Please open trade with me for " ..
-                                        data.link .. "!", "WHISPER", nil, data.disenchanter)
+                    SendChatMessage("WARNING: " .. data.disenchanter ..
+                                        " is out of trade range. Please open trade with me for " .. data.link .. "!",
+                        "WHISPER", nil, data.disenchanter)
                     return
                 end
                 BadStormsMenuFrame:Hide()
@@ -2521,26 +2560,28 @@ hooksecurefunc("HandleModifiedItemClick", function(link)
     if not IsAltKeyDown() then
         return
     end
-    if not CheckLootPermissionSpam("You do not have permission to manage loot.") then return end
+    if not CheckLootPermissionSpam("You do not have permission to manage loot.") then
+        return
+    end
     if not link then
         return
     end
 
     for i = 1, GetNumLootItems() do
         local slotLink = GetLootSlotLink(i)
-            if slotLink and slotLink == link then
-                CloseDropDownMenus()
-                local _, _, _, quality = GetLootSlotInfo(i)
-                if quality and quality < 2 then
-                    break
-                end
-                if IsShiftKeyDown() then
-                    BadStorms.ShowAwardDialogForLoot(i, link)
-                else
-                    BadStorms.ShowRollDialogForLoot(link, i)
-                end
+        if slotLink and slotLink == link then
+            CloseDropDownMenus()
+            local _, _, _, quality = GetLootSlotInfo(i)
+            if quality and quality < 2 then
                 break
             end
+            if IsShiftKeyDown() then
+                BadStorms.ShowAwardDialogForLoot(i, link)
+            else
+                BadStorms.ShowRollDialogForLoot(link, i)
+            end
+            break
+        end
     end
 end)
 

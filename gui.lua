@@ -865,12 +865,26 @@ local function CreateConfigFrame()
         end
     end)
 
-    local notesTitle = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    notesTitle:SetPoint("TOPLEFT", hideMinimapCheckbox, "BOTTOMLEFT", 0, -16)
-    notesTitle:SetText("Usage:")
+    -- Raid Sync section
+    local syncCheckbox = CreateFrame("CheckButton", "BadStormsRaidSyncCheckbox", settingsPanel,
+        "InterfaceOptionsCheckButtonTemplate")
+    syncCheckbox:SetPoint("TOPLEFT", hideMinimapCheckbox, "BOTTOMLEFT", 0, -6)
+    _G["BadStormsRaidSyncCheckboxText"]:SetText("Enable Data Sync")
+    syncCheckbox:SetChecked(BadStormsSettings.raidSyncEnabled)
+    syncCheckbox:SetScript("OnClick", function(self)
+        BadStormsSettings.raidSyncEnabled = self:GetChecked()
+    end)
+
+    local pushDataBtn = CreateFrame("Button", nil, settingsPanel, "GameMenuButtonTemplate")
+    pushDataBtn:SetSize(90, 24)
+    pushDataBtn:SetPoint("TOPLEFT", syncCheckbox, "TOPRIGHT", 125, 0)
+    pushDataBtn:SetText("Recover Data")
+    pushDataBtn:SetScript("OnClick", function()
+        BadStorms.SyncRecoverData()
+    end)
 
     local notes = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    notes:SetPoint("TOPLEFT", notesTitle, "BOTTOMLEFT", 0, 5)
+    notes:SetPoint("TOPLEFT", syncCheckbox, "BOTTOMLEFT", 25, 5)
     notes:SetWidth(520)
     notes:SetJustifyH("LEFT")
     notes:SetText(
@@ -1814,7 +1828,7 @@ local function CreateConfigFrame()
     end
 
     local function UpdateLootMasterState()
-        local isLM = BadStorms.IsLootMaster()
+        local isLM = BadStorms.IsMasterLooter()
         local inGroup = BadStorms.InGroup()
         local tabsEnabled = not inGroup or isLM
         local text = _G["BadStormsEnableCheckboxText"]
@@ -1823,32 +1837,30 @@ local function CreateConfigFrame()
             awardTab:Enable()
             rollTab:Enable()
             enableCheckbox:Enable()
+            pushDataBtn:Enable()
         else
             text:SetTextColor(1, 0, 0)
             awardTab:Disable()
             rollTab:Disable()
             enableCheckbox:Disable()
+            pushDataBtn:Disable()
         end
-        srTab:Enable()
-        exportTab:Enable()
-        plusOneTab:Enable()
-
         UpdateDisenchantButtons(frame)
     end
     frame.UpdateLootMasterState = UpdateLootMasterState
     UpdateLootMasterState()
-
+    
     settingsTab:SetScript("OnClick", function()
         frame:SelectTab("settings")
     end)
     awardTab:SetScript("OnClick", function()
-        if not CheckPermission(BadStorms.IsLootMaster, "You must be the Master Looter to award items.") then
+        if not CheckPermission(BadStorms.IsMasterLooter, "You must be the Master Looter to award items.") then
             return
         end
         frame:SelectTab("award")
     end)
     rollTab:SetScript("OnClick", function()
-        if not CheckPermission(BadStorms.IsLootMaster, "You must be the Master Looter to roll items.") then
+        if not CheckPermission(BadStorms.IsMasterLooter, "You must be the Master Looter to roll items.") then
             return
         end
         frame:SelectTab("roll")
@@ -1865,13 +1877,6 @@ local function CreateConfigFrame()
 
     frame:SelectTab("settings")
     frame:SetScript("OnShow", UpdateLootMasterState)
-    frame:SetScript("OnUpdate", function(self, elapsed)
-        self.refreshTimer = (self.refreshTimer or 0) + elapsed
-        if self.refreshTimer >= 2 then
-            self.refreshTimer = 0
-            UpdateLootMasterState()
-        end
-    end)
     frame:SetScript("OnMouseDown", function(self, button)
         if button == "RightButton" and IsControlKeyDown() then
             BadStormsSettings.frameScale = 1.0
@@ -1920,7 +1925,7 @@ local function HookGameTooltips()
             tt:HookScript("OnTooltipSetItem", function(self)
                 local _, link = self:GetItem()
                 if link then
-                    local itemId = GetItemID(link)
+                    local itemId = BadStorms.GetItemID(link)
                     if itemId then
                         BadStorms.AppendItemTooltipInfo(itemId)
                     end
@@ -1934,44 +1939,31 @@ local function CheckLootMasterTransition()
     BadStorms.CreateConfigFrame()
     local f = BadStorms.configFrame
     if f and f.UpdateLootMasterState then
-        local isLM = BadStorms.IsLootMaster()
-        if isLM and BadStorms.IsMasterLooter() and not BadStorms._wasLootMaster and not f:IsShown() then
-            f:SelectTab("settings")
-            f:Show()
-        end
-        BadStorms._wasLootMaster = isLM
         f.UpdateLootMasterState()
     end
 end
 
 local BadStormsFrame = CreateFrame("Frame")
 BadStormsFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-BadStormsFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
 BadStormsFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
-BadStormsFrame:RegisterEvent("LOOT_METHOD_CHANGED")
+BadStormsFrame:RegisterEvent("PARTY_LOOT_METHOD_CHANGED")
 BadStormsFrame:SetScript("OnEvent", function(self, event)
     if event == "PLAYER_ENTERING_WORLD" then
         print("|cff00ff00BadStorms:|r Addon loaded.")
         HookGameTooltips()
-        BadStorms._wasLootMaster = BadStorms.IsLootMaster()
         CheckAutoMasterLoot()
+        BadStorms.CleanupPendingTrades()
+        CheckLootMasterTransition()
         if not BadStormsSettings.hideMinimap then
             CreateMinimapButton()
         end
         self:UnregisterEvent("PLAYER_ENTERING_WORLD")
-    elseif event == "GROUP_ROSTER_UPDATE" or event == "LOOT_METHOD_CHANGED" then
+    elseif event == "PARTY_LOOT_METHOD_CHANGED" then
+        BadStorms.CleanupPendingTrades()
         CheckLootMasterTransition()
     elseif event == "PLAYER_TARGET_CHANGED" then
         CheckAutoMasterLoot()
     end
-end)
-BadStormsFrame:SetScript("OnUpdate", function(self, elapsed)
-    self.elapsed = (self.elapsed or 0) + elapsed
-    if self.elapsed < 1 then
-        return
-    end
-    self.elapsed = 0
-    CheckLootMasterTransition()
 end)
 
 local tradeWatchFrame = CreateFrame("Frame")
@@ -2075,7 +2067,7 @@ local BadStormsMenuFrame = CreateFrame("Frame", "BadStormsTradeMenuFrame", UIPar
 local lootFrame = CreateFrame("Frame")
 lootFrame:RegisterEvent("LOOT_OPENED")
 lootFrame:SetScript("OnEvent", function()
-    if not BadStormsSettings.enabled or not BadStorms.IsLootMaster() then
+    if not BadStormsSettings.enabled or not BadStorms.IsMasterLooter() then
         return
     end
     if not BadStormsSettings.autoloot then
@@ -2138,7 +2130,7 @@ lootFrame:SetScript("OnEvent", function()
 end)
 
 local function AutoAcceptBoP()
-    if not BadStormsSettings.enabled or not BadStorms.IsLootMaster() then
+    if not BadStormsSettings.enabled or not BadStorms.IsMasterLooter() then
         return
     end
     for i = 1, STATICPOPUP_NUMDIALOGS do

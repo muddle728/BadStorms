@@ -26,7 +26,11 @@ if not C_Timer then
                 callback()
             end
         end)
-        return { Cancel = function() frame:SetScript("OnUpdate", nil) end }
+        return {
+            Cancel = function()
+                frame:SetScript("OnUpdate", nil)
+            end
+        }
     end
 end
 
@@ -49,7 +53,8 @@ if not BadStormsSettings then
         autoMasterLoot = false,
         disenchanterEnabled = false,
         disenchanter = "",
-        frameScale = 1.0
+        frameScale = 1.0,
+        raidSyncEnabled = true
     }
 end
 BadStormsSettings.srReservations = BadStormsSettings.srReservations or {}
@@ -63,9 +68,13 @@ BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
 BadStormsSettings.tradeTotals = BadStormsSettings.tradeTotals or {}
 BadStormsSettings.autoMasterLoot = BadStormsSettings.autoMasterLoot == nil and false or BadStormsSettings.autoMasterLoot
 BadStormsSettings.minimapPos = BadStormsSettings.minimapPos or 0
-BadStormsSettings.disenchanterEnabled = BadStormsSettings.disenchanterEnabled == nil and false or BadStormsSettings.disenchanterEnabled
+BadStormsSettings.disenchanterEnabled = BadStormsSettings.disenchanterEnabled == nil and false or
+                                            BadStormsSettings.disenchanterEnabled
 BadStormsSettings.disenchanter = BadStormsSettings.disenchanter or ""
 BadStormsSettings.frameScale = BadStormsSettings.frameScale or 1.0
+if BadStormsSettings.raidSyncEnabled == nil then
+    BadStormsSettings.raidSyncEnabled = true
+end
 
 function BadStorms.GetItemID(link)
     if type(link) == "number" then
@@ -119,23 +128,6 @@ function BadStorms.GetClassColor(class)
         return c.r, c.g, c.b
     end
     return 1, 1, 1
-end
-
-function BadStorms.IsLootMaster()
-    local method, partyID, raidID = GetLootMethod()
-    if method == "freeforall" then
-        return true
-    end
-    if method ~= "master" then
-        return false
-    end
-    if partyID == 0 then
-        return true
-    end
-    if raidID and UnitIsUnit("player", "raid" .. raidID) then
-        return true
-    end
-    return false
 end
 
 function BadStorms.IsMasterLooter()
@@ -256,6 +248,19 @@ function BadStorms.GetPlayerCandidateIndex()
     end
 end
 
+function BadStorms.GetMasterLooterName()
+    local method, partyIndex, raidIndex = GetLootMethod()
+    if method ~= "master" then
+        return nil
+    end
+    if partyIndex == 0 then
+        return UnitName("player")
+    else
+        return UnitName("party" .. partyIndex)
+    end
+    return UnitName("party" .. raidIndex)
+end
+
 function BadStorms.GetDisenchanterCandidateIndex()
     local dePlayer = BadStormsSettings.disenchanter
     if not dePlayer or dePlayer == "" then
@@ -270,4 +275,53 @@ function BadStorms.GetDisenchanterCandidateIndex()
             return ci
         end
     end
+end
+
+function BadStorms.ParseDateTime(str)
+    if not str or str == "" then
+        return nil
+    end
+    local y, m, d, h, mi, s = str:match("(%d+)-(%d+)-(%d+) (%d+):(%d+):(%d+)")
+    if not y then
+        y, m, d, h, mi, s = str:match("(%d+)-(%d+)-(%d+) (%d+):(%d+)")
+        s = s or "0"
+    end
+    if not y then
+        return nil
+    end
+    return time({
+        year = y,
+        month = m,
+        day = d,
+        hour = h,
+        min = mi,
+        sec = s
+    })
+end
+
+function BadStorms.CleanupPendingTrades()
+    local pending = BadStormsSettings.pendingTrades
+    if not pending then
+        return false
+    end
+    local now = time()
+    local changed = false
+    for player, items in pairs(pending) do
+        local remaining = {}
+        for _, item in ipairs(items) do
+            local itemTime = BadStorms.ParseDateTime(item.date)
+            if not itemTime or (now - itemTime) < 7200 then
+                table.insert(remaining, item)
+            else
+                changed = true
+            end
+        end
+        if #remaining == 0 then
+            pending[player] = nil
+            changed = true
+        else
+            pending[player] = remaining
+        end
+    end
+    return changed
 end

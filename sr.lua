@@ -142,7 +142,47 @@ local function ShowSRImportDialog()
                 ParseSRCSV(text)
                 editBox:SetText("")
                 dialog:Hide()
-                StaticPopup_Show("BadStormsConfirmEnablePlusOnes")
+                BadStorms.ShowDialog(
+                    "|cffff0000Confirmation Needed!|r\n\nEnable plus one tracking?",
+                    nil,
+                    function()
+                        BadStormsSettings.plusOnesEnabled = true
+                        local checkbox = _G["BadStormsPlusOneCheckbox"]
+                        if checkbox then checkbox:SetChecked(true) end
+                        local f = BadStorms.configFrame
+                        if f then
+                            if f.PopulatePlusOnesList then f.PopulatePlusOnesList() end
+                            BadStorms.UpdateRollDisplay(f)
+                        end
+                        print("|cff00ff00BadStorms:|r Plus ones tracking enabled.")
+                        if next(BadStormsSettings.plusOnes) then
+                            BadStorms.ShowDialog(
+                                "|cffff0000WARNING: This cannot be undone!|r\n\nClear existing plus one counts?",
+                                nil,
+                                function()
+                                    BadStormsSettings.plusOnes = {}
+                                    local f2 = BadStorms.configFrame
+                                    if f2 then
+                                        if f2.PopulatePlusOnesList then f2.PopulatePlusOnesList() end
+                                        BadStorms.UpdateRollDisplay(f2)
+                                    end
+                                    print("|cff00ff00BadStorms:|r Plus ones cleared after SR import.")
+                                end
+                            )
+                        end
+                    end,
+                    function()
+                        BadStormsSettings.plusOnesEnabled = false
+                        local checkbox = _G["BadStormsPlusOneCheckbox"]
+                        if checkbox then checkbox:SetChecked(false) end
+                        local f = BadStorms.configFrame
+                        if f then
+                            if f.PopulatePlusOnesList then f.PopulatePlusOnesList() end
+                            BadStorms.UpdateRollDisplay(f)
+                        end
+                        print("|cff00ff00BadStorms:|r Plus ones tracking disabled.")
+                    end
+                )
             else
                 editBox:SetText("")
                 dialog:Hide()

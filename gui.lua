@@ -993,7 +993,7 @@ local function CreateConfigFrame()
         if not CheckItemExists(data) then
             return
         end
-        StaticPopup_Show("BadStormsConfirmAssign", data.link, selected.name, {
+        BadStorms.ShowAssignDialog({
             name = selected.name,
             unit = selected.unit,
             link = data.link,
@@ -1045,7 +1045,7 @@ local function CreateConfigFrame()
             print("|cff00ff00BadStorms:|r Item must be equippable to disenchant.")
             return
         end
-        StaticPopup_Show("BadStormsDisenchantConfirm", data.link, BadStormsSettings.disenchanter, {
+        BadStorms.ShowDisenchantDialog({
             link = data.link,
             lootSlot = data.lootSlot,
             bag = data.bag,
@@ -1224,7 +1224,7 @@ local function CreateConfigFrame()
             return
         end
         local rollNote = "Roll - " .. (selected.max == 100 and "MS" or "OS") .. " " .. selected.roll
-        StaticPopup_Show("BadStormsConfirmAssign", data.link, selected.name, {
+        BadStorms.ShowAssignDialog({
             name = selected.name,
             unit = selected.unit,
             link = data.link,
@@ -1329,7 +1329,7 @@ local function CreateConfigFrame()
             print("|cff00ff00BadStorms:|r Item must be equippable to disenchant.")
             return
         end
-        StaticPopup_Show("BadStormsDisenchantConfirm", link, BadStormsSettings.disenchanter, {
+        BadStorms.ShowDisenchantDialog({
             link = link,
             lootSlot = frame.data.lootSlot,
             bag = frame.data.bag,
@@ -1468,7 +1468,20 @@ local function CreateConfigFrame()
         if not frame.selectedExportDate then
             return
         end
-        StaticPopup_Show("BadStormsConfirmClearExportDate", frame.selectedExportDate, nil, frame.selectedExportDate)
+        BadStorms.ShowDialog(
+            "Clear all export data for " .. frame.selectedExportDate .. "?",
+            frame.selectedExportDate,
+            function(data)
+                if data and BadStormsSettings.exportData[data] then
+                    BadStormsSettings.exportData[data] = nil
+                end
+                local f = BadStorms.configFrame
+                if f then
+                    f.selectedExportDate = nil
+                    if f.PopulateExportList then f.PopulateExportList() end
+                end
+            end
+        )
     end)
 
     local clearAllBtn = CreateFrame("Button", nil, exportPanel, "GameMenuButtonTemplate")
@@ -1476,7 +1489,18 @@ local function CreateConfigFrame()
     clearAllBtn:SetPoint("LEFT", clearDateBtn, "RIGHT", 4, 0)
     clearAllBtn:SetText("Clear All")
     clearAllBtn:SetScript("OnClick", function()
-        StaticPopup_Show("BadStormsConfirmClearExportAll")
+        BadStorms.ShowDialog(
+            "Clear ALL export data? This cannot be undone.",
+            nil,
+            function()
+                BadStormsSettings.exportData = {}
+                local f = BadStorms.configFrame
+                if f then
+                    f.selectedExportDate = nil
+                    if f.PopulateExportList then f.PopulateExportList() end
+                end
+            end
+        )
     end)
 
     local csvTitle = exportPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -1716,7 +1740,18 @@ local function CreateConfigFrame()
     plusOneClearBtn:SetPoint("BOTTOMLEFT", plusOnesPanel, "BOTTOMLEFT", 10, 10)
     plusOneClearBtn:SetText("Clear All")
     plusOneClearBtn:SetScript("OnClick", function()
-        StaticPopup_Show("BadStormsConfirmClearPlusOnes")
+        BadStorms.ShowDialog(
+            "Clear ALL plus one counts?\n|cffff0000WARNING: This cannot be undone!|r",
+            nil,
+            function()
+                BadStormsSettings.plusOnes = {}
+                local f = BadStorms.configFrame
+                if f then
+                    if f.PopulatePlusOnesList then f.PopulatePlusOnesList() end
+                    BadStorms.UpdateRollDisplay(f)
+                end
+            end
+        )
     end)
 
     frame.closeButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
@@ -2137,34 +2172,235 @@ local function AutoAcceptBoP()
         end
     end
 end
+do
+    local dialog = CreateFrame("Frame", nil, UIParent)
+    dialog:SetSize(350, 110)
+    dialog:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = 1
+    })
+    dialog:SetBackdropColor(0, 0, 0, 1)
+    dialog:SetBackdropBorderColor(0, 0, 0, 1)
+    dialog:SetFrameStrata("DIALOG")
+    dialog:Hide()
+
+    local text = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    text:SetPoint("TOP", dialog, "TOP", 0, -20)
+    text:SetWidth(360)
+    text:SetWordWrap(true)
+    text:SetJustifyH("CENTER")
+
+    local yesBtn = CreateFrame("Button", nil, dialog, "GameMenuButtonTemplate")
+    yesBtn:SetSize(76, 24)
+    yesBtn:SetPoint("BOTTOM", dialog, "BOTTOM", -45, 15)
+    yesBtn:SetText("Yes")
+
+    local noBtn = CreateFrame("Button", nil, dialog, "GameMenuButtonTemplate")
+    noBtn:SetSize(76, 24)
+    noBtn:SetPoint("BOTTOM", dialog, "BOTTOM", 45, 15)
+    noBtn:SetText("No")
+
+    local plusOneCb = CreateFrame("CheckButton", nil, dialog, "InterfaceOptionsCheckButtonTemplate")
+    plusOneCb:SetPoint("TOPLEFT", yesBtn, "TOPRIGHT", -30, 30)
+    plusOneCb:Hide()
+    local cbText = plusOneCb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    cbText:SetPoint("LEFT", plusOneCb, "RIGHT", 4, 0)
+    cbText:SetText("Add +1?")
+
+    local dialogData, onAccept, onCancel
+
+    function BadStorms.ShowDialog(msg, data, acceptFn, cancelFn, showPlusOne)
+        dialogData = data
+        onAccept = acceptFn
+        onCancel = cancelFn
+
+        text:SetText(msg)
+
+        if showPlusOne and BadStormsSettings.plusOnesEnabled then
+            plusOneCb:SetChecked(data and data.note and data.note:find("^Roll .- MS"))
+            plusOneCb:Show()
+        else
+            plusOneCb:Hide()
+        end
+
+        if BadStorms.configFrame then
+            dialog:ClearAllPoints()
+            dialog:SetPoint("CENTER", BadStorms.configFrame, "CENTER", 0, 0)
+            BadStorms.configFrame:SetAlpha(0.3)
+        end
+        dialog:Show()
+    end
+
+    function BadStorms.GetDialogPlusOneChecked()
+        return plusOneCb:GetChecked()
+    end
+
+    yesBtn:SetScript("OnClick", function()
+        local fn = onAccept
+        local data = dialogData
+        dialog:Hide()
+        plusOneCb:Hide()
+        dialogData = nil
+        onAccept = nil
+        onCancel = nil
+        if BadStorms.configFrame then
+            BadStorms.configFrame:SetAlpha(1.0)
+        end
+        if fn then fn(data) end
+    end)
+
+    noBtn:SetScript("OnClick", function()
+        local fn = onCancel
+        local data = dialogData
+        dialog:Hide()
+        plusOneCb:Hide()
+        dialogData = nil
+        onAccept = nil
+        onCancel = nil
+        if BadStorms.configFrame then
+            BadStorms.configFrame:SetAlpha(1.0)
+        end
+        if fn then fn(data) end
+    end)
+
+    dialog:EnableKeyboard(true)
+    dialog:SetScript("OnKeyDown", function(_, key)
+        if key == "ESCAPE" then
+            local fn = onCancel
+            local data = dialogData
+            dialog:Hide()
+            plusOneCb:Hide()
+            dialogData = nil
+            onAccept = nil
+            onCancel = nil
+            if BadStorms.configFrame then
+                BadStorms.configFrame:SetAlpha(1.0)
+            end
+            if fn then fn(data) end
+        end
+    end)
+end
+
+function BadStorms.ShowAssignDialog(data)
+    BadStorms.ShowDialog(
+        "Assign " .. data.link .. " to " .. data.name .. "?",
+        data,
+        function(d)
+            if not CheckItemExists(d) then return end
+            SendToChannel("LOOT: " .. d.link .. " awarded to " .. d.name)
+            local itemId = BadStorms.GetItemID(d.link)
+            local itemName = d.link:match("%[(.-)%]") or "Unknown"
+            local dateKey = date("%Y-%m-%d")
+            local dateTime = date("%Y-%m-%d %H:%M:%S")
+            if not BadStormsSettings.exportData then BadStormsSettings.exportData = {} end
+            if not BadStormsSettings.exportData[dateKey] then BadStormsSettings.exportData[dateKey] = {} end
+            table.insert(BadStormsSettings.exportData[dateKey], {
+                character = d.name,
+                item_id = tostring(itemId or ""),
+                item_name = itemName,
+                date_time = dateTime,
+                public_note = d.note or "Award",
+                officer_note = ""
+            })
+            if BadStorms.GetDialogPlusOneChecked() then
+                local hasSR = itemId and BadStorms.PlayerHasReservation(itemId, d.name) or 0
+                if hasSR == 0 then
+                    BadStormsSettings.plusOnes[d.name] = (BadStormsSettings.plusOnes[d.name] or 0) + 1
+                end
+            end
+            if itemId and BadStormsSettings.softReserves then
+                local nameLower = d.name:lower()
+                for _, r in ipairs(BadStormsSettings.softReserves) do
+                    if r.itemId == itemId and r.name:lower() == nameLower and not r.received then
+                        r.received = true
+                        break
+                    end
+                end
+            end
+            if d.lootSlot then
+                for ci = 1, 40 do
+                    local candidate = GetMasterLootCandidate(ci)
+                    if not candidate then break end
+                    if candidate == d.name then
+                        GiveMasterLoot(d.lootSlot, ci)
+                        break
+                    end
+                end
+            elseif not UnitIsUnit(d.unit, "player") then
+                BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
+                if not BadStormsSettings.pendingTrades[d.name] then
+                    BadStormsSettings.pendingTrades[d.name] = {}
+                end
+                table.insert(BadStormsSettings.pendingTrades[d.name], {
+                    itemId = itemId,
+                    link = d.link,
+                    itemName = itemName,
+                    bag = d.bag,
+                    slot = d.slot,
+                    date = dateTime
+                })
+                if not CheckInteractDistance(d.unit, 2) then
+                    SendChatMessage("WARNING: " .. d.name .. " is out of trade range. Please open trade with me for " .. d.link .. "!", "WHISPER", nil, d.name)
+                    return
+                end
+                BadStormsMenuFrame:Hide()
+                InitiateTrade(d.unit)
+            end
+        end,
+        nil,
+        true
+    )
+end
+
+function BadStorms.ShowDisenchantDialog(data)
+    BadStorms.ShowDialog(
+        "Send " .. data.link .. " to " .. data.disenchanter .. " to be disenchanted?",
+        data,
+        function(d)
+            if not CheckItemExists(d) then return end
+            SendToChannel("LOOT: " .. d.link .. " sent to " .. d.disenchanter .. " (disenchant)")
+            if d.lootSlot then
+                for ci = 1, 40 do
+                    local candidate = GetMasterLootCandidate(ci)
+                    if not candidate then break end
+                    if candidate == d.disenchanter then
+                        GiveMasterLoot(d.lootSlot, ci)
+                        break
+                    end
+                end
+            elseif d.disenchanter ~= UnitName("player") then
+                BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
+                if not BadStormsSettings.pendingTrades[d.disenchanter] then
+                    BadStormsSettings.pendingTrades[d.disenchanter] = {}
+                end
+                local itemId = BadStorms.GetItemID(d.link)
+                local itemName = d.link:match("%[(.-)%]") or "Unknown"
+                table.insert(BadStormsSettings.pendingTrades[d.disenchanter], {
+                    itemId = itemId,
+                    link = d.link,
+                    itemName = itemName,
+                    bag = d.bag,
+                    slot = d.slot,
+                    date = date("%Y-%m-%d %H:%M:%S")
+                })
+                local unit = BadStorms.GetPlayerUnit(d.disenchanter)
+                if unit and not UnitIsUnit(unit, "player") then
+                    if not CheckInteractDistance(unit, 2) then
+                        SendChatMessage("WARNING: " .. d.disenchanter .. " is out of trade range. Please open trade with me for " .. d.link .. "!", "WHISPER", nil, d.disenchanter)
+                        return
+                    end
+                    BadStormsMenuFrame:Hide()
+                    InitiateTrade(unit)
+                end
+            end
+        end
+    )
+end
+
 hooksecurefunc("StaticPopup_Show", function(which)
     if which == "LOOT_BIND" then
         C_Timer.After(0.05, AutoAcceptBoP)
-    end
-    if which:find("^BadStorms") and BadStorms.configFrame then
-        for i = 1, STATICPOPUP_NUMDIALOGS do
-            local popup = _G["StaticPopup" .. i]
-            if popup and popup:IsShown() and popup.which == which then
-                popup:ClearAllPoints()
-                popup:SetPoint("CENTER", BadStorms.configFrame, "CENTER", 0, 0)
-                popup:SetBackdropBorderColor(1, 0, 0, 1)
-                popup:SetWidth(300)
-                popup:SetHeight(125)
-                BadStorms.configFrame:SetAlpha(0.3)
-                popup:HookScript("OnHide", function()
-                    for j = 1, STATICPOPUP_NUMDIALOGS do
-                        local p = _G["StaticPopup" .. j]
-                        if p and p:IsShown() and p.which and p.which:find("^BadStorms") then
-                            return
-                        end
-                    end
-                    if BadStorms.configFrame then
-                        BadStorms.configFrame:SetAlpha(1.0)
-                    end
-                end)
-                break
-            end
-        end
     end
 end)
 
@@ -2289,301 +2525,6 @@ customLootFrame:RegisterEvent("LOOT_READY")
 customLootFrame:SetScript("OnEvent", function()
     C_Timer.After(0.4, HookCustomLootButtons)
 end)
-
-StaticPopupDialogs["BadStormsConfirmAssign"] = {
-    text = "Assign %s to %s?",
-    button1 = "Yes",
-    button2 = "No",
-    OnShow = function(self, data)
-        if not BadStormsSettings.plusOnesEnabled then
-            if self.plusOneCheckbox then
-                self.plusOneCheckbox:Hide()
-            end
-            return
-        end
-        if not self.plusOneCheckbox then
-            local cb = CreateFrame("CheckButton", "BadStormsAssignPlusOne", self, "InterfaceOptionsCheckButtonTemplate")
-            cb:SetPoint("TOPLEFT", self.button1, "TOPRIGHT", -30, 35)
-            _G["BadStormsAssignPlusOneText"]:SetText("Add +1?")
-            self.plusOneCheckbox = cb
-        end
-        self.plusOneCheckbox:SetChecked(data.note and data.note:find("^Roll .- MS"))
-        self.plusOneCheckbox:Show()
-    end,
-    OnHide = function(self)
-        if self.plusOneCheckbox then
-            self.plusOneCheckbox:Hide()
-        end
-    end,
-    OnAccept = function(self, data)
-        if not CheckItemExists(data) then
-            return
-        end
-
-        SendToChannel("LOOT: " .. data.link .. " awarded to " .. data.name)
-
-        local itemId = BadStorms.GetItemID(data.link)
-        local itemName = data.link:match("%[(.-)%]") or "Unknown"
-        local dateKey = date("%Y-%m-%d")
-        local dateTime = date("%Y-%m-%d %H:%M:%S")
-        if not BadStormsSettings.exportData then
-            BadStormsSettings.exportData = {}
-        end
-        if not BadStormsSettings.exportData[dateKey] then
-            BadStormsSettings.exportData[dateKey] = {}
-        end
-        table.insert(BadStormsSettings.exportData[dateKey], {
-            character = data.name,
-            item_id = tostring(itemId or ""),
-            item_name = itemName,
-            date_time = dateTime,
-            public_note = data.note or "Award",
-            officer_note = ""
-        })
-
-        if self.plusOneCheckbox and self.plusOneCheckbox:GetChecked() then
-            local hasSR = itemId and BadStorms.PlayerHasReservation(itemId, data.name) or 0
-            if hasSR == 0 then
-                BadStormsSettings.plusOnes[data.name] = (BadStormsSettings.plusOnes[data.name] or 0) + 1
-            end
-        end
-
-        if itemId and BadStormsSettings.softReserves then
-            local nameLower = data.name:lower()
-            for _, r in ipairs(BadStormsSettings.softReserves) do
-                if r.itemId == itemId and r.name:lower() == nameLower and not r.received then
-                    r.received = true
-                    break
-                end
-            end
-        end
-
-        if data.lootSlot then
-            for ci = 1, 40 do
-                local candidate = GetMasterLootCandidate(ci)
-                if not candidate then
-                    break
-                end
-                if candidate == data.name then
-                    GiveMasterLoot(data.lootSlot, ci)
-                    break
-                end
-            end
-        elseif not UnitIsUnit(data.unit, "player") then
-            BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
-            if not BadStormsSettings.pendingTrades[data.name] then
-                BadStormsSettings.pendingTrades[data.name] = {}
-            end
-            table.insert(BadStormsSettings.pendingTrades[data.name], {
-                itemId = itemId,
-                link = data.link,
-                itemName = itemName,
-                bag = data.bag,
-                slot = data.slot,
-                date = dateTime
-            })
-
-            if not CheckInteractDistance(data.unit, 2) then
-                SendChatMessage(
-                    "WARNING: " .. data.name .. " is out of trade range. Please open trade with me for " ..
-                        data.link .. "!", "WHISPER", nil, data.name)
-                return
-            end
-            BadStormsMenuFrame:Hide()
-            InitiateTrade(data.unit)
-        end
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = false
-}
-
-StaticPopupDialogs["BadStormsDisenchantConfirm"] = {
-    text = "Disenchant %s?\n\nWARNING: Award this item to %s for disenchanting.",
-    button1 = "Yes",
-    button2 = "No",
-    width = 400,
-    height = 150,
-    OnAccept = function(self, data)
-        if not CheckItemExists(data) then
-            return
-        end
-        SendToChannel("LOOT: " .. data.link .. " sent to " .. data.disenchanter .. " (disenchant)")
-
-        if data.lootSlot then
-            for ci = 1, 40 do
-                local candidate = GetMasterLootCandidate(ci)
-                if not candidate then
-                    break
-                end
-                if candidate == data.disenchanter then
-                    GiveMasterLoot(data.lootSlot, ci)
-                    break
-                end
-            end
-        elseif data.disenchanter ~= UnitName("player") then
-            BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
-            if not BadStormsSettings.pendingTrades[data.disenchanter] then
-                BadStormsSettings.pendingTrades[data.disenchanter] = {}
-            end
-            local itemId = BadStorms.GetItemID(data.link)
-            local itemName = data.link:match("%[(.-)%]") or "Unknown"
-            table.insert(BadStormsSettings.pendingTrades[data.disenchanter], {
-                itemId = itemId,
-                link = data.link,
-                itemName = itemName,
-                bag = data.bag,
-                slot = data.slot,
-                date = date("%Y-%m-%d %H:%M:%S")
-            })
-            local unit = BadStorms.GetPlayerUnit(data.disenchanter)
-            if unit and not UnitIsUnit(unit, "player") then
-                if not CheckInteractDistance(unit, 2) then
-                    SendChatMessage("WARNING: " .. data.disenchanter ..
-                                        " is out of trade range. Please open trade with me for " .. data.link .. "!",
-                        "WHISPER", nil, data.disenchanter)
-                    return
-                end
-                BadStormsMenuFrame:Hide()
-                InitiateTrade(unit)
-            end
-        end
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = false
-}
-
-StaticPopupDialogs["BadStormsConfirmClearExportDate"] = {
-    text = "Clear all export data for %s?",
-    button1 = "Yes",
-    button2 = "No",
-    width = 400,
-    height = 150,
-    OnAccept = function(self, data)
-        if data and BadStormsSettings.exportData[data] then
-            BadStormsSettings.exportData[data] = nil
-        end
-        local f = BadStorms.configFrame
-        if f then
-            f.selectedExportDate = nil
-            if f.PopulateExportList then
-                f.PopulateExportList()
-            end
-        end
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = false
-}
-
-StaticPopupDialogs["BadStormsConfirmClearExportAll"] = {
-    text = "Clear ALL export data? This cannot be undone.",
-    button1 = "Yes",
-    button2 = "No",
-    width = 400,
-    height = 150,
-    OnAccept = function()
-        BadStormsSettings.exportData = {}
-        local f = BadStorms.configFrame
-        if f then
-            f.selectedExportDate = nil
-            if f.PopulateExportList then
-                f.PopulateExportList()
-            end
-        end
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = false
-}
-
-StaticPopupDialogs["BadStormsConfirmClearPlusOnes"] = {
-    text = "Clear ALL plus one counts?\n\n|cffff0000WARNING: This cannot be undone!|r",
-    button1 = "Yes",
-    button2 = "No",
-    width = 400,
-    height = 150,
-    OnAccept = function()
-        BadStormsSettings.plusOnes = {}
-        local f = BadStorms.configFrame
-        if f then
-            if f.PopulatePlusOnesList then
-                f.PopulatePlusOnesList()
-            end
-            BadStorms.UpdateRollDisplay(f)
-        end
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = false
-}
-
-StaticPopupDialogs["BadStormsConfirmClearPlusOnesOnImport"] = {
-    text = "|cffff0000WARNING: This cannot be undone!|r\n\n\nClear existing plus one counts?",
-    button1 = "Yes",
-    button2 = "No",
-    width = 400,
-    height = 150,
-    OnAccept = function()
-        BadStormsSettings.plusOnes = {}
-        local f = BadStorms.configFrame
-        if f then
-            if f.PopulatePlusOnesList then
-                f.PopulatePlusOnesList()
-            end
-            BadStorms.UpdateRollDisplay(f)
-        end
-        print("|cff00ff00BadStorms:|r Plus ones cleared after SR import.")
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = false
-}
-
-StaticPopupDialogs["BadStormsConfirmEnablePlusOnes"] = {
-    text = "|cffff0000Confirmation Needed!|r\n\nEnable plus one tracking?",
-    button1 = "Yes",
-    button2 = "No",
-    width = 400,
-    height = 150,
-    OnAccept = function()
-        BadStormsSettings.plusOnesEnabled = true
-        local checkbox = _G["BadStormsPlusOneCheckbox"]
-        if checkbox then
-            checkbox:SetChecked(true)
-        end
-        local f = BadStorms.configFrame
-        if f then
-            if f.PopulatePlusOnesList then
-                f.PopulatePlusOnesList()
-            end
-            BadStorms.UpdateRollDisplay(f)
-        end
-        print("|cff00ff00BadStorms:|r Plus ones tracking enabled.")
-        if next(BadStormsSettings.plusOnes) then
-            StaticPopup_Show("BadStormsConfirmClearPlusOnesOnImport")
-        end
-    end,
-    OnCancel = function()
-        BadStormsSettings.plusOnesEnabled = false
-        local checkbox = _G["BadStormsPlusOneCheckbox"]
-        if checkbox then
-            checkbox:SetChecked(false)
-        end
-        local f = BadStorms.configFrame
-        if f then
-            if f.PopulatePlusOnesList then
-                f.PopulatePlusOnesList()
-            end
-            BadStorms.UpdateRollDisplay(f)
-        end
-        print("|cff00ff00BadStorms:|r Plus ones tracking disabled.")
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = false
-}
 
 hooksecurefunc("HandleModifiedItemClick", function(link)
     if not BadStormsSettings.enabled then

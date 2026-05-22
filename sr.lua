@@ -2,10 +2,10 @@ local BadStorms = _G.BadStorms
 local GetItemID = BadStorms.GetItemID
 
 function BadStorms.PlayerHasReservation(itemId, playerName)
-    if not itemId or not BadStormsSettings.srReservations then return 0 end
+    if not itemId or not BadStormsSettings.softReserves then return 0 end
     local playerLower = playerName:lower()
     local total = 0
-    for _, r in ipairs(BadStormsSettings.srReservations) do
+    for _, r in ipairs(BadStormsSettings.softReserves) do
         if r.itemId == itemId and r.name:lower() == playerLower and not r.received then
             total = total + (tonumber(r.plus) or 0) + 1
         end
@@ -23,7 +23,7 @@ local function ParseSRCSV(csvText)
         table.remove(lines, 1)
     end
 
-    BadStormsSettings.srReservations = {}
+    BadStormsSettings.softReserves = {}
     local count = 0
 
     for _, line in ipairs(lines) do
@@ -44,7 +44,7 @@ local function ParseSRCSV(csvText)
         table.insert(fields, current)
 
         if #fields >= 4 then
-            table.insert(BadStormsSettings.srReservations, {
+            table.insert(BadStormsSettings.softReserves, {
                 item = fields[1] or "",
                 itemId = tonumber(fields[2]) or 0,
                 from = fields[3] or "",
@@ -59,7 +59,7 @@ local function ParseSRCSV(csvText)
         end
     end
 
-    BadStormsSettings.lastSRImport = csvText
+    BadStormsSettings.softReservesCsv = csvText
     print("|cff00ff00BadStorms:|r Imported " .. count .. " soft reserve(s).")
 
     local frame = BadStorms.configFrame
@@ -163,8 +163,8 @@ local function ShowSRImportDialog()
         clearBtn:SetPoint("BOTTOMLEFT", dialog, "BOTTOM", 20, 15)
         clearBtn:SetText("Clear")
         clearBtn:SetScript("OnClick", function()
-            BadStormsSettings.srReservations = {}
-            BadStormsSettings.lastSRImport = ""
+            BadStormsSettings.softReserves = {}
+            BadStormsSettings.softReservesCsv = ""
             print("|cff00ff00BadStorms:|r Soft reserves cleared.")
             editBox:SetText("")
             dialog:Hide()
@@ -183,16 +183,16 @@ local function ShowSRImportDialog()
         BadStorms.srDialogFrame = dialog
     end
 
-    dialog.editBox:SetText(BadStormsSettings.lastSRImport or "")
+    dialog.editBox:SetText(BadStormsSettings.softReservesCsv or "")
     dialog:Show()
 end
 BadStorms.ShowSRImportDialog = ShowSRImportDialog
 
 function BadStorms.GetSRText(itemId)
-    if not itemId or not BadStormsSettings.srReservations then return "" end
+    if not itemId or not BadStormsSettings.softReserves then return "" end
     local pending = {}
     local received = {}
-    for _, r in ipairs(BadStormsSettings.srReservations) do
+    for _, r in ipairs(BadStormsSettings.softReserves) do
         if r.itemId == itemId then
             local count = (tonumber(r.plus) or 0) + 1
             if r.received then

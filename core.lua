@@ -8,49 +8,43 @@ BadStorms.isRolling = false
 BadStorms.rollTimerActive = nil
 BadStorms.rollRemaining = 0
 
+BadStormsSettings = {}
+
 if not BadStormsSettings then
     BadStormsSettings = {
-        enabled = false,
-        rollTimer = 5,
-        autoloot = false,
         altClickLooting = true,
-        framePos = nil,
-        minimapPos = 0,
-        hideMinimap = false,
-        srReservations = {},
-        lastSRImport = "",
-        exportData = {},
-        trackPlusOnes = true,
-        plusOnes = {},
-        pendingTrades = {},
-        tradeTotals = {},
+        autoloot = false,
         autoMasterLoot = false,
-        disenchanterEnabled = false,
+        disenchantEnabled = false,
         disenchanter = "",
+        enabled = false,
+        exportData = {},
+        framePos = nil,
         frameScale = 1.0,
+        hideMinimap = false,
+        minimapPos = 0,
+        pendingTrades = {},
+        plusOnesEnabled = true,
+        plusOnes = {},
         raidSyncEnabled = true,
-        users = {}
+        rollTimer = 10,
+        softReserves = {},
+        softReservesCsv = ""
     }
 end
 
-BadStormsSettings.srReservations = BadStormsSettings.srReservations or {}
-BadStormsSettings.lastSRImport = BadStormsSettings.lastSRImport or ""
-BadStormsSettings.altClickLooting = BadStormsSettings.altClickLooting == nil and true or
-                                        BadStormsSettings.altClickLooting
-BadStormsSettings.exportData = BadStormsSettings.exportData or {}
-BadStormsSettings.trackPlusOnes = BadStormsSettings.trackPlusOnes == nil and true or BadStormsSettings.trackPlusOnes
-BadStormsSettings.plusOnes = BadStormsSettings.plusOnes or {}
-BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
-BadStormsSettings.tradeTotals = BadStormsSettings.tradeTotals or {}
-BadStormsSettings.autoMasterLoot = BadStormsSettings.autoMasterLoot == nil and false or BadStormsSettings.autoMasterLoot
-BadStormsSettings.minimapPos = BadStormsSettings.minimapPos or 0
-BadStormsSettings.disenchanterEnabled = BadStormsSettings.disenchanterEnabled == nil and false or
-                                            BadStormsSettings.disenchanterEnabled
+BadStormsSettings.autoMasterLoot = BadStormsSettings.autoMasterLoot or false
+BadStormsSettings.disenchantEnabled = BadStormsSettings.disenchantEnabled or false
 BadStormsSettings.disenchanter = BadStormsSettings.disenchanter or ""
+BadStormsSettings.exportData = BadStormsSettings.exportData or {}
 BadStormsSettings.frameScale = BadStormsSettings.frameScale or 1.0
-BadStormsSettings.users = BadStormsSettings.users or {}
+BadStormsSettings.minimapPos = BadStormsSettings.minimapPos or 0
+BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
+BadStormsSettings.plusOnes = BadStormsSettings.plusOnes or {}
+BadStormsSettings.plusOnesEnabled = BadStormsSettings.plusOnesEnabled or true
 BadStormsSettings.raidSyncEnabled = BadStormsSettings.raidSyncEnabled or true
-BadStormsSettings.users = BadStormsSettings.users or {}
+BadStormsSettings.softReserves = BadStormsSettings.softReserves or {}
+BadStormsSettings.softReservesCsv = BadStormsSettings.softReservesCsv or ""
 
 if not C_Timer then
     C_Timer = {}
@@ -325,4 +319,32 @@ function BadStorms.CleanupPendingTrades()
         end
     end
     return changed
+end
+
+function BadStorms.Update()
+    local updatedKeys = {
+        _plusOnesSnapshot = false,
+        altClickLooting = false,
+        disenchanterEnabled = "disenchantEnabled",
+        lastSRImport = "softReservesCsv",
+        reserves = false,
+        srReservations = "softReserves",
+        syncLastPull = false,
+        syncLastPush = false,
+        trackPlusOnes = "plusOnesEnabled",
+        tradeTotals = false,
+        users = false
+
+    }
+    for oldKey, newKey in pairs(updatedKeys) do
+        if BadStormsSettings[oldKey] ~= nil then
+            if newKey then
+                print("|cff00ff00BadStorms:|r Updating " .. oldKey .. " to " .. newKey)
+                BadStormsSettings[newKey] = BadStormsSettings[oldKey]
+            else
+                print("|cff00ff00BadStorms:|r Deleting old key " .. oldKey)
+            end
+            BadStormsSettings[oldKey] = nil
+        end
+    end
 end

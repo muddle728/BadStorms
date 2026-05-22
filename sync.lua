@@ -62,7 +62,6 @@ AceComm:RegisterComm("BadStorms", function(prefix, data, distribution, sender)
         AceComm:SendCommMessage("BadStorms", AceSerializer:Serialize(data), "WHISPER", sender)
     elseif received.action == "pong" then
         print("TODO: " .. sender .. " has this addon too!")
-        table.insert(BadStormsSettings.users, sender)
     end
 end)
 

@@ -66,7 +66,7 @@ end
 
 local function UpdateDisenchantButtons(frame)
     local canDisenchant =
-        BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" and frame.data and
+        BadStormsSettings.disenchantEnabled and BadStormsSettings.disenchanter ~= "" and frame.data and
             frame.data.link and BadStorms.IsItemEquippable(frame.data.link)
     if frame.disenchantRollButton then
         if canDisenchant then
@@ -381,7 +381,7 @@ local function CreateConfigFrame()
     srAnnounceBtn:SetText("Announce Missing")
     srAnnounceBtn:SetPoint("RIGHT", srRefreshBtn, "LEFT", -4, 0)
     srAnnounceBtn:SetScript("OnClick", function()
-        local reservations = BadStormsSettings.srReservations or {}
+        local reservations = BadStormsSettings.softReserves or {}
         local srNames = {}
         for _, r in ipairs(reservations) do
             srNames[r.name:lower()] = true
@@ -508,7 +508,7 @@ local function CreateConfigFrame()
     end
 
     local function PopulateSRList()
-        local reservations = BadStormsSettings.srReservations or {}
+        local reservations = BadStormsSettings.softReserves or {}
         local playerMap = {}
         for _, r in ipairs(reservations) do
             if not playerMap[r.name] then
@@ -760,9 +760,9 @@ local function CreateConfigFrame()
         "InterfaceOptionsCheckButtonTemplate")
     disenchanterCheckbox:SetPoint("TOPLEFT", autoMLCheckbox, "BOTTOMLEFT", 0, -18)
     _G["BadStormsDisenchanterCheckboxText"]:SetText("Enable Disenchanter (Requires Master Looter)")
-    disenchanterCheckbox:SetChecked(BadStormsSettings.disenchanterEnabled)
+    disenchanterCheckbox:SetChecked(BadStormsSettings.disenchantEnabled)
     disenchanterCheckbox:SetScript("OnClick", function(self)
-        BadStormsSettings.disenchanterEnabled = self:GetChecked()
+        BadStormsSettings.disenchantEnabled = self:GetChecked()
         UpdateDisenchantButtons(frame)
     end)
 
@@ -804,7 +804,7 @@ local function CreateConfigFrame()
     local disenchanterMenu = CreateFrame("Frame", "BadStormsDisenchanterMenu", UIParent, "UIDropDownMenuTemplate")
 
     local function InitDisenchanterMenu(self, level, menuList)
-        if not BadStormsSettings.disenchanterEnabled then
+        if not BadStormsSettings.disenchantEnabled then
             return
         end
         local seen = {}
@@ -839,7 +839,7 @@ local function CreateConfigFrame()
         if button ~= "LeftButton" then
             return
         end
-        if not BadStormsSettings.disenchanterEnabled then
+        if not BadStormsSettings.disenchantEnabled then
             return
         end
         self:ClearFocus()
@@ -880,7 +880,6 @@ local function CreateConfigFrame()
     pushDataBtn:SetPoint("TOPLEFT", syncCheckbox, "TOPRIGHT", 125, 0)
     pushDataBtn:SetText("Recover Data")
     pushDataBtn:SetScript("OnClick", function()
-        BadStormsSettings.users = {}
         BadStorms.SyncRecoverData()
     end)
 
@@ -1073,7 +1072,7 @@ local function CreateConfigFrame()
     frame.awardDisenchantButton:SetFrameLevel(awardPanel:GetFrameLevel() + 10)
     frame.awardDisenchantButton:SetText("Disenchant")
     frame.awardDisenchantButton:SetScript("OnClick", function()
-        if not BadStormsSettings.disenchanterEnabled or BadStormsSettings.disenchanter == "" then
+        if not BadStormsSettings.disenchantEnabled or BadStormsSettings.disenchanter == "" then
             return
         end
         local data = frame.data
@@ -1096,7 +1095,7 @@ local function CreateConfigFrame()
         })
     end)
     frame.awardDisenchantButton:SetScript("OnEnter", function(self)
-        if not BadStormsSettings.disenchanterEnabled or BadStormsSettings.disenchanter == "" then
+        if not BadStormsSettings.disenchantEnabled or BadStormsSettings.disenchanter == "" then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:SetText("Disenchanter must be enabled and set for this feature.", 1, 0.82, 0, 1)
             GameTooltip:Show()
@@ -1356,7 +1355,7 @@ local function CreateConfigFrame()
     frame.disenchantRollButton:SetText("Disenchant")
     frame.disenchantRollButton:Disable()
     frame.disenchantRollButton:SetScript("OnClick", function()
-        if not BadStormsSettings.disenchanterEnabled or BadStormsSettings.disenchanter == "" then
+        if not BadStormsSettings.disenchantEnabled or BadStormsSettings.disenchanter == "" then
             return
         end
         local link = frame.data and frame.data.link
@@ -1380,7 +1379,7 @@ local function CreateConfigFrame()
         })
     end)
     frame.disenchantRollButton:SetScript("OnEnter", function(self)
-        if not BadStormsSettings.disenchanterEnabled or BadStormsSettings.disenchanter == "" then
+        if not BadStormsSettings.disenchantEnabled or BadStormsSettings.disenchanter == "" then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:SetText("Disenchanter must be enabled and set for this feature.", 1, 0.82, 0, 1)
             GameTooltip:Show()
@@ -1560,9 +1559,9 @@ local function CreateConfigFrame()
         "InterfaceOptionsCheckButtonTemplate")
     plusOneCheckbox:SetPoint("TOPLEFT", plusOnesPanel, "TOPLEFT", 0, 0)
     _G["BadStormsPlusOneCheckboxText"]:SetText("Track Plus Ones")
-    plusOneCheckbox:SetChecked(BadStormsSettings.trackPlusOnes)
+    plusOneCheckbox:SetChecked(BadStormsSettings.plusOnesEnabled)
     plusOneCheckbox:SetScript("OnClick", function(self)
-        BadStormsSettings.trackPlusOnes = self:GetChecked()
+        BadStormsSettings.plusOnesEnabled = self:GetChecked()
     end)
 
     local plusOneScroll = CreateFrame("ScrollFrame", nil, plusOnesPanel)
@@ -1951,6 +1950,7 @@ BadStormsFrame:RegisterEvent("PARTY_LOOT_METHOD_CHANGED")
 BadStormsFrame:SetScript("OnEvent", function(self, event)
     if event == "PLAYER_ENTERING_WORLD" then
         print("|cff00ff00BadStorms:|r Addon loaded.")
+        BadStorms.Update()
         HookGameTooltips()
         CheckAutoMasterLoot()
         BadStorms.CleanupPendingTrades()
@@ -2036,14 +2036,7 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
                 local currentId = currentLink and tonumber(currentLink:match("Hitem:(%d+)"))
                 if not currentId or currentId ~= slotInfo.itemId then
                     tradedCount = tradedCount + 1
-                    local total = BadStormsSettings.tradeTotals and BadStormsSettings.tradeTotals[partner]
-                    if total then
-                        total.traded = (total.traded or 0) + 1
-                        BadStorms.SendToChannel("LOOT: " .. slotInfo.link .. " traded to " .. partner .. " (" ..
-                                                    total.traded .. "/" .. total.awarded .. " awarded)")
-                    else
-                        BadStorms.SendToChannel("LOOT: " .. slotInfo.link .. " traded to " .. partner)
-                    end
+                    BadStorms.SendToChannel("LOOT: " .. slotInfo.link .. " traded to " .. partner)
                 else
                     table.insert(remaining, itemData)
                 end
@@ -2054,9 +2047,6 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
 
         if #remaining == 0 then
             BadStormsSettings.pendingTrades[partner] = nil
-            if BadStormsSettings.tradeTotals then
-                BadStormsSettings.tradeTotals[partner] = nil
-            end
         else
             BadStormsSettings.pendingTrades[partner] = remaining
         end
@@ -2094,7 +2084,7 @@ lootFrame:SetScript("OnEvent", function()
                 end
             end
         elseif quality > 1 then
-            if quality == 2 and BadStorms.IsItemEquippable(item) and BadStormsSettings.disenchanterEnabled and
+            if quality == 2 and BadStorms.IsItemEquippable(item) and BadStormsSettings.disenchantEnabled and
                 BadStormsSettings.disenchanter ~= "" and isML then
                 if deCI then
                     SendToChannel("LOOT: " .. item .. " (disenchant) sent to " .. BadStormsSettings.disenchanter)
@@ -2303,16 +2293,16 @@ StaticPopupDialogs["BadStormsConfirmAssign"] = {
             officer_note = ""
         })
 
-        if BadStormsSettings.trackPlusOnes and data.note and data.note:find("^Roll .- MS") then
+        if BadStormsSettings.plusOnesEnabled and data.note and data.note:find("^Roll .- MS") then
             local hasSR = itemId and BadStorms.PlayerHasReservation(itemId, data.name) or 0
             if hasSR == 0 then
                 BadStormsSettings.plusOnes[data.name] = (BadStormsSettings.plusOnes[data.name] or 0) + 1
             end
         end
 
-        if itemId and BadStormsSettings.srReservations then
+        if itemId and BadStormsSettings.softReserves then
             local nameLower = data.name:lower()
-            for _, r in ipairs(BadStormsSettings.srReservations) do
+            for _, r in ipairs(BadStormsSettings.softReserves) do
                 if r.itemId == itemId and r.name:lower() == nameLower and not r.received then
                     r.received = true
                     break
@@ -2345,14 +2335,6 @@ StaticPopupDialogs["BadStormsConfirmAssign"] = {
                 date = dateTime
             })
 
-            BadStormsSettings.tradeTotals = BadStormsSettings.tradeTotals or {}
-            if not BadStormsSettings.tradeTotals[data.name] then
-                BadStormsSettings.tradeTotals[data.name] = {
-                    awarded = 0,
-                    traded = 0
-                }
-            end
-            BadStormsSettings.tradeTotals[data.name].awarded = BadStormsSettings.tradeTotals[data.name].awarded + 1
 
             if not UnitIsUnit(data.unit, "player") then
                 if not CheckInteractDistance(data.unit, 2) then
@@ -2509,7 +2491,7 @@ StaticPopupDialogs["BadStormsConfirmEnablePlusOnes"] = {
     button1 = "Yes",
     button2 = "No",
     OnAccept = function()
-        BadStormsSettings.trackPlusOnes = true
+        BadStormsSettings.plusOnesEnabled = true
         local checkbox = _G["BadStormsPlusOneCheckbox"]
         if checkbox then
             checkbox:SetChecked(true)
@@ -2527,7 +2509,7 @@ StaticPopupDialogs["BadStormsConfirmEnablePlusOnes"] = {
         end
     end,
     OnCancel = function()
-        BadStormsSettings.trackPlusOnes = false
+        BadStormsSettings.plusOnesEnabled = false
         local checkbox = _G["BadStormsPlusOneCheckbox"]
         if checkbox then
             checkbox:SetChecked(false)

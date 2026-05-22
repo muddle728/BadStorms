@@ -26,7 +26,6 @@ if not BadStormsSettings then
         pendingTrades = {},
         plusOnesEnabled = true,
         plusOnes = {},
-        raidSyncEnabled = true,
         rollTimer = 10,
         softReserves = {},
         softReservesCsv = "",
@@ -44,9 +43,9 @@ BadStormsSettings.payload = BadStormsSettings.payload or {}
 BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
 BadStormsSettings.plusOnes = BadStormsSettings.plusOnes or {}
 BadStormsSettings.plusOnesEnabled = BadStormsSettings.plusOnesEnabled or true
-BadStormsSettings.raidSyncEnabled = BadStormsSettings.raidSyncEnabled or true
 BadStormsSettings.softReserves = BadStormsSettings.softReserves or {}
 BadStormsSettings.softReservesCsv = BadStormsSettings.softReservesCsv or ""
+BadStormsSettings.rollTimer = BadStormsSettings.rollTimer or 10
 
 if not C_Timer then
     C_Timer = {}

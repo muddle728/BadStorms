@@ -365,21 +365,13 @@ local function CreateConfigFrame()
     end)
 
     local srCountText = srPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    srCountText:SetPoint("RIGHT", srPanel, "TOPRIGHT", 0, 0)
+    srCountText:SetPoint("TOPLEFT", srPanel, "TOPRIGHT", -200, 0)
     srCountText:SetText("")
-
-    local srRefreshBtn = CreateFrame("Button", nil, srPanel, "GameMenuButtonTemplate")
-    srRefreshBtn:SetSize(80, 24)
-    srRefreshBtn:SetPoint("RIGHT", srCountText, "LEFT", -8, 0)
-    srRefreshBtn:SetText("Refresh")
-    srRefreshBtn:SetScript("OnClick", function()
-        frame.PopulateSRList()
-    end)
 
     local srAnnounceBtn = CreateFrame("Button", nil, srPanel, "GameMenuButtonTemplate")
     srAnnounceBtn:SetSize(130, 24)
     srAnnounceBtn:SetText("Announce Missing")
-    srAnnounceBtn:SetPoint("RIGHT", srRefreshBtn, "LEFT", -4, 0)
+    srAnnounceBtn:SetPoint("RIGHT", srCountText, "LEFT", -4, 4)
     srAnnounceBtn:SetScript("OnClick", function()
         local reservations = BadStormsSettings.softReserves or {}
         local srNames = {}
@@ -599,11 +591,6 @@ local function CreateConfigFrame()
         end
         srCountText:SetText(srCount .. " player(s) with SR")
 
-        local hasAnyReservation = next(playerMap) ~= nil
-        if not hasAnyReservation then
-            ShowSRImportDialog()
-        end
-
         local prevName = ""
         for i, btn in ipairs(frame.srButtons) do
             local entry = playerList[srScrollIdx + i]
@@ -700,11 +687,6 @@ local function CreateConfigFrame()
     enableCheckbox:SetChecked(BadStormsSettings.enabled)
     enableCheckbox:SetScript("OnClick", function(self)
         BadStormsSettings.enabled = self:GetChecked()
-        if BadStormsSettings.enabled then
-            autoLootCheckbox:Enable()
-        else
-            autoLootCheckbox:Disable()
-        end
     end)
 
     local enableHelp = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -719,11 +701,6 @@ local function CreateConfigFrame()
     autoLootCheckbox:SetPoint("TOPLEFT", enableCheckbox, "BOTTOMLEFT", 0, -36)
     _G["BadStormsAutoLootCheckboxText"]:SetText("Enable Auto-Loot (Hold SHIFT to Bypass)")
     autoLootCheckbox:SetChecked(BadStormsSettings.autoloot)
-    if BadStormsSettings.enabled then
-        autoLootCheckbox:Enable()
-    else
-        autoLootCheckbox:Disable()
-    end
     autoLootCheckbox:SetScript("OnClick", function(self)
         BadStormsSettings.autoloot = self:GetChecked()
     end)
@@ -865,26 +842,8 @@ local function CreateConfigFrame()
         end
     end)
 
-    -- Raid Sync section
-    local syncCheckbox = CreateFrame("CheckButton", "BadStormsRaidSyncCheckbox", settingsPanel,
-        "InterfaceOptionsCheckButtonTemplate")
-    syncCheckbox:SetPoint("TOPLEFT", hideMinimapCheckbox, "BOTTOMLEFT", 0, -6)
-    _G["BadStormsRaidSyncCheckboxText"]:SetText("Enable Data Sync")
-    syncCheckbox:SetChecked(BadStormsSettings.raidSyncEnabled)
-    syncCheckbox:SetScript("OnClick", function(self)
-        BadStormsSettings.raidSyncEnabled = self:GetChecked()
-    end)
-
-    local pushDataBtn = CreateFrame("Button", nil, settingsPanel, "GameMenuButtonTemplate")
-    pushDataBtn:SetSize(90, 24)
-    pushDataBtn:SetPoint("TOPLEFT", syncCheckbox, "TOPRIGHT", 125, 0)
-    pushDataBtn:SetText("Recover Data")
-    pushDataBtn:SetScript("OnClick", function()
-        BadStorms.SyncRecoverData()
-    end)
-
     local notes = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    notes:SetPoint("TOPLEFT", syncCheckbox, "BOTTOMLEFT", 25, 5)
+    notes:SetPoint("TOPLEFT", hideMinimapCheckbox, "BOTTOMLEFT", 25, -10)
     notes:SetWidth(520)
     notes:SetJustifyH("LEFT")
     notes:SetText(
@@ -1301,7 +1260,7 @@ local function CreateConfigFrame()
     frame.timerEdit:SetNumeric(true)
     frame.timerEdit:SetMaxLetters(2)
     frame.timerEdit:SetJustifyH("CENTER")
-    frame.timerEdit:SetText(tostring(BadStormsSettings.rollTimer))
+    frame.timerEdit:SetText(tostring(BadStormsSettings.rollTimer or 10))
 
     local function SetRollTimer(val)
         val = tonumber(val) or BadStormsSettings.rollTimer
@@ -1670,6 +1629,7 @@ local function CreateConfigFrame()
                 BadStormsSettings.plusOnes[row.playerName] = val
             end
         end)
+        row._onTextChanged = row.editBox:GetScript("OnTextChanged")
 
         row:SetScript("OnClick", function(self)
             if not self.playerName then
@@ -1747,6 +1707,7 @@ local function CreateConfigFrame()
                 row:Hide()
             end
         end
+        frame.UpdatePlusOneState()
     end
     frame.PopulatePlusOnesList = PopulatePlusOnesList
 
@@ -1830,25 +1791,63 @@ local function CreateConfigFrame()
         end
     end
 
+    local function UpdatePlusOneState()
+        local readOnly = BadStorms.InGroup() and not BadStorms.IsMasterLooter()
+        if readOnly then
+            plusOneCheckbox:Disable()
+            plusOneClearBtn:Disable()
+        else
+            plusOneCheckbox:Enable()
+            plusOneClearBtn:Enable()
+        end
+        for _, row in ipairs(plusOneRows) do
+            if row.playerName then
+                if readOnly then
+                    row.minusBtn:Disable()
+                    row.editBox:EnableMouse(false)
+                    row.editBox:SetScript("OnTextChanged", nil)
+                    row.plusBtn:Disable()
+                else
+                    row.minusBtn:Enable()
+                    row.editBox:EnableMouse(true)
+                    row.editBox:SetScript("OnTextChanged", row._onTextChanged)
+                    row.plusBtn:Enable()
+                end
+            end
+        end
+    end
+    frame.UpdatePlusOneState = UpdatePlusOneState
+
     local function UpdateLootMasterState()
         local isLM = BadStorms.IsMasterLooter()
         local inGroup = BadStorms.InGroup()
         local tabsEnabled = not inGroup or isLM
         local text = _G["BadStormsEnableCheckboxText"]
+        local readOnly = inGroup and not isLM
         if tabsEnabled then
             text:SetTextColor(1, 1, 1)
             awardTab:Enable()
             rollTab:Enable()
             enableCheckbox:Enable()
-            pushDataBtn:Enable()
         else
             text:SetTextColor(1, 0, 0)
             awardTab:Disable()
             rollTab:Disable()
             enableCheckbox:Disable()
-            pushDataBtn:Disable()
+        end
+        if readOnly then
+            srImportBtn:Disable()
+            srAnnounceBtn:Disable()
+            clearDateBtn:Disable()
+            clearAllBtn:Disable()
+        else
+            srImportBtn:Enable()
+            srAnnounceBtn:Enable()
+            clearDateBtn:Enable()
+            clearAllBtn:Enable()
         end
         UpdateDisenchantButtons(frame)
+        frame.UpdatePlusOneState()
     end
     frame.UpdateLootMasterState = UpdateLootMasterState
     UpdateLootMasterState()
@@ -2142,6 +2141,31 @@ hooksecurefunc("StaticPopup_Show", function(which)
     if which == "LOOT_BIND" then
         C_Timer.After(0.05, AutoAcceptBoP)
     end
+    if which:find("^BadStorms") and BadStorms.configFrame then
+        for i = 1, STATICPOPUP_NUMDIALOGS do
+            local popup = _G["StaticPopup" .. i]
+            if popup and popup:IsShown() and popup.which == which then
+                popup:ClearAllPoints()
+                popup:SetPoint("CENTER", BadStorms.configFrame, "CENTER", 0, 0)
+                popup:SetBackdropBorderColor(1, 0, 0, 1)
+                popup:SetWidth(300)
+                popup:SetHeight(125)
+                BadStorms.configFrame:SetAlpha(0.3)
+                popup:HookScript("OnHide", function()
+                    for j = 1, STATICPOPUP_NUMDIALOGS do
+                        local p = _G["StaticPopup" .. j]
+                        if p and p:IsShown() and p.which and p.which:find("^BadStorms") then
+                            return
+                        end
+                    end
+                    if BadStorms.configFrame then
+                        BadStorms.configFrame:SetAlpha(1.0)
+                    end
+                end)
+                break
+            end
+        end
+    end
 end)
 
 local function HookCustomLootButtons()
@@ -2270,6 +2294,27 @@ StaticPopupDialogs["BadStormsConfirmAssign"] = {
     text = "Assign %s to %s?",
     button1 = "Yes",
     button2 = "No",
+    OnShow = function(self, data)
+        if not BadStormsSettings.plusOnesEnabled then
+            if self.plusOneCheckbox then
+                self.plusOneCheckbox:Hide()
+            end
+            return
+        end
+        if not self.plusOneCheckbox then
+            local cb = CreateFrame("CheckButton", "BadStormsAssignPlusOne", self, "InterfaceOptionsCheckButtonTemplate")
+            cb:SetPoint("TOPLEFT", self.button1, "TOPRIGHT", -30, 35)
+            _G["BadStormsAssignPlusOneText"]:SetText("Add +1?")
+            self.plusOneCheckbox = cb
+        end
+        self.plusOneCheckbox:SetChecked(data.note and data.note:find("^Roll .- MS"))
+        self.plusOneCheckbox:Show()
+    end,
+    OnHide = function(self)
+        if self.plusOneCheckbox then
+            self.plusOneCheckbox:Hide()
+        end
+    end,
     OnAccept = function(self, data)
         if not CheckItemExists(data) then
             return
@@ -2296,7 +2341,7 @@ StaticPopupDialogs["BadStormsConfirmAssign"] = {
             officer_note = ""
         })
 
-        if BadStormsSettings.plusOnesEnabled and data.note and data.note:find("^Roll .- MS") then
+        if self.plusOneCheckbox and self.plusOneCheckbox:GetChecked() then
             local hasSR = itemId and BadStorms.PlayerHasReservation(itemId, data.name) or 0
             if hasSR == 0 then
                 BadStormsSettings.plusOnes[data.name] = (BadStormsSettings.plusOnes[data.name] or 0) + 1
@@ -2357,6 +2402,8 @@ StaticPopupDialogs["BadStormsDisenchantConfirm"] = {
     text = "Disenchant %s?\n\nWARNING: Award this item to %s for disenchanting.",
     button1 = "Yes",
     button2 = "No",
+    width = 400,
+    height = 150,
     OnAccept = function(self, data)
         if not CheckItemExists(data) then
             return
@@ -2411,6 +2458,8 @@ StaticPopupDialogs["BadStormsConfirmClearExportDate"] = {
     text = "Clear all export data for %s?",
     button1 = "Yes",
     button2 = "No",
+    width = 400,
+    height = 150,
     OnAccept = function(self, data)
         if data and BadStormsSettings.exportData[data] then
             BadStormsSettings.exportData[data] = nil
@@ -2432,6 +2481,8 @@ StaticPopupDialogs["BadStormsConfirmClearExportAll"] = {
     text = "Clear ALL export data? This cannot be undone.",
     button1 = "Yes",
     button2 = "No",
+    width = 400,
+    height = 150,
     OnAccept = function()
         BadStormsSettings.exportData = {}
         local f = BadStorms.configFrame
@@ -2448,9 +2499,11 @@ StaticPopupDialogs["BadStormsConfirmClearExportAll"] = {
 }
 
 StaticPopupDialogs["BadStormsConfirmClearPlusOnes"] = {
-    text = "Clear ALL plus one counts? This cannot be undone.",
+    text = "Clear ALL plus one counts?\n\n|cffff0000WARNING: This cannot be undone!|r",
     button1 = "Yes",
     button2 = "No",
+    width = 400,
+    height = 150,
     OnAccept = function()
         BadStormsSettings.plusOnes = {}
         local f = BadStorms.configFrame
@@ -2467,9 +2520,11 @@ StaticPopupDialogs["BadStormsConfirmClearPlusOnes"] = {
 }
 
 StaticPopupDialogs["BadStormsConfirmClearPlusOnesOnImport"] = {
-    text = "Clear existing plus one counts?",
+    text = "|cffff0000WARNING: This cannot be undone!|r\n\n\nClear existing plus one counts?",
     button1 = "Yes",
     button2 = "No",
+    width = 400,
+    height = 150,
     OnAccept = function()
         BadStormsSettings.plusOnes = {}
         local f = BadStorms.configFrame
@@ -2487,9 +2542,11 @@ StaticPopupDialogs["BadStormsConfirmClearPlusOnesOnImport"] = {
 }
 
 StaticPopupDialogs["BadStormsConfirmEnablePlusOnes"] = {
-    text = "Enable plus ones tracking?",
+    text = "|cffff0000Confirmation Needed!|r\n\nEnable plus one tracking?",
     button1 = "Yes",
     button2 = "No",
+    width = 400,
+    height = 150,
     OnAccept = function()
         BadStormsSettings.plusOnesEnabled = true
         local checkbox = _G["BadStormsPlusOneCheckbox"]

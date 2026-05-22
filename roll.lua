@@ -132,18 +132,9 @@ local function EndRoll(frame)
         else
             winMsg = string.format("Winner: %s [%d] (OS)", winner.name, winner.roll)
         end
-        if BadStorms.CanRaidWarning() then
-            SendChatMessage(winMsg, "RAID_WARNING")
-        else
-            SendToChannel(string.format("ROLLS CLOSED! %s", winMsg))
-        end
+        SendToChannel(string.format("ROLLS CLOSED! %s", winMsg))
     else 
-        local winMsg = string.format("ROLLS CLOSED!")
-        if BadStorms.CanRaidWarning() then
-            SendChatMessage(winMsg, "RAID_WARNING")
-        else
-            SendToChannel(winMsg)
-        end
+        SendToChannel("ROLLS CLOSED!")
     end
 
     frame.rollTimerText:SetText("Roll ended")
@@ -161,7 +152,7 @@ local function StartRoll(frame)
 
     BadStorms.currentRolls = {}
     BadStorms.isRolling = true
-    BadStorms.rollRemaining = BadStormsSettings.rollTimer
+    BadStorms.rollRemaining = BadStormsSettings.rollTimer or 10
 
     UpdateRollDisplay(frame)
 
@@ -207,13 +198,9 @@ local function StartRoll(frame)
             local remaining = BadStorms.rollRemaining
             local sec = remaining == 1 and "second" or "seconds"
             local msg = "Roll ends in " .. tostring(remaining) .. " " .. sec .. "..."
-            if BadStorms.CanRaidWarning() and BadStorms.rollRemaining == 5 then
-                SendChatMessage(msg, "RAID_WARNING")
-            else
-                local chan = GetChannel()
-                if chan ~= "PRINT" then
-                    SendChatMessage(msg, chan)
-                end
+            local chan = GetChannel()
+            if chan ~= "PRINT" then
+                SendChatMessage(msg, chan)
             end
         end
 

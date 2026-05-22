@@ -28,6 +28,7 @@ function BadStorms.RefreshUIAfterSync(payload)
         frame.PopulateExportList()
     end
     BadStormsSettings.payload = payload
+    _syncPaused = false
 end
 
 function BadStorms.SyncRecoverData()
@@ -38,13 +39,21 @@ function BadStorms.SyncRecoverData()
 end
 
 function BadStorms.SyncToAll()
+
+    if BadStormsSettings.enabled then
+        return
+    end
+
     if not BadStorms.IsMasterLooter() or not BadStormsSettings.raidSyncEnabled then
         return
     end
 
     if _syncPaused then
-        print("|cff00ff00BadStorms:|r Sync currently paused to restore data.")
+        print("|cff00ff00BadStorms:|r Sync paused to restore data.")
+        return
     end
+
+    local send = (not _syncInitialized) or false -- force send the first request
 
     if not _syncInitialized then
         for _, name in ipairs(_syncFields) do
@@ -58,8 +67,6 @@ function BadStorms.SyncToAll()
         key = UnitName("player") .. "_" .. date("%Y%m%d"),
         version = BadStormsSettings.payload.version and (BadStormsSettings.payload.version + 1) or 0
     }
-
-    local send = false
 
     for _, name in ipairs(_syncFields) do
         local serialized = AceSerializer:Serialize(BadStormsSettings[name] or {})
@@ -91,22 +98,28 @@ AceComm:RegisterComm("BadStorms", function(prefix, payload, distribution, sender
     end
 
     if rp.action == "sync" then
-        if BadStormsSettings.payload.key == rp.key then
-            if BadStormsSettings.payload.version >= rp.version then
-                BadStormsSettings.payload.action = "restore"
-                AceComm:SendCommMessage("BadStorms", AceSerializer:Serialize(BadStormsSettings.payload), "WHISPER",
-                    sender)
-                BadStormsSettings.payload.action = "sync"
+        if BadStormsSettings.payload.key == rp.key and BadStormsSettings.payload.version > rp.version then
+            local restorePayload = {
+                action = "restore",
+                key = BadStormsSettings.payload.key,
+                version = BadStormsSettings.payload.version
+            }
+            for _, name in ipairs(_syncFields) do
+                if BadStormsSettings[name] ~= nill then
+                    restorePayload[name] = BadStormsSettings[name]
+                end
             end
+            AceComm:SendCommMessage("BadStorms", AceSerializer:Serialize(restorePayload), "WHISPER", sender)
+            return
         end
         BadStorms.RefreshUIAfterSync(rp)
     elseif rp.action == "restore" then
-        if BadStormsSettings.payload.key == rp.key then
+        if BadStormsSettings.payload.key == rp.key and rp.version > BadStormsSettings.payload.version then
             print("|cff00ff00BadStorms:|r Restoring data from " .. sender)
+            _syncPaused = true
             BadStorms.RefreshUIAfterSync(rp)
-            _syncPaused = false
         end
     end
 end)
 
-C_Timer.NewTicker(15, BadStorms.SyncToAll)
+C_Timer.NewTicker(5, BadStorms.SyncToAll)

@@ -55,7 +55,7 @@ function BadStorms.SyncToAll()
 
     local payload = {
         action = "sync",
-        key = UnitName("player"), -- .. "_" .. date("%Y%m%d"),
+        key = UnitName("player") .. "_" .. date("%Y%m%d"),
         version = BadStormsSettings.payload.version and (BadStormsSettings.payload.version + 1) or 0
     }
 

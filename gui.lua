@@ -880,6 +880,7 @@ local function CreateConfigFrame()
     pushDataBtn:SetPoint("TOPLEFT", syncCheckbox, "TOPRIGHT", 125, 0)
     pushDataBtn:SetText("Recover Data")
     pushDataBtn:SetScript("OnClick", function()
+        BadStormsSettings.users = {}
         BadStorms.SyncRecoverData()
     end)
 

@@ -3,6 +3,54 @@ _G[addonName] = ns
 local BadStorms = ns
 
 BadStorms.version = "1.0"
+BadStorms.currentRolls = {}
+BadStorms.isRolling = false
+BadStorms.rollTimerActive = nil
+BadStorms.rollRemaining = 0
+
+if not BadStormsSettings then
+    BadStormsSettings = {
+        enabled = false,
+        rollTimer = 5,
+        autoloot = false,
+        altClickLooting = true,
+        framePos = nil,
+        minimapPos = 0,
+        hideMinimap = false,
+        srReservations = {},
+        lastSRImport = "",
+        exportData = {},
+        trackPlusOnes = true,
+        plusOnes = {},
+        pendingTrades = {},
+        tradeTotals = {},
+        autoMasterLoot = false,
+        disenchanterEnabled = false,
+        disenchanter = "",
+        frameScale = 1.0,
+        raidSyncEnabled = true,
+        users = {}
+    }
+end
+
+BadStormsSettings.srReservations = BadStormsSettings.srReservations or {}
+BadStormsSettings.lastSRImport = BadStormsSettings.lastSRImport or ""
+BadStormsSettings.altClickLooting = BadStormsSettings.altClickLooting == nil and true or
+                                        BadStormsSettings.altClickLooting
+BadStormsSettings.exportData = BadStormsSettings.exportData or {}
+BadStormsSettings.trackPlusOnes = BadStormsSettings.trackPlusOnes == nil and true or BadStormsSettings.trackPlusOnes
+BadStormsSettings.plusOnes = BadStormsSettings.plusOnes or {}
+BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
+BadStormsSettings.tradeTotals = BadStormsSettings.tradeTotals or {}
+BadStormsSettings.autoMasterLoot = BadStormsSettings.autoMasterLoot == nil and false or BadStormsSettings.autoMasterLoot
+BadStormsSettings.minimapPos = BadStormsSettings.minimapPos or 0
+BadStormsSettings.disenchanterEnabled = BadStormsSettings.disenchanterEnabled == nil and false or
+                                            BadStormsSettings.disenchanterEnabled
+BadStormsSettings.disenchanter = BadStormsSettings.disenchanter or ""
+BadStormsSettings.frameScale = BadStormsSettings.frameScale or 1.0
+BadStormsSettings.users = BadStormsSettings.users or {}
+BadStormsSettings.raidSyncEnabled = BadStormsSettings.raidSyncEnabled or true
+BadStormsSettings.users = BadStormsSettings.users or {}
 
 if not C_Timer then
     C_Timer = {}
@@ -32,48 +80,6 @@ if not C_Timer then
             end
         }
     end
-end
-
-if not BadStormsSettings then
-    BadStormsSettings = {
-        enabled = false,
-        rollTimer = 5,
-        autoloot = false,
-        altClickLooting = true,
-        framePos = nil,
-        minimapPos = 0,
-        hideMinimap = false,
-        srReservations = {},
-        lastSRImport = "",
-        exportData = {},
-        trackPlusOnes = true,
-        plusOnes = {},
-        pendingTrades = {},
-        tradeTotals = {},
-        autoMasterLoot = false,
-        disenchanterEnabled = false,
-        disenchanter = "",
-        frameScale = 1.0,
-        raidSyncEnabled = true
-    }
-end
-BadStormsSettings.srReservations = BadStormsSettings.srReservations or {}
-BadStormsSettings.lastSRImport = BadStormsSettings.lastSRImport or ""
-BadStormsSettings.altClickLooting = BadStormsSettings.altClickLooting == nil and true or
-                                        BadStormsSettings.altClickLooting
-BadStormsSettings.exportData = BadStormsSettings.exportData or {}
-BadStormsSettings.trackPlusOnes = BadStormsSettings.trackPlusOnes == nil and true or BadStormsSettings.trackPlusOnes
-BadStormsSettings.plusOnes = BadStormsSettings.plusOnes or {}
-BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
-BadStormsSettings.tradeTotals = BadStormsSettings.tradeTotals or {}
-BadStormsSettings.autoMasterLoot = BadStormsSettings.autoMasterLoot == nil and false or BadStormsSettings.autoMasterLoot
-BadStormsSettings.minimapPos = BadStormsSettings.minimapPos or 0
-BadStormsSettings.disenchanterEnabled = BadStormsSettings.disenchanterEnabled == nil and false or
-                                            BadStormsSettings.disenchanterEnabled
-BadStormsSettings.disenchanter = BadStormsSettings.disenchanter or ""
-BadStormsSettings.frameScale = BadStormsSettings.frameScale or 1.0
-if BadStormsSettings.raidSyncEnabled == nil then
-    BadStormsSettings.raidSyncEnabled = true
 end
 
 function BadStorms.GetItemID(link)
@@ -168,11 +174,6 @@ end
 function BadStorms.InGroup()
     return GetNumRaidMembers() > 0 or GetNumPartyMembers() > 0
 end
-
-BadStorms.currentRolls = {}
-BadStorms.isRolling = false
-BadStorms.rollTimerActive = nil
-BadStorms.rollRemaining = 0
 
 function BadStorms.GetPlayerUnit(name)
     if not name then

@@ -1,6 +1,7 @@
 local BadStorms = _G.BadStorms
 local AceComm = LibStub:GetLibrary("AceComm-3.0")
 local AceSerializer = LibStub:GetLibrary("AceSerializer-3.0")
+local LibDeflate = LibStub:GetLibrary("LibDeflate", true)
 
 local _previousPlusOnes = AceSerializer:Serialize(BadStormsSettings.plusOnes or {})
 
@@ -27,14 +28,16 @@ function BadStorms.SyncToAll()
         return
     end
     local _plusOnes = AceSerializer:Serialize(BadStormsSettings.plusOnes)
-    if _plusOnes ~= _previousPlusOnes then
-        local data = {
-            action = "plusOnes",
-            plusOnes = BadStormsSettings.plusOnes
-        }
-        AceComm:SendCommMessage("BadStorms", AceSerializer:Serialize(data), BadStorms.GetChannel(), nil, "BULK")
-        _previousPlusOnes = _plusOnes
+    if _plusOnes == _previousPlusOnes then
+        return
     end
+    local data = {
+        action = "plusOnes",
+        plusOnes = BadStormsSettings.plusOnes
+    }
+    print("TODO: " .. AceSerializer:Serialize(data))
+    AceComm:SendCommMessage("BadStorms", AceSerializer:Serialize(data), BadStorms.GetChannel(), nil, "BULK")
+    _previousPlusOnes = _plusOnes
 end
 
 AceComm:RegisterComm("BadStorms", function(prefix, data, distribution, sender)
@@ -59,7 +62,31 @@ AceComm:RegisterComm("BadStorms", function(prefix, data, distribution, sender)
         AceComm:SendCommMessage("BadStorms", AceSerializer:Serialize(data), "WHISPER", sender)
     elseif received.action == "pong" then
         print("TODO: " .. sender .. " has this addon too!")
+        table.insert(BadStormsSettings.users, sender)
     end
 end)
+
+local rawData = "GuildRankData_Reset_2026"
+
+--[[
+-- Compress & Encode for Public Chat Channels
+local compressed = LibDeflate:CompressDeflate(rawData)
+local chatSafeMessage = LibDeflate:EncodeForWoWChatChannel(compressed)
+
+-- Broadcast to Guild
+SendChatMessage(chatSafeMessage, "GUILD")
+
+---------------------------------------------------------
+-- RECEIVER SIDE
+---------------------------------------------------------
+-- Inside CHAT_MSG_GUILD event listener:
+local function HandleGuildChatData(textMessage)
+    local decoded = LibDeflate:DecodeForWoWChatChannel(textMessage)
+    if decoded then
+        local originalText = LibDeflate:DecompressDeflate(decoded)
+        print("Received: " .. originalText)
+    end
+end
+]]--
 
 C_Timer.NewTicker(15, BadStorms.SyncToAll)

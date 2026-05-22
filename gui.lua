@@ -84,6 +84,35 @@ local function UpdateDisenchantButtons(frame)
     end
 end
 
+local function CreateListButton(parent, index, height, clickHandler)
+    local btn = CreateFrame("Button", nil, parent)
+    btn:SetPoint("TOPLEFT", parent, "TOPLEFT", 4, -(index - 1) * height)
+    btn:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -4, -(index - 1) * height)
+    btn:SetHeight(height)
+
+    btn.bg = btn:CreateTexture(nil, "BACKGROUND")
+    btn.bg:SetAllPoints()
+    btn.bg:SetTexture(0, 0, 0, 0.2)
+
+    btn.selectedTexture = btn:CreateTexture(nil, "BACKGROUND")
+    btn.selectedTexture:SetAllPoints()
+    btn.selectedTexture:SetTexture(1, 0.82, 0, 0.25)
+    btn.selectedTexture:Hide()
+
+    local hl = btn:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetTexture("Interface\\Buttons\\WHITE8X8")
+    hl:SetVertexColor(1, 1, 1, 0.1)
+    hl:SetAllPoints()
+    btn:SetHighlightTexture(hl)
+
+    if clickHandler then
+        btn:SetScript("OnClick", clickHandler)
+    end
+
+    btn:Hide()
+    return btn
+end
+
 function BadStorms.ShowRollDialogForLoot(link, lootSlot)
     if not CheckNotRolling() then
         return
@@ -923,38 +952,10 @@ local function CreateConfigFrame()
     awardScrollChild:SetSize(620, 960)
     awardScroll:SetScrollChild(awardScrollChild)
 
+    -- Award player button list
     frame.playerButtons = {}
     for i = 1, 40 do
-        local btn = CreateFrame("Button", nil, awardScrollChild)
-        btn:SetPoint("TOPLEFT", awardScrollChild, "TOPLEFT", 4, -(i - 1) * 24)
-        btn:SetPoint("TOPRIGHT", awardScrollChild, "TOPRIGHT", -4, -(i - 1) * 24)
-        btn:SetHeight(22)
-
-        btn.background = btn:CreateTexture(nil, "BACKGROUND")
-        btn.background:SetAllPoints()
-        btn.background:SetTexture(0, 0, 0, 0.2)
-
-        btn.selectedTexture = btn:CreateTexture(nil, "BACKGROUND")
-        btn.selectedTexture:SetAllPoints()
-        btn.selectedTexture:SetTexture(1, 0.82, 0, 0.25)
-        btn.selectedTexture:Hide()
-
-        local hl = btn:CreateTexture(nil, "HIGHLIGHT")
-        hl:SetTexture("Interface\\Buttons\\WHITE8X8")
-        hl:SetVertexColor(1, 1, 1, 0.1)
-        hl:SetAllPoints()
-        btn:SetHighlightTexture(hl)
-
-        btn.text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        btn.text:SetPoint("LEFT", btn, "LEFT", 8, 0)
-        btn.text:SetWidth(220)
-        btn.text:SetTextColor(1, 1, 1)
-
-        btn.srText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        btn.srText:SetPoint("LEFT", btn, "LEFT", 260, 0)
-        btn.srText:SetWidth(50)
-
-        btn:SetScript("OnClick", function(self)
+        local btn = CreateListButton(awardScrollChild, i, 22, function(self)
             frame.selected = self.player
             frame.selectedLabel:SetText("Player: " .. self.player.name)
             for _, other in ipairs(frame.playerButtons) do
@@ -967,7 +968,15 @@ local function CreateConfigFrame()
             frame.awardButton:Enable()
         end)
 
-        btn:Hide()
+        btn.text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        btn.text:SetPoint("LEFT", btn, "LEFT", 8, 0)
+        btn.text:SetWidth(220)
+        btn.text:SetTextColor(1, 1, 1)
+
+        btn.srText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        btn.srText:SetPoint("LEFT", btn, "LEFT", 260, 0)
+        btn.srText:SetWidth(50)
+
         frame.playerButtons[i] = btn
     end
 
@@ -1134,21 +1143,24 @@ local function CreateConfigFrame()
     rollScrollChild:SetSize(620, 960)
     rollScroll:SetScrollChild(rollScrollChild)
 
+    -- Roll result button list
     frame.rollButtons = {}
     for i = 1, 40 do
-        local btn = CreateFrame("Button", nil, rollScrollChild)
-        btn:SetPoint("TOPLEFT", rollScrollChild, "TOPLEFT", 4, -(i - 1) * 24)
-        btn:SetPoint("TOPRIGHT", rollScrollChild, "TOPRIGHT", -4, -(i - 1) * 24)
-        btn:SetHeight(22)
-
-        btn.bg = btn:CreateTexture(nil, "BACKGROUND")
-        btn.bg:SetAllPoints()
-        btn.bg:SetTexture(0, 0, 0, 0.2)
-
-        btn.selectedTexture = btn:CreateTexture(nil, "BACKGROUND")
-        btn.selectedTexture:SetAllPoints()
-        btn.selectedTexture:SetTexture(1, 0.82, 0, 0.25)
-        btn.selectedTexture:Hide()
+        local btn = CreateListButton(rollScrollChild, i, 22, function(self)
+            if not self.rollData then
+                return
+            end
+            frame.selectedRoll = self.rollData
+            frame.selectedRollLabel:SetText("Player: " .. self.rollData.name)
+            for _, other in ipairs(frame.rollButtons) do
+                if other == self then
+                    other.selectedTexture:Show()
+                else
+                    other.selectedTexture:Hide()
+                end
+            end
+            frame.rollAssignButton:Enable()
+        end)
 
         btn.nameText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         btn.nameText:SetPoint("LEFT", btn, "LEFT", 8, 0)
@@ -1170,29 +1182,6 @@ local function CreateConfigFrame()
         btn.plusText:SetPoint("LEFT", btn, "LEFT", 385, 0)
         btn.plusText:SetWidth(30)
 
-        local hl = btn:CreateTexture(nil, "HIGHLIGHT")
-        hl:SetTexture("Interface\\Buttons\\WHITE8X8")
-        hl:SetVertexColor(1, 1, 1, 0.1)
-        hl:SetAllPoints()
-        btn:SetHighlightTexture(hl)
-
-        btn:SetScript("OnClick", function(self)
-            if not self.rollData then
-                return
-            end
-            frame.selectedRoll = self.rollData
-            frame.selectedRollLabel:SetText("Player: " .. self.rollData.name)
-            for _, other in ipairs(frame.rollButtons) do
-                if other == self then
-                    other.selectedTexture:Show()
-                else
-                    other.selectedTexture:Hide()
-                end
-            end
-            frame.rollAssignButton:Enable()
-        end)
-
-        btn:Hide()
         frame.rollButtons[i] = btn
     end
 
@@ -1571,26 +1560,20 @@ local function CreateConfigFrame()
     plusOneScrollChild:SetSize(620, 1600)
     plusOneScroll:SetScrollChild(plusOneScrollChild)
 
+    -- Plus ones tracking button list
     for i = 1, 40 do
-        local row = CreateFrame("Button", nil, plusOneScrollChild)
-        row:SetPoint("TOPLEFT", plusOneScrollChild, "TOPLEFT", 0, -(i - 1) * 24)
-        row:SetPoint("TOPRIGHT", plusOneScrollChild, "TOPRIGHT", 0, -(i - 1) * 24)
-        row:SetHeight(22)
-
-        row.bg = row:CreateTexture(nil, "BACKGROUND")
-        row.bg:SetAllPoints()
-        row.bg:SetTexture(0, 0, 0, 0.2)
-
-        row.selectedTexture = row:CreateTexture(nil, "BACKGROUND")
-        row.selectedTexture:SetAllPoints()
-        row.selectedTexture:SetTexture(1, 0.82, 0, 0.25)
-        row.selectedTexture:Hide()
-
-        local hl = row:CreateTexture(nil, "HIGHLIGHT")
-        hl:SetTexture("Interface\\Buttons\\WHITE8X8")
-        hl:SetVertexColor(1, 1, 1, 0.1)
-        hl:SetAllPoints()
-        row:SetHighlightTexture(hl)
+        local row = CreateListButton(plusOneScrollChild, i, 22, function(self)
+            if not self.playerName then
+                return
+            end
+            for _, other in ipairs(plusOneRows) do
+                if other == self then
+                    other.selectedTexture:Show()
+                else
+                    other.selectedTexture:Hide()
+                end
+            end
+        end)
 
         row.name = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         row.name:SetPoint("LEFT", row, "LEFT", 8, 0)
@@ -1655,20 +1638,6 @@ local function CreateConfigFrame()
         end)
         row._onTextChanged = row.editBox:GetScript("OnTextChanged")
 
-        row:SetScript("OnClick", function(self)
-            if not self.playerName then
-                return
-            end
-            for _, other in ipairs(plusOneRows) do
-                if other == self then
-                    other.selectedTexture:Show()
-                else
-                    other.selectedTexture:Hide()
-                end
-            end
-        end)
-
-        row:Hide()
         plusOneRows[i] = row
     end
 
@@ -1741,7 +1710,7 @@ local function CreateConfigFrame()
     plusOneClearBtn:SetText("Clear All")
     plusOneClearBtn:SetScript("OnClick", function()
         BadStorms.ShowDialog(
-            "Clear ALL plus one counts?\n|cffff0000WARNING: This cannot be undone!|r",
+            "Clear ALL plus one counts?\n\n|cffff0000WARNING: This cannot be undone!|r",
             nil,
             function()
                 BadStormsSettings.plusOnes = {}
@@ -2186,7 +2155,7 @@ do
     dialog:Hide()
 
     local text = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    text:SetPoint("TOP", dialog, "TOP", 0, -20)
+    text:SetPoint("TOP", dialog, "TOP", 0, -12)
     text:SetWidth(360)
     text:SetWordWrap(true)
     text:SetJustifyH("CENTER")

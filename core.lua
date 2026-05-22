@@ -29,7 +29,8 @@ if not BadStormsSettings then
         raidSyncEnabled = true,
         rollTimer = 10,
         softReserves = {},
-        softReservesCsv = ""
+        softReservesCsv = "",
+        payload = {}
     }
 end
 
@@ -39,6 +40,7 @@ BadStormsSettings.disenchanter = BadStormsSettings.disenchanter or ""
 BadStormsSettings.exportData = BadStormsSettings.exportData or {}
 BadStormsSettings.frameScale = BadStormsSettings.frameScale or 1.0
 BadStormsSettings.minimapPos = BadStormsSettings.minimapPos or 0
+BadStormsSettings.payload = BadStormsSettings.payload or {}
 BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
 BadStormsSettings.plusOnes = BadStormsSettings.plusOnes or {}
 BadStormsSettings.plusOnesEnabled = BadStormsSettings.plusOnesEnabled or true

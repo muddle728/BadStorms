@@ -1689,6 +1689,9 @@ local function CreateConfigFrame()
     end
 
     local function PopulatePlusOnesList()
+
+        BadStormsSettings.plusOnes = BadStormsSettings.plusOnes or {}
+        
         local seen = {}
         local list = {}
         local raid = GetNumRaidMembers() > 0
@@ -2321,7 +2324,7 @@ StaticPopupDialogs["BadStormsConfirmAssign"] = {
                     break
                 end
             end
-        else
+        elseif not UnitIsUnit(data.unit, "player") then
             BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
             if not BadStormsSettings.pendingTrades[data.name] then
                 BadStormsSettings.pendingTrades[data.name] = {}
@@ -2335,17 +2338,14 @@ StaticPopupDialogs["BadStormsConfirmAssign"] = {
                 date = dateTime
             })
 
-
-            if not UnitIsUnit(data.unit, "player") then
-                if not CheckInteractDistance(data.unit, 2) then
-                    SendChatMessage(
-                        "WARNING: " .. data.name .. " is out of trade range. Please open trade with me for " ..
-                            data.link .. "!", "WHISPER", nil, data.name)
-                    return
-                end
-                BadStormsMenuFrame:Hide()
-                InitiateTrade(data.unit)
+            if not CheckInteractDistance(data.unit, 2) then
+                SendChatMessage(
+                    "WARNING: " .. data.name .. " is out of trade range. Please open trade with me for " ..
+                        data.link .. "!", "WHISPER", nil, data.name)
+                return
             end
+            BadStormsMenuFrame:Hide()
+            InitiateTrade(data.unit)
         end
     end,
     timeout = 0,
@@ -2374,7 +2374,7 @@ StaticPopupDialogs["BadStormsDisenchantConfirm"] = {
                     break
                 end
             end
-        else
+        elseif data.disenchanter ~= UnitName("player") then
             BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
             if not BadStormsSettings.pendingTrades[data.disenchanter] then
                 BadStormsSettings.pendingTrades[data.disenchanter] = {}

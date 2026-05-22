@@ -3,89 +3,110 @@ local AceComm = LibStub:GetLibrary("AceComm-3.0")
 local AceSerializer = LibStub:GetLibrary("AceSerializer-3.0")
 local LibDeflate = LibStub:GetLibrary("LibDeflate", true)
 
-local _previousPlusOnes = AceSerializer:Serialize(BadStormsSettings.plusOnes or {})
+local _syncFields = {"exportData", "pendingTrades", "plusOnes", "softReserves", "softReservesCsv"}
+local _syncInitialized = false
+local _syncPaused = false
+local _syncPrevious = {}
 
-function BadStorms.RefreshUIAfterSync()
+function BadStorms.RefreshUIAfterSync(payload)
     local frame = BadStorms.configFrame
     if not frame then
         return
     end
-    frame.PopulatePlusOnesList()
+    for _, name in pairs(_syncFields) do
+        if payload[name] ~= nil then
+            BadStormsSettings[name] = payload[name]
+        end
+    end
+    if payload["plusOnes"] ~= nil then
+        frame.PopulatePlusOnesList()
+    end
+    if payload["softReserves"] ~= nil or payload["softReservesCsv"] then
+        frame.PopulateSRList()
+    end
+    if payload["exportData"] ~= nil then
+        frame.PopulateExportList()
+    end
+    BadStormsSettings.payload = payload
 end
 
 function BadStorms.SyncRecoverData()
-    local data = {
+    local payload = {
         action = "ping"
     }
-    AceComm:SendCommMessage("BadStorms", AceSerializer:Serialize(data), BadStorms.GetChannel(), nil, "NORMAL")
+    AceComm:SendCommMessage("BadStorms", AceSerializer:Serialize(payload), BadStorms.GetChannel(), nil, "NORMAL")
 end
 
 function BadStorms.SyncToAll()
-    if not BadStorms.IsMasterLooter() then
+    if not BadStorms.IsMasterLooter() or not BadStormsSettings.raidSyncEnabled then
         return
     end
-    if not BadStormsSettings.raidSyncEnabled then
-        return
+
+    if _syncPaused then
+        print("|cff00ff00BadStorms:|r Sync currently paused to restore data.")
     end
-    local _plusOnes = AceSerializer:Serialize(BadStormsSettings.plusOnes)
-    if _plusOnes == _previousPlusOnes then
-        return
+
+    if not _syncInitialized then
+        for _, name in ipairs(_syncFields) do
+            _syncPrevious[name] = AceSerializer:Serialize(BadStormsSettings[name] or {})
+        end
+        _syncInitialized = true
     end
-    local data = {
-        action = "plusOnes",
-        plusOnes = BadStormsSettings.plusOnes
+
+    local payload = {
+        action = "sync",
+        key = UnitName("player"), -- .. "_" .. date("%Y%m%d"),
+        version = BadStormsSettings.payload.version and (BadStormsSettings.payload.version + 1) or 0
     }
-    print("TODO: " .. AceSerializer:Serialize(data))
-    AceComm:SendCommMessage("BadStorms", AceSerializer:Serialize(data), BadStorms.GetChannel(), nil, "BULK")
-    _previousPlusOnes = _plusOnes
+
+    local send = false
+
+    for _, name in ipairs(_syncFields) do
+        local serialized = AceSerializer:Serialize(BadStormsSettings[name] or {})
+        if _syncPrevious[name] ~= serialized then
+            _syncPrevious[name] = serialized
+            payload[name] = BadStormsSettings[name]
+            send = true
+        end
+    end
+
+    if not send then
+        return
+    end
+
+    BadStormsSettings.payload = payload
+
+    AceComm:SendCommMessage("BadStorms", AceSerializer:Serialize(payload), BadStorms.GetChannel(), nil, "BULK")
+
 end
 
-AceComm:RegisterComm("BadStorms", function(prefix, data, distribution, sender)
+AceComm:RegisterComm("BadStorms", function(prefix, payload, distribution, sender)
     if sender == UnitName("player") then
         return
     end
-    local ok, received = AceSerializer:Deserialize(data)
-    if not ok then
+
+    local ok, rp = AceSerializer:Deserialize(payload)
+    if not ok or not rp then
         return
     end
-    if not received then
-        return
-    end
-    -- print("TODO: action = " .. received.action)
-    if received.action == "plusOnes" then
-        BadStormsSettings.plusOnes = received.plusOnes or {}
-        BadStorms.RefreshUIAfterSync()
-    elseif received.action == "ping" then
-        local data = {
-            action = "pong"
-        }
-        AceComm:SendCommMessage("BadStorms", AceSerializer:Serialize(data), "WHISPER", sender)
-    elseif received.action == "pong" then
-        print("TODO: " .. sender .. " has this addon too!")
+
+    if rp.action == "sync" then
+        if BadStormsSettings.payload.key == rp.key then
+            if BadStormsSettings.payload.version >= rp.version then
+                BadStormsSettings.payload.action = "restore"
+                AceComm:SendCommMessage("BadStorms", AceSerializer:Serialize(BadStormsSettings.payload), "WHISPER",
+                    sender)
+                BadStormsSettings.payload.action = "sync"
+            end
+        end
+        BadStorms.RefreshUIAfterSync(rp)
+    elseif rp.action == "restore" then
+        if BadStormsSettings.payload.key == rp.key then
+            print("|cff00ff00BadStorms:|r Restoring data from " .. sender)
+            BadStorms.RefreshUIAfterSync(rp)
+            _syncPaused = false
+        end
     end
 end)
-
-local rawData = "GuildRankData_Reset_2026"
-
---[[
--- Compress & Encode for Public Chat Channels
-local compressed = LibDeflate:CompressDeflate(rawData)
-local chatSafeMessage = LibDeflate:EncodeForWoWChatChannel(compressed)
-
--- Broadcast to Guild
-SendChatMessage(chatSafeMessage, "GUILD")
-
----------------------------------------------------------
--- RECEIVER SIDE
----------------------------------------------------------
--- Inside CHAT_MSG_GUILD event listener:
-local function HandleGuildChatData(textMessage)
-    local decoded = LibDeflate:DecodeForWoWChatChannel(textMessage)
-    if decoded then
-        local originalText = LibDeflate:DecompressDeflate(decoded)
-        print("Received: " .. originalText)
-    end
-end
-]]--
 
 C_Timer.NewTicker(15, BadStorms.SyncToAll)

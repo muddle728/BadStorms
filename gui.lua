@@ -404,7 +404,7 @@ local function CreateConfigFrame()
     srClearBtn:SetText("Clear All")
     srClearBtn:SetScript("OnClick", function()
         BadStorms.ShowDialog(
-            "|cffff0000WARNING:|r Clear all soft reserves?",
+            "|cffff0000WARNING:|r Clear existing soft reserves?",
             nil,
             function()
                 BadStormsSettings.softReserves = {}
@@ -1978,7 +1978,7 @@ local function CreateConfigFrame()
     plusOneClearBtn:SetPoint("BOTTOMLEFT", plusOnesPanel, "BOTTOMLEFT", 10, 10)
     plusOneClearBtn:SetText("Clear All")
     plusOneClearBtn:SetScript("OnClick", function()
-        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear plus one counts?", nil,
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear existing plus one counts?", nil,
             function()
                 BadStormsSettings.plusOnes = {}
                 local f = BadStorms.configFrame

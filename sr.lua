@@ -227,7 +227,7 @@ local function ShowSRImportDialog()
         clearBtn:SetScript("OnClick", function()
             dialog:Hide()
             BadStorms.ShowDialog(
-                "|cffff0000WARNING:|r Clear all soft reserves?",
+                "|cffff0000WARNING:|r Clear existing soft reserves?",
                 nil,
                 function()
                     BadStormsSettings.softReserves = {}

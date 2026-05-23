@@ -88,14 +88,14 @@ function BadStorms.UpdateItemSelection(frame, link, bag, slot)
     end
     local equippable = BadStorms.IsItemEquippable(data.link)
     if frame.disenchantRollButton then
-        if BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" and equippable then
+        if BadStormsSettings.disenchantEnabled and BadStormsSettings.disenchanter ~= "" and equippable then
             frame.disenchantRollButton:Enable()
         else
             frame.disenchantRollButton:Disable()
         end
     end
     if frame.awardDisenchantButton then
-        if BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" and equippable then
+        if BadStormsSettings.disenchantEnabled and BadStormsSettings.disenchanter ~= "" and equippable then
             frame.awardDisenchantButton:Enable()
         else
             frame.awardDisenchantButton:Disable()

@@ -4,7 +4,13 @@
 ## Version: 1.0
 ## SavedVariables: BadStormsSettings
 
+Libs\LibDeflate\LibDeflate.lua
+Libs\LibStub\LibStub.lua
+Libs\AceComm-3.0\AceComm-3.0.lua
+Libs\AceSerializer-3.0\AceSerializer-3.0.lua
+
 core.lua
+sync.lua
 data.lua
 sr.lua
 roll.lua

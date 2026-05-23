@@ -120,4 +120,4 @@ AceComm:RegisterComm("BadStorms", function(prefix, payload, distribution, sender
     end
 end)
 
-C_Timer.NewTicker(5, BadStorms.SyncToAll)
+C_Timer.NewTicker(15, BadStorms.SyncToAll)

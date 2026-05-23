@@ -9,6 +9,125 @@ local PopulatePlayerList = BadStorms.PopulatePlayerList
 local CreateItemTooltip = BadStorms.CreateItemTooltip
 local BossIDs = BadStorms.BossIDs
 
+local function CheckPermission(permissionFunc, msg)
+    if BadStorms.InGroup() and not permissionFunc() then
+        print("|cff00ff00BadStorms:|r " .. msg)
+        return false
+    end
+    return true
+end
+
+local function CheckLootPermissionSpam(msg)
+    if not BadStorms.CanManageLoot() then
+        if BadStorms.InGroup() then
+            print("|cff00ff00BadStorms:|r " .. msg)
+            if UIErrorsFrame then
+                local errMsg = "BadStorms: " .. msg
+                UIErrorsFrame:AddMessage(errMsg, 1.0, 0.82, 0, 1.0)
+                C_Timer.After(1, function()
+                    UIErrorsFrame:AddMessage(errMsg, 1.0, 0.82, 0, 1.0)
+                end)
+                C_Timer.After(2, function()
+                    UIErrorsFrame:AddMessage(errMsg, 1.0, 0.82, 0, 1.0)
+                end)
+            end
+        end
+        return false
+    end
+    return true
+end
+
+local function CheckNotRolling(msg)
+    if BadStorms.isRolling then
+        print("|cff00ff00BadStorms:|r " .. (msg or "Cannot change item during an active roll."))
+        return false
+    end
+    return true
+end
+
+local function CheckItemExists(data)
+    if not BadStorms.ItemExistsInSlot(data) then
+        print("|cff00ff00BadStorms:|r Item is no longer available.")
+        return false
+    end
+    return true
+end
+
+local function ResetRollPanel(frame)
+    BadStorms.currentRolls = {}
+    frame.selectedRollLabel:SetText("Player: None")
+    for _, btn in ipairs(frame.rollButtons) do
+        btn.selectedTexture:Hide()
+        btn.rollData = nil
+        btn:Hide()
+    end
+    frame.rollAssignButton:Disable()
+end
+
+local function UpdateDisenchantButtons(frame)
+    local canDisenchant =
+        BadStormsSettings.disenchantEnabled and BadStormsSettings.disenchanter ~= "" and frame.data and frame.data.link and
+            BadStorms.IsItemEquippable(frame.data.link)
+    if frame.disenchantRollButton then
+        if canDisenchant then
+            frame.disenchantRollButton:Enable()
+        else
+            frame.disenchantRollButton:Disable()
+        end
+    end
+    if frame.awardDisenchantButton then
+        if canDisenchant then
+            frame.awardDisenchantButton:Enable()
+        else
+            frame.awardDisenchantButton:Disable()
+        end
+    end
+end
+
+local function CreateListButton(parent, index, height, clickHandler)
+    local btn = CreateFrame("Button", nil, parent)
+    btn:SetPoint("TOPLEFT", parent, "TOPLEFT", 4, -(index - 1) * height)
+    btn:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -4, -(index - 1) * height)
+    btn:SetHeight(height)
+
+    btn.bg = btn:CreateTexture(nil, "BACKGROUND")
+    btn.bg:SetAllPoints()
+    btn.bg:SetTexture(0, 0, 0, 0.2)
+
+    btn.selectedTexture = btn:CreateTexture(nil, "BACKGROUND")
+    btn.selectedTexture:SetAllPoints()
+    btn.selectedTexture:SetTexture(1, 0.82, 0, 0.25)
+    btn.selectedTexture:Hide()
+
+    local hl = btn:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetTexture("Interface\\Buttons\\WHITE8X8")
+    hl:SetVertexColor(1, 1, 1, 0.1)
+    hl:SetAllPoints()
+    btn:SetHighlightTexture(hl)
+
+    if clickHandler then
+        btn:SetScript("OnClick", clickHandler)
+    end
+
+    btn:Hide()
+    return btn
+end
+
+function BadStorms.ShowRollDialogForLoot(link, lootSlot)
+    if not CheckNotRolling() then
+        return
+    end
+    BadStorms.CreateConfigFrame()
+    local f = BadStorms.configFrame
+    BadStorms.UpdateItemSelection(f, link)
+    if lootSlot then
+        f.data.lootSlot = lootSlot
+    end
+    ResetRollPanel(f)
+    f:SelectTab("roll")
+    f:Show()
+end
+
 local function CheckAutoMasterLoot()
     if not BadStormsSettings.autoMasterLoot then
         return
@@ -191,34 +310,39 @@ local function CreateConfigFrame()
     frame.title:SetJustifyH("LEFT")
 
     local settingsTab = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-    settingsTab:SetSize(100, 24)
-    settingsTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -50)
+    settingsTab:SetSize(70, 24)
+    settingsTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 26, -50)
     settingsTab:SetText("General")
 
     local awardTab = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-    awardTab:SetSize(100, 24)
+    awardTab:SetSize(85, 24)
     awardTab:SetPoint("LEFT", settingsTab, "RIGHT", 4, 0)
     awardTab:SetText("Award Item")
 
     local rollTab = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-    rollTab:SetSize(100, 24)
+    rollTab:SetSize(80, 24)
     rollTab:SetPoint("LEFT", awardTab, "RIGHT", 4, 0)
     rollTab:SetText("Roll Item")
 
     local plusOneTab = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-    plusOneTab:SetSize(90, 24)
+    plusOneTab:SetSize(80, 24)
     plusOneTab:SetPoint("LEFT", rollTab, "RIGHT", 4, 0)
     plusOneTab:SetText("Plus Ones")
 
     local srTab = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-    srTab:SetSize(120, 24)
+    srTab:SetSize(105, 24)
     srTab:SetPoint("LEFT", plusOneTab, "RIGHT", 4, 0)
-    srTab:SetText("Soft-Reserves")
+    srTab:SetText("Soft Reserves")
 
     local exportTab = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-    exportTab:SetSize(80, 24)
+    exportTab:SetSize(75, 24)
     exportTab:SetPoint("LEFT", srTab, "RIGHT", 4, 0)
     exportTab:SetText("Export")
+
+    local syncHistoryTab = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
+    syncHistoryTab:SetSize(70, 24)
+    syncHistoryTab:SetPoint("LEFT", exportTab, "RIGHT", 4, 0)
+    syncHistoryTab:SetText("History")
 
     local settingsPanel = CreateFrame("Frame", nil, frame)
     settingsPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -94)
@@ -249,19 +373,11 @@ local function CreateConfigFrame()
         local cursorType, link = GetCursorInfo()
         if cursorType == "item" and link then
             ClearCursor()
-            if BadStorms.isRolling then
-                print("|cff00ff00BadStorms:|r Cannot change item during an active roll.")
+            if not CheckNotRolling() then
                 return
             end
             UpdateItemSelection(frame, link)
-            BadStorms.currentRolls = {}
-            frame.selectedRollLabel:SetText("Player: None")
-            for _, btn in ipairs(frame.rollButtons) do
-                btn.selectedTexture:Hide()
-                btn.rollData = nil
-                btn:Hide()
-            end
-            frame.rollAssignButton:Disable()
+            ResetRollPanel(frame)
             frame.startRollButton:Disable()
             frame:SelectTab("roll")
             frame:Show()
@@ -282,24 +398,38 @@ local function CreateConfigFrame()
         ShowSRImportDialog()
     end)
 
-    local srCountText = srPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    srCountText:SetPoint("RIGHT", srPanel, "TOPRIGHT", 0, 0)
-    srCountText:SetText("")
-
-    local srRefreshBtn = CreateFrame("Button", nil, srPanel, "GameMenuButtonTemplate")
-    srRefreshBtn:SetSize(80, 24)
-    srRefreshBtn:SetPoint("RIGHT", srCountText, "LEFT", -8, 0)
-    srRefreshBtn:SetText("Refresh")
-    srRefreshBtn:SetScript("OnClick", function()
-        frame.PopulateSRList()
+    local srClearBtn = CreateFrame("Button", nil, srPanel, "GameMenuButtonTemplate")
+    srClearBtn:SetSize(80, 24)
+    srClearBtn:SetPoint("LEFT", srImportBtn, "RIGHT", 4, 0)
+    srClearBtn:SetText("Clear All")
+    srClearBtn:SetScript("OnClick", function()
+        BadStorms.ShowDialog(
+            "|cffff0000WARNING:|r Clear existing soft reserves?",
+            nil,
+            function()
+                BadStormsSettings.softReserves = {}
+                BadStormsSettings.softReservesCsv = ""
+                print("|cff00ff00BadStorms:|r Soft reserves cleared.")
+                frame.PopulateSRList()
+                if frame.rollPanel and frame.rollPanel:IsShown() then
+                    BadStorms.UpdateRollDisplay(frame)
+                elseif frame.awardPanel and frame.awardPanel:IsShown() then
+                    BadStorms.PopulatePlayerList(frame)
+                end
+            end
+        )
     end)
+
+    local srCountText = srPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    srCountText:SetPoint("TOPLEFT", srPanel, "TOPRIGHT", -200, 0)
+    srCountText:SetText("")
 
     local srAnnounceBtn = CreateFrame("Button", nil, srPanel, "GameMenuButtonTemplate")
     srAnnounceBtn:SetSize(130, 24)
     srAnnounceBtn:SetText("Announce Missing")
-    srAnnounceBtn:SetPoint("RIGHT", srRefreshBtn, "LEFT", -4, 0)
+    srAnnounceBtn:SetPoint("RIGHT", srCountText, "LEFT", -4, 4)
     srAnnounceBtn:SetScript("OnClick", function()
-        local reservations = BadStormsSettings.srReservations or {}
+        local reservations = BadStormsSettings.softReserves or {}
         local srNames = {}
         for _, r in ipairs(reservations) do
             srNames[r.name:lower()] = true
@@ -426,7 +556,7 @@ local function CreateConfigFrame()
     end
 
     local function PopulateSRList()
-        local reservations = BadStormsSettings.srReservations or {}
+        local reservations = BadStormsSettings.softReserves or {}
         local playerMap = {}
         for _, r in ipairs(reservations) do
             if not playerMap[r.name] then
@@ -460,9 +590,14 @@ local function CreateConfigFrame()
             for _, data in pairs(itemMap) do
                 table.insert(itemList, data)
             end
-            table.sort(itemList, function(a, b) return (a.item or "") < (b.item or "") end)
+            table.sort(itemList, function(a, b)
+                return (a.item or "") < (b.item or "")
+            end)
             for _, data in ipairs(itemList) do
-                table.insert(playerList, { name = name, item = data })
+                table.insert(playerList, {
+                    name = name,
+                    item = data
+                })
             end
         end
 
@@ -476,20 +611,29 @@ local function CreateConfigFrame()
             for i = 1, raidCount do
                 local name = GetRaidRosterInfo(i)
                 if name and not srNames[name:lower()] then
-                    table.insert(playerList, { name = name, noSR = true })
+                    table.insert(playerList, {
+                        name = name,
+                        noSR = true
+                    })
                     srNames[name:lower()] = true
                 end
             end
         elseif partyCount > 0 then
             local myName = UnitName("player")
             if myName and not srNames[myName:lower()] then
-                table.insert(playerList, { name = myName, noSR = true })
+                table.insert(playerList, {
+                    name = myName,
+                    noSR = true
+                })
                 srNames[myName:lower()] = true
             end
             for i = 1, partyCount do
                 local name = UnitName("party" .. i)
                 if name and not srNames[name:lower()] then
-                    table.insert(playerList, { name = name, noSR = true })
+                    table.insert(playerList, {
+                        name = name,
+                        noSR = true
+                    })
                     srNames[name:lower()] = true
                 end
             end
@@ -502,11 +646,6 @@ local function CreateConfigFrame()
             srCount = srCount + 1
         end
         srCountText:SetText(srCount .. " player(s) with SR")
-
-        local hasAnyReservation = next(playerMap) ~= nil
-        if not hasAnyReservation then
-            ShowSRImportDialog()
-        end
 
         local prevName = ""
         for i, btn in ipairs(frame.srButtons) do
@@ -552,11 +691,13 @@ local function CreateConfigFrame()
                         local _, _, quality = GetItemInfo(data.itemId)
                         if quality then
                             local qColor = ITEM_QUALITY_COLORS[quality]
-                            local hex = string.format("|cff%02x%02x%02x", qColor.r * 255, qColor.g * 255, qColor.b * 255)
+                            local hex =
+                                string.format("|cff%02x%02x%02x", qColor.r * 255, qColor.g * 255, qColor.b * 255)
                             displayName = hex .. displayName .. "|r"
                         end
                         if data.received > 0 then
-                            displayName = displayName .. " (" .. (data.count - data.received) .. "/" .. data.count .. ")"
+                            displayName = displayName .. " (" .. (data.count - data.received) .. "/" .. data.count ..
+                                              ")"
                         end
                     end
 
@@ -593,6 +734,251 @@ local function CreateConfigFrame()
     plusOnesPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -94)
     plusOnesPanel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, 15)
 
+    -- Sync History panel
+    local syncHistoryPanel = CreateFrame("Frame", nil, frame)
+    syncHistoryPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -94)
+    syncHistoryPanel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, 15)
+
+    local shTitle = syncHistoryPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    shTitle:SetPoint("TOPLEFT", syncHistoryPanel, "TOPLEFT", 10, -10)
+    shTitle:SetText("Change History (max 50)")
+
+    -- Left: entry list
+    local shScrollFrame = CreateFrame("ScrollFrame", nil, syncHistoryPanel)
+    shScrollFrame:EnableMouseWheel(true)
+    shScrollFrame:SetScript("OnMouseWheel", function(self, delta)
+        local range = self:GetVerticalScrollRange()
+        local val = self:GetVerticalScroll() - delta * 20
+        self:SetVerticalScroll(math.max(0, math.min(val, range)))
+    end)
+    shScrollFrame:SetPoint("TOPLEFT", syncHistoryPanel, "TOPLEFT", 10, -35)
+    shScrollFrame:SetPoint("BOTTOMLEFT", syncHistoryPanel, "BOTTOMLEFT", 10, 50)
+    shScrollFrame:SetPoint("TOPRIGHT", syncHistoryPanel, "TOPLEFT", 158, -35)
+
+    local shScrollChild = CreateFrame("Frame", nil, shScrollFrame)
+    shScrollChild:SetSize(148, 2000)
+    shScrollFrame:SetScrollChild(shScrollChild)
+
+    -- Right: preview pane
+    local shPreviewScroll = CreateFrame("ScrollFrame", nil, syncHistoryPanel)
+    shPreviewScroll:EnableMouseWheel(true)
+    shPreviewScroll:SetScript("OnMouseWheel", function(self, delta)
+        local range = self:GetVerticalScrollRange()
+        local val = self:GetVerticalScroll() - delta * 20
+        self:SetVerticalScroll(math.max(0, math.min(val, range)))
+    end)
+    shPreviewScroll:SetPoint("TOPLEFT", shScrollFrame, "TOPRIGHT", 4, 0)
+    shPreviewScroll:SetPoint("BOTTOMRIGHT", syncHistoryPanel, "BOTTOMRIGHT", -10, 50)
+
+    local shPreviewChild = CreateFrame("Frame", nil, shPreviewScroll)
+    shPreviewChild:SetSize(438, 200)
+    shPreviewScroll:SetScrollChild(shPreviewChild)
+
+    local shPreviewText = shPreviewChild:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    shPreviewText:SetPoint("TOPLEFT", shPreviewChild, "TOPLEFT", 4, 0)
+    shPreviewText:SetWidth(420)
+    shPreviewText:SetJustifyH("LEFT")
+    shPreviewText:SetText("Select an entry to see its data")
+
+    local function UpdatePreviewHeight()
+        local h = shPreviewText:GetStringHeight()
+        shPreviewChild:SetHeight(math.max(h + 13, shPreviewScroll:GetHeight()))
+    end
+
+    local function FormatPayloadPreview(decoded, entry)
+        if not decoded then
+            return "|cffff0000Unable to decode this entry.|r"
+        end
+        local lines = {}
+        local add = table.insert
+
+        if entry and entry.timestamp then
+            add(lines, "|cff00ff00Date:|r " .. date("%Y-%m-%d %H:%M:%S", entry.timestamp))
+        end
+        add(lines,
+            "|cffffd700Key:|r " .. (decoded.key or "?") .. " Version:|r " .. tostring(decoded.version or "?") ..
+                " Action:|r " .. (decoded.action or "?"))
+        add(lines, "")
+
+        if decoded.plusOnes then
+            add(lines, "|cff00ff00Plus Ones:|r")
+            local n = 0
+            for player, count in pairs(decoded.plusOnes) do
+                if count and count > 0 then
+                    add(lines, "  " .. player .. ": " .. count)
+                    n = n + 1
+                end
+            end
+            if n == 0 then
+                add(lines, "  (empty)")
+            end
+            add(lines, "")
+        end
+
+        if decoded.pendingTrades then
+            add(lines, "|cff00ff00Pending Trades:|r")
+            local n = 0
+            for player, trades in pairs(decoded.pendingTrades) do
+                for _, t in ipairs(trades) do
+                    add(lines, "  " .. player .. " <- " .. (t.itemName or "?"))
+                    n = n + 1
+                end
+            end
+            if n == 0 then
+                add(lines, "  (empty)")
+            end
+            add(lines, "")
+        end
+
+        if decoded.softReserves then
+            add(lines, "|cff00ff00Soft Reserves:|r")
+            if #decoded.softReserves > 0 then
+                for _, sr in ipairs(decoded.softReserves) do
+                    local note = (sr.note and sr.note ~= "") and " (" .. sr.note .. ")" or ""
+                    add(lines, "  " .. (sr.name or "?") .. " -> " .. (sr.item or "?") .. note)
+                end
+            else
+                add(lines, "  (empty)")
+            end
+            add(lines, "")
+        end
+
+        if decoded.exportData then
+            add(lines, "|cff00ff00Export Data:|r")
+            local n = 0
+            for date, entries in pairs(decoded.exportData) do
+                add(lines, "  " .. date .. " (" .. #entries .. " award" .. (#entries ~= 1 and "s" or "") .. ")")
+                for _, e in ipairs(entries) do
+                    add(lines, "    " .. (e.character or "?") .. " <- " .. (e.item_name or "?"))
+                end
+                n = n + 1
+            end
+            if n == 0 then
+                add(lines, "  (empty)")
+            end
+            add(lines, "")
+        end
+
+        return table.concat(lines, "\n")
+    end
+
+    local shButtons = {}
+    local shSelectedEntry, shRestoreBtn, shClearBtn
+
+    for i = 1, 50 do
+        local btn = CreateFrame("Button", nil, shScrollChild)
+        btn:SetPoint("TOPLEFT", shScrollChild, "TOPLEFT", 0, -(i - 1) * 24)
+        btn:SetPoint("TOPRIGHT", shScrollChild, "TOPRIGHT", 0, -(i - 1) * 24)
+        btn:SetHeight(22)
+
+        btn.bg = btn:CreateTexture(nil, "BACKGROUND")
+        btn.bg:SetAllPoints()
+        btn.bg:SetTexture(0, 0, 0, 0.2)
+
+        btn.selectedTexture = btn:CreateTexture(nil, "BACKGROUND")
+        btn.selectedTexture:SetAllPoints()
+        btn.selectedTexture:SetTexture(1, 0.82, 0, 0.25)
+        btn.selectedTexture:Hide()
+
+        btn.text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        btn.text:SetPoint("LEFT", btn, "LEFT", 4, 0)
+        btn.text:SetWidth(140)
+        btn.text:SetJustifyH("LEFT")
+
+        local hl = btn:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetTexture("Interface\\Buttons\\WHITE8X8")
+        hl:SetVertexColor(1, 1, 1, 0.1)
+        hl:SetAllPoints()
+        btn:SetHighlightTexture(hl)
+
+        btn:SetScript("OnClick", function(self)
+            if not self.entry then
+                return
+            end
+            for _, other in ipairs(shButtons) do
+                if other == self then
+                    other.selectedTexture:Show()
+                else
+                    other.selectedTexture:Hide()
+                end
+            end
+            shSelectedEntry = self.entry
+            shRestoreBtn:Enable()
+            local decoded = BadStorms.DecodeHistoryEntry(self.entry)
+            shPreviewText:SetText(FormatPayloadPreview(decoded, self.entry))
+            UpdatePreviewHeight()
+        end)
+
+        btn:Hide()
+        shButtons[i] = btn
+    end
+
+    shSelectedEntry = nil
+    shRestoreBtn = CreateFrame("Button", nil, syncHistoryPanel, "GameMenuButtonTemplate")
+    shRestoreBtn:SetSize(100, 24)
+    shRestoreBtn:SetPoint("BOTTOMLEFT", syncHistoryPanel, "BOTTOMLEFT", 10, 10)
+    shRestoreBtn:SetText("Restore")
+    shRestoreBtn:Disable()
+
+    shClearBtn = CreateFrame("Button", nil, syncHistoryPanel, "GameMenuButtonTemplate")
+    shClearBtn:SetSize(120, 24)
+    shClearBtn:SetPoint("LEFT", shRestoreBtn, "RIGHT", 4, 0)
+    shClearBtn:SetText("Clear History")
+
+    local function PopulateSyncHistoryList()
+        local history = BadStorms.GetHistoryList and BadStorms.GetHistoryList() or {}
+        for i, btn in ipairs(shButtons) do
+            local entry = history[i]
+            if entry then
+                btn.entry = entry
+                local ver = entry.version or "?"
+                local tm = entry.timestamp and date("%H:%M:%S", entry.timestamp) or "?"
+                btn.text:SetText("v" .. ver .. " | " .. tm)
+                if shSelectedEntry == entry then
+                    btn.selectedTexture:Show()
+                else
+                    btn.selectedTexture:Hide()
+                end
+                btn:Show()
+            else
+                btn.entry = nil
+                btn.selectedTexture:Hide()
+                btn:Hide()
+            end
+        end
+        if #history == 0 then
+            shSelectedEntry = nil
+            shRestoreBtn:Disable()
+            shPreviewText:SetText("Select an entry to see its data")
+            UpdatePreviewHeight()
+        end
+    end
+    frame.PopulateSyncHistoryList = PopulateSyncHistoryList
+
+    shRestoreBtn:SetScript("OnClick", function()
+        local entry = shSelectedEntry
+        if not entry then
+            return
+        end
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Restore from version " .. (entry.version or "?") ..
+                                 "?\n\nIf you're not sure, choose No.", entry, function(e)
+            BadStorms.RestoreFromHistory(e)
+            PopulateSyncHistoryList()
+            shRestoreBtn:Disable()
+            shPreviewText:SetText("|cff00ff00Restored!|r Sync pushed to all clients.")
+            UpdatePreviewHeight()
+        end)
+    end)
+
+    shClearBtn:SetScript("OnClick", function()
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear ALL sync history?\n\nIf you're not sure, choose No.", nil, function()
+            BadStormsSettings.syncHistory = {}
+            shSelectedEntry = nil
+            PopulateSyncHistoryList()
+            shRestoreBtn:Disable()
+        end)
+    end)
+
     -- Settings panel
     local autoLootCheckbox
     local enableCheckbox = CreateFrame("CheckButton", "BadStormsEnableCheckbox", settingsPanel,
@@ -602,11 +988,6 @@ local function CreateConfigFrame()
     enableCheckbox:SetChecked(BadStormsSettings.enabled)
     enableCheckbox:SetScript("OnClick", function(self)
         BadStormsSettings.enabled = self:GetChecked()
-        if BadStormsSettings.enabled then
-            autoLootCheckbox:Enable()
-        else
-            autoLootCheckbox:Disable()
-        end
     end)
 
     local enableHelp = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -621,11 +1002,6 @@ local function CreateConfigFrame()
     autoLootCheckbox:SetPoint("TOPLEFT", enableCheckbox, "BOTTOMLEFT", 0, -36)
     _G["BadStormsAutoLootCheckboxText"]:SetText("Enable Auto-Loot (Hold SHIFT to Bypass)")
     autoLootCheckbox:SetChecked(BadStormsSettings.autoloot)
-    if BadStormsSettings.enabled then
-        autoLootCheckbox:Enable()
-    else
-        autoLootCheckbox:Disable()
-    end
     autoLootCheckbox:SetScript("OnClick", function(self)
         BadStormsSettings.autoloot = self:GetChecked()
     end)
@@ -662,23 +1038,10 @@ local function CreateConfigFrame()
         "InterfaceOptionsCheckButtonTemplate")
     disenchanterCheckbox:SetPoint("TOPLEFT", autoMLCheckbox, "BOTTOMLEFT", 0, -18)
     _G["BadStormsDisenchanterCheckboxText"]:SetText("Enable Disenchanter (Requires Master Looter)")
-    disenchanterCheckbox:SetChecked(BadStormsSettings.disenchanterEnabled)
+    disenchanterCheckbox:SetChecked(BadStormsSettings.disenchantEnabled)
     disenchanterCheckbox:SetScript("OnClick", function(self)
-        BadStormsSettings.disenchanterEnabled = self:GetChecked()
-        if frame.disenchantRollButton then
-            if BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" and frame.data and frame.data.link then
-                frame.disenchantRollButton:Enable()
-            else
-                frame.disenchantRollButton:Disable()
-            end
-        end
-        if frame.awardDisenchantButton then
-            if BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" and frame.data and frame.data.link then
-                frame.awardDisenchantButton:Enable()
-            else
-                frame.awardDisenchantButton:Disable()
-            end
-        end
+        BadStormsSettings.disenchantEnabled = self:GetChecked()
+        UpdateDisenchantButtons(frame)
     end)
 
     local disenchanterHelp = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -719,7 +1082,7 @@ local function CreateConfigFrame()
     local disenchanterMenu = CreateFrame("Frame", "BadStormsDisenchanterMenu", UIParent, "UIDropDownMenuTemplate")
 
     local function InitDisenchanterMenu(self, level, menuList)
-        if not BadStormsSettings.disenchanterEnabled then
+        if not BadStormsSettings.disenchantEnabled then
             return
         end
         local seen = {}
@@ -754,7 +1117,7 @@ local function CreateConfigFrame()
         if button ~= "LeftButton" then
             return
         end
-        if not BadStormsSettings.disenchanterEnabled then
+        if not BadStormsSettings.disenchantEnabled then
             return
         end
         self:ClearFocus()
@@ -780,16 +1143,12 @@ local function CreateConfigFrame()
         end
     end)
 
-    local notesTitle = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    notesTitle:SetPoint("TOPLEFT", hideMinimapCheckbox, "BOTTOMLEFT", 0, -16)
-    notesTitle:SetText("Usage:")
-
     local notes = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    notes:SetPoint("TOPLEFT", notesTitle, "BOTTOMLEFT", 0, 5)
+    notes:SetPoint("TOPLEFT", hideMinimapCheckbox, "BOTTOMLEFT", 25, -10)
     notes:SetWidth(520)
     notes:SetJustifyH("LEFT")
     notes:SetText(
-        "\n|cff66ccffALT+CLICK |r an item in your bags or loot window to open the Roll tab.\n|cff66ccffALT+SHIFT+CLICK|r an item in your bags or loot window to open the Award tab.\n|cff66ccffCTRL+SCROLL|r on the frame to adjust the UI scale.\n|cff66ccffCTRL+RIGHT CLICK|r on the frame to reset the UI scale to 1.")
+        "\n|cff66ccffALT+CLICK |r an item in your bags, loot window, or chat to open the Roll tab.\n|cff66ccffALT+SHIFT+CLICK|r an item in your bags, loot window, or chat to open the Award tab.\n|cff66ccffCTRL+SCROLL|r on the frame to adjust the UI scale.\n|cff66ccffCTRL+RIGHT CLICK|r on the frame to reset the UI scale to 1.")
 
     -- Award panel
     frame.itemIcon = CreateFrame("Button", nil, awardPanel)
@@ -865,38 +1224,10 @@ local function CreateConfigFrame()
     awardScrollChild:SetSize(620, 960)
     awardScroll:SetScrollChild(awardScrollChild)
 
+    -- Award player button list
     frame.playerButtons = {}
     for i = 1, 40 do
-        local btn = CreateFrame("Button", nil, awardScrollChild)
-        btn:SetPoint("TOPLEFT", awardScrollChild, "TOPLEFT", 4, -(i - 1) * 24)
-        btn:SetPoint("TOPRIGHT", awardScrollChild, "TOPRIGHT", -4, -(i - 1) * 24)
-        btn:SetHeight(22)
-
-        btn.background = btn:CreateTexture(nil, "BACKGROUND")
-        btn.background:SetAllPoints()
-        btn.background:SetTexture(0, 0, 0, 0.2)
-
-        btn.selectedTexture = btn:CreateTexture(nil, "BACKGROUND")
-        btn.selectedTexture:SetAllPoints()
-        btn.selectedTexture:SetTexture(1, 0.82, 0, 0.25)
-        btn.selectedTexture:Hide()
-
-        local hl = btn:CreateTexture(nil, "HIGHLIGHT")
-        hl:SetTexture("Interface\\Buttons\\WHITE8X8")
-        hl:SetVertexColor(1, 1, 1, 0.1)
-        hl:SetAllPoints()
-        btn:SetHighlightTexture(hl)
-
-        btn.text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        btn.text:SetPoint("LEFT", btn, "LEFT", 8, 0)
-        btn.text:SetWidth(220)
-        btn.text:SetTextColor(1, 1, 1)
-
-        btn.srText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        btn.srText:SetPoint("LEFT", btn, "LEFT", 260, 0)
-        btn.srText:SetWidth(50)
-
-        btn:SetScript("OnClick", function(self)
+        local btn = CreateListButton(awardScrollChild, i, 22, function(self)
             frame.selected = self.player
             frame.selectedLabel:SetText("Player: " .. self.player.name)
             for _, other in ipairs(frame.playerButtons) do
@@ -909,7 +1240,15 @@ local function CreateConfigFrame()
             frame.awardButton:Enable()
         end)
 
-        btn:Hide()
+        btn.text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        btn.text:SetPoint("LEFT", btn, "LEFT", 8, 0)
+        btn.text:SetWidth(220)
+        btn.text:SetTextColor(1, 1, 1)
+
+        btn.srText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        btn.srText:SetPoint("LEFT", btn, "LEFT", 260, 0)
+        btn.srText:SetWidth(50)
+
         frame.playerButtons[i] = btn
     end
 
@@ -920,9 +1259,7 @@ local function CreateConfigFrame()
     frame.awardButton:SetText("Award")
     frame.awardButton:Disable()
     frame.awardButton:SetScript("OnClick", function()
-        local inGroup = BadStorms.InGroup()
-        if inGroup and not BadStorms.CanManageLoot() then
-            print("|cff00ff00BadStorms:|r You do not have permission to award items.")
+        if not CheckPermission(BadStorms.CanManageLoot, "You do not have permission to award items.") then
             return
         end
         local selected = frame.selected
@@ -934,11 +1271,10 @@ local function CreateConfigFrame()
         if not data or not data.link then
             return
         end
-        if not BadStorms.ItemExistsInSlot(data) then
-            print("|cff00ff00BadStorms:|r Item is no longer available.")
+        if not CheckItemExists(data) then
             return
         end
-        StaticPopup_Show("BadStormsConfirmAssign", data.link, selected.name, {
+        BadStorms.ShowAssignDialog({
             name = selected.name,
             unit = selected.unit,
             link = data.link,
@@ -976,31 +1312,30 @@ local function CreateConfigFrame()
     frame.awardDisenchantButton:SetFrameLevel(awardPanel:GetFrameLevel() + 10)
     frame.awardDisenchantButton:SetText("Disenchant")
     frame.awardDisenchantButton:SetScript("OnClick", function()
-        if not BadStormsSettings.disenchanterEnabled or BadStormsSettings.disenchanter == "" then
+        if not BadStormsSettings.disenchantEnabled or BadStormsSettings.disenchanter == "" then
             return
         end
         local data = frame.data
         if not data or not data.link then
             return
         end
-        if not BadStorms.ItemExistsInSlot(data) then
-            print("|cff00ff00BadStorms:|r Item is no longer available.")
+        if not CheckItemExists(data) then
             return
         end
         if not BadStorms.IsItemEquippable(data.link) then
             print("|cff00ff00BadStorms:|r Item must be equippable to disenchant.")
             return
         end
-        StaticPopup_Show("BadStormsDisenchantConfirm", data.link, BadStormsSettings.disenchanter, {
+        BadStorms.ShowDisenchantDialog({
             link = data.link,
             lootSlot = data.lootSlot,
             bag = data.bag,
             slot = data.slot,
-            disenchanter = BadStormsSettings.disenchanter,
+            disenchanter = BadStormsSettings.disenchanter
         })
     end)
     frame.awardDisenchantButton:SetScript("OnEnter", function(self)
-        if not BadStormsSettings.disenchanterEnabled or BadStormsSettings.disenchanter == "" then
+        if not BadStormsSettings.disenchantEnabled or BadStormsSettings.disenchanter == "" then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:SetText("Disenchanter must be enabled and set for this feature.", 1, 0.82, 0, 1)
             GameTooltip:Show()
@@ -1080,21 +1415,24 @@ local function CreateConfigFrame()
     rollScrollChild:SetSize(620, 960)
     rollScroll:SetScrollChild(rollScrollChild)
 
+    -- Roll result button list
     frame.rollButtons = {}
     for i = 1, 40 do
-        local btn = CreateFrame("Button", nil, rollScrollChild)
-        btn:SetPoint("TOPLEFT", rollScrollChild, "TOPLEFT", 4, -(i - 1) * 24)
-        btn:SetPoint("TOPRIGHT", rollScrollChild, "TOPRIGHT", -4, -(i - 1) * 24)
-        btn:SetHeight(22)
-
-        btn.bg = btn:CreateTexture(nil, "BACKGROUND")
-        btn.bg:SetAllPoints()
-        btn.bg:SetTexture(0, 0, 0, 0.2)
-
-        btn.selectedTexture = btn:CreateTexture(nil, "BACKGROUND")
-        btn.selectedTexture:SetAllPoints()
-        btn.selectedTexture:SetTexture(1, 0.82, 0, 0.25)
-        btn.selectedTexture:Hide()
+        local btn = CreateListButton(rollScrollChild, i, 22, function(self)
+            if not self.rollData then
+                return
+            end
+            frame.selectedRoll = self.rollData
+            frame.selectedRollLabel:SetText("Player: " .. self.rollData.name)
+            for _, other in ipairs(frame.rollButtons) do
+                if other == self then
+                    other.selectedTexture:Show()
+                else
+                    other.selectedTexture:Hide()
+                end
+            end
+            frame.rollAssignButton:Enable()
+        end)
 
         btn.nameText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         btn.nameText:SetPoint("LEFT", btn, "LEFT", 8, 0)
@@ -1116,29 +1454,6 @@ local function CreateConfigFrame()
         btn.plusText:SetPoint("LEFT", btn, "LEFT", 385, 0)
         btn.plusText:SetWidth(30)
 
-        local hl = btn:CreateTexture(nil, "HIGHLIGHT")
-        hl:SetTexture("Interface\\Buttons\\WHITE8X8")
-        hl:SetVertexColor(1, 1, 1, 0.1)
-        hl:SetAllPoints()
-        btn:SetHighlightTexture(hl)
-
-        btn:SetScript("OnClick", function(self)
-            if not self.rollData then
-                return
-            end
-            frame.selectedRoll = self.rollData
-            frame.selectedRollLabel:SetText("Player: " .. self.rollData.name)
-            for _, other in ipairs(frame.rollButtons) do
-                if other == self then
-                    other.selectedTexture:Show()
-                else
-                    other.selectedTexture:Hide()
-                end
-            end
-            frame.rollAssignButton:Enable()
-        end)
-
-        btn:Hide()
         frame.rollButtons[i] = btn
     end
 
@@ -1153,9 +1468,7 @@ local function CreateConfigFrame()
     frame.rollAssignButton:SetText("Award")
     frame.rollAssignButton:Disable()
     frame.rollAssignButton:SetScript("OnClick", function()
-        local inGroup = BadStorms.InGroup()
-        if inGroup and not BadStorms.CanManageLoot() then
-            print("|cff00ff00BadStorms:|r You do not have permission to award items.")
+        if not CheckPermission(BadStorms.CanManageLoot, "You do not have permission to award items.") then
             return
         end
         local selected = frame.selectedRoll
@@ -1168,12 +1481,11 @@ local function CreateConfigFrame()
             print("|cff00ff00BadStorms:|r No item selected.")
             return
         end
-        if not BadStorms.ItemExistsInSlot(data) then
-            print("|cff00ff00BadStorms:|r Item is no longer available.")
+        if not CheckItemExists(data) then
             return
         end
         local rollNote = "Roll - " .. (selected.max == 100 and "MS" or "OS") .. " " .. selected.roll
-        StaticPopup_Show("BadStormsConfirmAssign", data.link, selected.name, {
+        BadStorms.ShowAssignDialog({
             name = selected.name,
             unit = selected.unit,
             link = data.link,
@@ -1190,23 +1502,15 @@ local function CreateConfigFrame()
     frame.rollClearButton:SetFrameLevel(rollPanel:GetFrameLevel() + 10)
     frame.rollClearButton:SetText("Clear")
     frame.rollClearButton:SetScript("OnClick", function()
-        if BadStorms.isRolling then
-            print("|cff00ff00BadStorms:|r Cannot clear during an active roll.")
+        if not CheckNotRolling("Cannot clear during an active roll.") then
             return
         end
         frame.data = nil
         frame.selectedRoll = nil
-        BadStorms.currentRolls = {}
         frame.linkTextRoll.text:SetText("ALT+CLICK or Drag & Drop an Item")
         frame.itemIconRoll.texture:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
         frame.itemIconRoll:SetBackdropBorderColor(0.5, 0.5, 0.5)
-        frame.selectedRollLabel:SetText("Player: None")
-        for _, btn in ipairs(frame.rollButtons) do
-            btn.selectedTexture:Hide()
-            btn.rollData = nil
-            btn:Hide()
-        end
-        frame.rollAssignButton:Disable()
+        ResetRollPanel(frame)
         frame.startRollButton:Disable()
     end)
 
@@ -1217,7 +1521,7 @@ local function CreateConfigFrame()
     frame.timerEdit:SetNumeric(true)
     frame.timerEdit:SetMaxLetters(2)
     frame.timerEdit:SetJustifyH("CENTER")
-    frame.timerEdit:SetText(tostring(BadStormsSettings.rollTimer))
+    frame.timerEdit:SetText(tostring(BadStormsSettings.rollTimer or 10))
 
     local function SetRollTimer(val)
         val = tonumber(val) or BadStormsSettings.rollTimer
@@ -1271,7 +1575,7 @@ local function CreateConfigFrame()
     frame.disenchantRollButton:SetText("Disenchant")
     frame.disenchantRollButton:Disable()
     frame.disenchantRollButton:SetScript("OnClick", function()
-        if not BadStormsSettings.disenchanterEnabled or BadStormsSettings.disenchanter == "" then
+        if not BadStormsSettings.disenchantEnabled or BadStormsSettings.disenchanter == "" then
             return
         end
         local link = frame.data and frame.data.link
@@ -1279,24 +1583,23 @@ local function CreateConfigFrame()
             return
         end
         local data = frame.data
-        if not BadStorms.ItemExistsInSlot(data) then
-            print("|cff00ff00BadStorms:|r Item is no longer available.")
+        if not CheckItemExists(data) then
             return
         end
         if not BadStorms.IsItemEquippable(data.link) then
             print("|cff00ff00BadStorms:|r Item must be equippable to disenchant.")
             return
         end
-        StaticPopup_Show("BadStormsDisenchantConfirm", link, BadStormsSettings.disenchanter, {
+        BadStorms.ShowDisenchantDialog({
             link = link,
             lootSlot = frame.data.lootSlot,
             bag = frame.data.bag,
             slot = frame.data.slot,
-            disenchanter = BadStormsSettings.disenchanter,
+            disenchanter = BadStormsSettings.disenchanter
         })
     end)
     frame.disenchantRollButton:SetScript("OnEnter", function(self)
-        if not BadStormsSettings.disenchanterEnabled or BadStormsSettings.disenchanter == "" then
+        if not BadStormsSettings.disenchantEnabled or BadStormsSettings.disenchanter == "" then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:SetText("Disenchanter must be enabled and set for this feature.", 1, 0.82, 0, 1)
             GameTooltip:Show()
@@ -1306,9 +1609,7 @@ local function CreateConfigFrame()
         GameTooltip:Hide()
     end)
 
-    if BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" and frame.data and frame.data.link and BadStorms.IsItemEquippable(frame.data.link) then
-        frame.disenchantRollButton:Enable()
-    end
+    UpdateDisenchantButtons(frame)
 
     -- Export panel content
     local exportDateButtons = {}
@@ -1428,7 +1729,19 @@ local function CreateConfigFrame()
         if not frame.selectedExportDate then
             return
         end
-        StaticPopup_Show("BadStormsConfirmClearExportDate", frame.selectedExportDate, nil, frame.selectedExportDate)
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear export data for " .. frame.selectedExportDate .. "?\n\nIf you're not sure, choose No.", frame.selectedExportDate,
+            function(data)
+                if data and BadStormsSettings.exportData[data] then
+                    BadStormsSettings.exportData[data] = nil
+                end
+                local f = BadStorms.configFrame
+                if f then
+                    f.selectedExportDate = nil
+                    if f.PopulateExportList then
+                        f.PopulateExportList()
+                    end
+                end
+            end)
     end)
 
     local clearAllBtn = CreateFrame("Button", nil, exportPanel, "GameMenuButtonTemplate")
@@ -1436,7 +1749,16 @@ local function CreateConfigFrame()
     clearAllBtn:SetPoint("LEFT", clearDateBtn, "RIGHT", 4, 0)
     clearAllBtn:SetText("Clear All")
     clearAllBtn:SetScript("OnClick", function()
-        StaticPopup_Show("BadStormsConfirmClearExportAll")
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear ALL export data?\n\nIf you're not sure, choose No.", nil, function()
+            BadStormsSettings.exportData = {}
+            local f = BadStorms.configFrame
+            if f then
+                f.selectedExportDate = nil
+                if f.PopulateExportList then
+                    f.PopulateExportList()
+                end
+            end
+        end)
     end)
 
     local csvTitle = exportPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -1478,9 +1800,9 @@ local function CreateConfigFrame()
         "InterfaceOptionsCheckButtonTemplate")
     plusOneCheckbox:SetPoint("TOPLEFT", plusOnesPanel, "TOPLEFT", 0, 0)
     _G["BadStormsPlusOneCheckboxText"]:SetText("Track Plus Ones")
-    plusOneCheckbox:SetChecked(BadStormsSettings.trackPlusOnes)
+    plusOneCheckbox:SetChecked(BadStormsSettings.plusOnesEnabled)
     plusOneCheckbox:SetScript("OnClick", function(self)
-        BadStormsSettings.trackPlusOnes = self:GetChecked()
+        BadStormsSettings.plusOnesEnabled = self:GetChecked()
     end)
 
     local plusOneScroll = CreateFrame("ScrollFrame", nil, plusOnesPanel)
@@ -1507,26 +1829,20 @@ local function CreateConfigFrame()
     plusOneScrollChild:SetSize(620, 1600)
     plusOneScroll:SetScrollChild(plusOneScrollChild)
 
+    -- Plus ones tracking button list
     for i = 1, 40 do
-        local row = CreateFrame("Button", nil, plusOneScrollChild)
-        row:SetPoint("TOPLEFT", plusOneScrollChild, "TOPLEFT", 0, -(i - 1) * 24)
-        row:SetPoint("TOPRIGHT", plusOneScrollChild, "TOPRIGHT", 0, -(i - 1) * 24)
-        row:SetHeight(22)
-
-        row.bg = row:CreateTexture(nil, "BACKGROUND")
-        row.bg:SetAllPoints()
-        row.bg:SetTexture(0, 0, 0, 0.2)
-
-        row.selectedTexture = row:CreateTexture(nil, "BACKGROUND")
-        row.selectedTexture:SetAllPoints()
-        row.selectedTexture:SetTexture(1, 0.82, 0, 0.25)
-        row.selectedTexture:Hide()
-
-        local hl = row:CreateTexture(nil, "HIGHLIGHT")
-        hl:SetTexture("Interface\\Buttons\\WHITE8X8")
-        hl:SetVertexColor(1, 1, 1, 0.1)
-        hl:SetAllPoints()
-        row:SetHighlightTexture(hl)
+        local row = CreateListButton(plusOneScrollChild, i, 22, function(self)
+            if not self.playerName then
+                return
+            end
+            for _, other in ipairs(plusOneRows) do
+                if other == self then
+                    other.selectedTexture:Show()
+                else
+                    other.selectedTexture:Hide()
+                end
+            end
+        end)
 
         row.name = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         row.name:SetPoint("LEFT", row, "LEFT", 8, 0)
@@ -1589,25 +1905,15 @@ local function CreateConfigFrame()
                 BadStormsSettings.plusOnes[row.playerName] = val
             end
         end)
+        row._onTextChanged = row.editBox:GetScript("OnTextChanged")
 
-        row:SetScript("OnClick", function(self)
-            if not self.playerName then
-                return
-            end
-            for _, other in ipairs(plusOneRows) do
-                if other == self then
-                    other.selectedTexture:Show()
-                else
-                    other.selectedTexture:Hide()
-                end
-            end
-        end)
-
-        row:Hide()
         plusOneRows[i] = row
     end
 
     local function PopulatePlusOnesList()
+
+        BadStormsSettings.plusOnes = BadStormsSettings.plusOnes or {}
+
         local seen = {}
         local list = {}
         local raid = GetNumRaidMembers() > 0
@@ -1663,6 +1969,7 @@ local function CreateConfigFrame()
                 row:Hide()
             end
         end
+        frame.UpdatePlusOneState()
     end
     frame.PopulatePlusOnesList = PopulatePlusOnesList
 
@@ -1671,7 +1978,17 @@ local function CreateConfigFrame()
     plusOneClearBtn:SetPoint("BOTTOMLEFT", plusOnesPanel, "BOTTOMLEFT", 10, 10)
     plusOneClearBtn:SetText("Clear All")
     plusOneClearBtn:SetScript("OnClick", function()
-        StaticPopup_Show("BadStormsConfirmClearPlusOnes")
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear existing plus one counts?", nil,
+            function()
+                BadStormsSettings.plusOnes = {}
+                local f = BadStorms.configFrame
+                if f then
+                    if f.PopulatePlusOnesList then
+                        f.PopulatePlusOnesList()
+                    end
+                    BadStorms.UpdateRollDisplay(f)
+                end
+            end)
     end)
 
     frame.closeButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
@@ -1700,12 +2017,14 @@ local function CreateConfigFrame()
     frame.srPanel = srPanel
     frame.exportPanel = exportPanel
     frame.plusOnesPanel = plusOnesPanel
+    frame.syncHistoryPanel = syncHistoryPanel
     frame.settingsTab = settingsTab
     frame.awardTab = awardTab
     frame.rollTab = rollTab
     frame.srTab = srTab
     frame.exportTab = exportTab
     frame.plusOneTab = plusOneTab
+    frame.syncHistoryTab = syncHistoryTab
 
     function frame:SelectTab(tab)
         self.settingsPanel:Hide()
@@ -1714,12 +2033,14 @@ local function CreateConfigFrame()
         self.srPanel:Hide()
         self.exportPanel:Hide()
         self.plusOnesPanel:Hide()
+        self.syncHistoryPanel:Hide()
         self.settingsTab:UnlockHighlight()
         self.awardTab:UnlockHighlight()
         self.rollTab:UnlockHighlight()
         self.srTab:UnlockHighlight()
         self.exportTab:UnlockHighlight()
         self.plusOneTab:UnlockHighlight()
+        self.syncHistoryTab:UnlockHighlight()
 
         if tab == "settings" then
             self.settingsPanel:Show()
@@ -1739,6 +2060,10 @@ local function CreateConfigFrame()
             self.plusOnesPanel:Show()
             self.plusOneTab:LockHighlight()
             self.PopulatePlusOnesList()
+        elseif tab == "synchistory" then
+            self.syncHistoryPanel:Show()
+            self.syncHistoryTab:LockHighlight()
+            self.PopulateSyncHistoryList()
         else
             self.awardPanel:Show()
             self.awardTab:LockHighlight()
@@ -1746,11 +2071,39 @@ local function CreateConfigFrame()
         end
     end
 
+    local function UpdatePlusOneState()
+        local readOnly = BadStorms.InGroup() and not BadStorms.IsMasterLooter()
+        if readOnly then
+            plusOneCheckbox:Disable()
+            plusOneClearBtn:Disable()
+        else
+            plusOneCheckbox:Enable()
+            plusOneClearBtn:Enable()
+        end
+        for _, row in ipairs(plusOneRows) do
+            if row.playerName then
+                if readOnly then
+                    row.minusBtn:Disable()
+                    row.editBox:EnableMouse(false)
+                    row.editBox:SetScript("OnTextChanged", nil)
+                    row.plusBtn:Disable()
+                else
+                    row.minusBtn:Enable()
+                    row.editBox:EnableMouse(true)
+                    row.editBox:SetScript("OnTextChanged", row._onTextChanged)
+                    row.plusBtn:Enable()
+                end
+            end
+        end
+    end
+    frame.UpdatePlusOneState = UpdatePlusOneState
+
     local function UpdateLootMasterState()
-        local isLM = BadStorms.IsLootMaster()
+        local isLM = BadStorms.IsMasterLooter()
         local inGroup = BadStorms.InGroup()
         local tabsEnabled = not inGroup or isLM
         local text = _G["BadStormsEnableCheckboxText"]
+        local readOnly = inGroup and not isLM
         if tabsEnabled then
             text:SetTextColor(1, 1, 1)
             awardTab:Enable()
@@ -1762,26 +2115,19 @@ local function CreateConfigFrame()
             rollTab:Disable()
             enableCheckbox:Disable()
         end
-        srTab:Enable()
-        exportTab:Enable()
-        plusOneTab:Enable()
-
-        local data = frame.data
-        local canDisenchant = BadStormsSettings.disenchanterEnabled and BadStormsSettings.disenchanter ~= "" and data and data.link and BadStorms.IsItemEquippable(data.link)
-        if frame.awardDisenchantButton then
-            if canDisenchant then
-                frame.awardDisenchantButton:Enable()
-            else
-                frame.awardDisenchantButton:Disable()
-            end
+        if readOnly then
+            srImportBtn:Disable()
+            srAnnounceBtn:Disable()
+            clearDateBtn:Disable()
+            clearAllBtn:Disable()
+        else
+            srImportBtn:Enable()
+            srAnnounceBtn:Enable()
+            clearDateBtn:Enable()
+            clearAllBtn:Enable()
         end
-        if frame.disenchantRollButton then
-            if canDisenchant then
-                frame.disenchantRollButton:Enable()
-            else
-                frame.disenchantRollButton:Disable()
-            end
-        end
+        UpdateDisenchantButtons(frame)
+        frame.UpdatePlusOneState()
     end
     frame.UpdateLootMasterState = UpdateLootMasterState
     UpdateLootMasterState()
@@ -1790,17 +2136,13 @@ local function CreateConfigFrame()
         frame:SelectTab("settings")
     end)
     awardTab:SetScript("OnClick", function()
-        local inGroup = BadStorms.InGroup()
-        if inGroup and not BadStorms.IsLootMaster() then
-            print("|cff00ff00BadStorms:|r You must be the Master Looter to award items.")
+        if not CheckPermission(BadStorms.IsMasterLooter, "You must be the Master Looter to award items.") then
             return
         end
         frame:SelectTab("award")
     end)
     rollTab:SetScript("OnClick", function()
-        local inGroup = BadStorms.InGroup()
-        if inGroup and not BadStorms.IsLootMaster() then
-            print("|cff00ff00BadStorms:|r You must be the Master Looter to roll items.")
+        if not CheckPermission(BadStorms.IsMasterLooter, "You must be the Master Looter to roll items.") then
             return
         end
         frame:SelectTab("roll")
@@ -1814,16 +2156,12 @@ local function CreateConfigFrame()
     plusOneTab:SetScript("OnClick", function()
         frame:SelectTab("plusones")
     end)
+    syncHistoryTab:SetScript("OnClick", function()
+        frame:SelectTab("synchistory")
+    end)
 
     frame:SelectTab("settings")
     frame:SetScript("OnShow", UpdateLootMasterState)
-    frame:SetScript("OnUpdate", function(self, elapsed)
-        self.refreshTimer = (self.refreshTimer or 0) + elapsed
-        if self.refreshTimer >= 2 then
-            self.refreshTimer = 0
-            UpdateLootMasterState()
-        end
-    end)
     frame:SetScript("OnMouseDown", function(self, button)
         if button == "RightButton" and IsControlKeyDown() then
             BadStormsSettings.frameScale = 1.0
@@ -1872,7 +2210,7 @@ local function HookGameTooltips()
             tt:HookScript("OnTooltipSetItem", function(self)
                 local _, link = self:GetItem()
                 if link then
-                    local itemId = GetItemID(link)
+                    local itemId = BadStorms.GetItemID(link)
                     if itemId then
                         BadStorms.AppendItemTooltipInfo(itemId)
                     end
@@ -1886,44 +2224,32 @@ local function CheckLootMasterTransition()
     BadStorms.CreateConfigFrame()
     local f = BadStorms.configFrame
     if f and f.UpdateLootMasterState then
-        local isLM = BadStorms.IsLootMaster()
-        if isLM and BadStorms.IsMasterLooter() and not BadStorms._wasLootMaster and not f:IsShown() then
-            f:SelectTab("settings")
-            f:Show()
-        end
-        BadStorms._wasLootMaster = isLM
         f.UpdateLootMasterState()
     end
 end
 
 local BadStormsFrame = CreateFrame("Frame")
 BadStormsFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-BadStormsFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
 BadStormsFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
-BadStormsFrame:RegisterEvent("LOOT_METHOD_CHANGED")
+BadStormsFrame:RegisterEvent("PARTY_LOOT_METHOD_CHANGED")
 BadStormsFrame:SetScript("OnEvent", function(self, event)
     if event == "PLAYER_ENTERING_WORLD" then
         print("|cff00ff00BadStorms:|r Addon loaded.")
+        BadStorms.Update()
         HookGameTooltips()
-        BadStorms._wasLootMaster = BadStorms.IsLootMaster()
         CheckAutoMasterLoot()
+        BadStorms.CleanupPendingTrades()
+        CheckLootMasterTransition()
         if not BadStormsSettings.hideMinimap then
             CreateMinimapButton()
         end
         self:UnregisterEvent("PLAYER_ENTERING_WORLD")
-    elseif event == "GROUP_ROSTER_UPDATE" or event == "LOOT_METHOD_CHANGED" then
+    elseif event == "PARTY_LOOT_METHOD_CHANGED" then
+        BadStorms.CleanupPendingTrades()
         CheckLootMasterTransition()
     elseif event == "PLAYER_TARGET_CHANGED" then
         CheckAutoMasterLoot()
     end
-end)
-BadStormsFrame:SetScript("OnUpdate", function(self, elapsed)
-    self.elapsed = (self.elapsed or 0) + elapsed
-    if self.elapsed < 1 then
-        return
-    end
-    self.elapsed = 0
-    CheckLootMasterTransition()
 end)
 
 local tradeWatchFrame = CreateFrame("Frame")
@@ -1995,14 +2321,7 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
                 local currentId = currentLink and tonumber(currentLink:match("Hitem:(%d+)"))
                 if not currentId or currentId ~= slotInfo.itemId then
                     tradedCount = tradedCount + 1
-                    local total = BadStormsSettings.tradeTotals and BadStormsSettings.tradeTotals[partner]
-                    if total then
-                        total.traded = (total.traded or 0) + 1
-                        BadStorms.SendToChannel("LOOT: " .. slotInfo.link .. " traded to " .. partner .. " (" ..
-                                                    total.traded .. "/" .. total.awarded .. " awarded)")
-                    else
-                        BadStorms.SendToChannel("LOOT: " .. slotInfo.link .. " traded to " .. partner)
-                    end
+                    BadStorms.SendToChannel("LOOT: " .. slotInfo.link .. " traded to " .. partner)
                 else
                     table.insert(remaining, itemData)
                 end
@@ -2013,9 +2332,6 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
 
         if #remaining == 0 then
             BadStormsSettings.pendingTrades[partner] = nil
-            if BadStormsSettings.tradeTotals then
-                BadStormsSettings.tradeTotals[partner] = nil
-            end
         else
             BadStormsSettings.pendingTrades[partner] = remaining
         end
@@ -2027,7 +2343,7 @@ local BadStormsMenuFrame = CreateFrame("Frame", "BadStormsTradeMenuFrame", UIPar
 local lootFrame = CreateFrame("Frame")
 lootFrame:RegisterEvent("LOOT_OPENED")
 lootFrame:SetScript("OnEvent", function()
-    if not BadStormsSettings.enabled or not BadStorms.IsLootMaster() then
+    if not BadStormsSettings.enabled or not BadStorms.IsMasterLooter() then
         return
     end
     if not BadStormsSettings.autoloot then
@@ -2038,50 +2354,38 @@ lootFrame:SetScript("OnEvent", function()
     end
     local playerName = UnitName("player")
     local isML = BadStorms.IsMasterLooter()
+    local playerCI = BadStorms.GetPlayerCandidateIndex()
+    local deCI = BadStorms.GetDisenchanterCandidateIndex()
     for i = GetNumLootItems(), 1, -1 do
         local texture, name, quantity, quality = GetLootSlotInfo(i)
         local item = GetLootSlotLink(i)
-        if quality < 2 and (IsEquippableItem(item) or quantity == 0) then
+        if quality < 2 then
             LootSlot(i)
-        elseif quality > 1 then
-            if quality == 2 and IsEquippableItem(item) and BadStormsSettings.disenchanterEnabled and
-                BadStormsSettings.disenchanter ~= "" and isML then
-                local dePlayer = BadStormsSettings.disenchanter
-                local deFound = false
-                for ci = 1, 40 do
-                    local candidate = GetMasterLootCandidate(ci)
-                    if not candidate then
-                        break
-                    end
-                    if candidate == dePlayer then
-                        SendToChannel("LOOT: " .. item .. " (disenchant) sent to " .. dePlayer)
-                        GiveMasterLoot(i, ci)
-                        deFound = true
-                        break
-                    end
+            if GetLootSlotLink(i) then
+                -- work around odd bug when master looting quest items
+                -- that require to use an object, like a weapon rack.
+                if playerCI then
+                    GiveMasterLoot(i, playerCI)
                 end
-                if not deFound then
-                    for ci = 1, 40 do
-                        local name = GetMasterLootCandidate(ci)
-                        if name == playerName then
-                            if IsEquippableItem(item) then 
-                                SendToChannel("LOOT: " .. item)
-                            end
-                            GiveMasterLoot(i, ci)
-                            break
-                        end
+            end
+        elseif quality > 1 then
+            if quality == 2 and BadStorms.IsItemEquippable(item) and BadStormsSettings.disenchantEnabled and
+                BadStormsSettings.disenchanter ~= "" and isML then
+                if deCI then
+                    SendToChannel("LOOT: " .. item .. " (disenchant) sent to " .. BadStormsSettings.disenchanter)
+                    GiveMasterLoot(i, deCI)
+                elseif playerCI then
+                    if BadStorms.IsItemEquippable(item) then
+                        SendToChannel("LOOT: " .. item)
                     end
+                    GiveMasterLoot(i, playerCI)
                 end
             elseif isML then
-                for ci = 1, 40 do
-                    local name = GetMasterLootCandidate(ci)
-                    if name == playerName then
-                        if IsEquippableItem(item) then 
-                            SendToChannel("LOOT: " .. item)
-                        end
-                        GiveMasterLoot(i, ci)
-                        break
+                if playerCI then
+                    if BadStorms.IsItemEquippable(item) then
+                        SendToChannel("LOOT: " .. item)
                     end
+                    GiveMasterLoot(i, playerCI)
                 end
             else
                 if item then
@@ -2102,7 +2406,7 @@ lootFrame:SetScript("OnEvent", function()
 end)
 
 local function AutoAcceptBoP()
-    if not BadStormsSettings.enabled or not BadStorms.IsLootMaster() then
+    if not BadStormsSettings.enabled or not BadStorms.IsMasterLooter() then
         return
     end
     for i = 1, STATICPOPUP_NUMDIALOGS do
@@ -2116,6 +2420,244 @@ local function AutoAcceptBoP()
         end
     end
 end
+do
+    local dialog = CreateFrame("Frame", nil, UIParent)
+    dialog:SetSize(350, 130)
+    dialog:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = 1
+    })
+    dialog:SetBackdropColor(0, 0, 0, 1)
+    dialog:SetBackdropBorderColor(0, 0, 0, 1)
+    dialog:SetFrameStrata("DIALOG")
+    dialog:Hide()
+
+    local text = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    text:SetPoint("TOP", dialog, "TOP", 0, -22)
+    text:SetWidth(330)
+    text:SetWordWrap(true)
+    text:SetJustifyH("CENTER")
+
+    local yesBtn = CreateFrame("Button", nil, dialog, "GameMenuButtonTemplate")
+    yesBtn:SetSize(76, 24)
+    yesBtn:SetPoint("BOTTOM", dialog, "BOTTOM", -45, 15)
+    yesBtn:SetText("Yes")
+
+    local noBtn = CreateFrame("Button", nil, dialog, "GameMenuButtonTemplate")
+    noBtn:SetSize(76, 24)
+    noBtn:SetPoint("BOTTOM", dialog, "BOTTOM", 45, 15)
+    noBtn:SetText("No")
+
+    local plusOneCb = CreateFrame("CheckButton", nil, dialog, "InterfaceOptionsCheckButtonTemplate")
+    plusOneCb:SetPoint("TOPLEFT", yesBtn, "TOPRIGHT", -30, 35)
+    plusOneCb:Hide()
+    local cbText = plusOneCb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    cbText:SetPoint("LEFT", plusOneCb, "RIGHT", 4, 0)
+    cbText:SetText("Add +1?")
+
+    local dialogData, onAccept, onCancel
+
+    function BadStorms.ShowDialog(msg, data, acceptFn, cancelFn, showPlusOne)
+        dialogData = data
+        onAccept = acceptFn
+        onCancel = cancelFn
+
+        text:SetText(msg)
+
+        if showPlusOne and BadStormsSettings.plusOnesEnabled then
+            plusOneCb:SetChecked(data and data.note and data.note:find("^Roll .- MS"))
+            plusOneCb:Show()
+        else
+            plusOneCb:Hide()
+        end
+
+        if BadStorms.configFrame then
+            dialog:ClearAllPoints()
+            dialog:SetPoint("CENTER", BadStorms.configFrame, "CENTER", 0, 0)
+            BadStorms.configFrame:SetAlpha(0.3)
+        end
+        dialog:Show()
+    end
+
+    function BadStorms.GetDialogPlusOneChecked()
+        return plusOneCb:GetChecked()
+    end
+
+    yesBtn:SetScript("OnClick", function()
+        local fn = onAccept
+        local data = dialogData
+        dialog:Hide()
+        plusOneCb:Hide()
+        dialogData = nil
+        onAccept = nil
+        onCancel = nil
+        if BadStorms.configFrame then
+            BadStorms.configFrame:SetAlpha(1.0)
+        end
+        if fn then
+            fn(data)
+        end
+    end)
+
+    noBtn:SetScript("OnClick", function()
+        local fn = onCancel
+        local data = dialogData
+        dialog:Hide()
+        plusOneCb:Hide()
+        dialogData = nil
+        onAccept = nil
+        onCancel = nil
+        if BadStorms.configFrame then
+            BadStorms.configFrame:SetAlpha(1.0)
+        end
+        if fn then
+            fn(data)
+        end
+    end)
+
+    dialog:EnableKeyboard(true)
+    dialog:SetScript("OnKeyDown", function(_, key)
+        if key == "ESCAPE" then
+            local fn = onCancel
+            local data = dialogData
+            dialog:Hide()
+            plusOneCb:Hide()
+            dialogData = nil
+            onAccept = nil
+            onCancel = nil
+            if BadStorms.configFrame then
+                BadStorms.configFrame:SetAlpha(1.0)
+            end
+            if fn then
+                fn(data)
+            end
+        end
+    end)
+end
+
+function BadStorms.ShowAssignDialog(data)
+    BadStorms.ShowDialog("Assign " .. data.link .. " to " .. data.name .. "?", data, function(d)
+        if not CheckItemExists(d) then
+            return
+        end
+        SendToChannel("LOOT: " .. d.link .. " awarded to " .. d.name)
+        local itemId = BadStorms.GetItemID(d.link)
+        local itemName = d.link:match("%[(.-)%]") or "Unknown"
+        local dateKey = date("%Y-%m-%d")
+        local dateTime = date("%Y-%m-%d %H:%M:%S")
+        if not BadStormsSettings.exportData then
+            BadStormsSettings.exportData = {}
+        end
+        if not BadStormsSettings.exportData[dateKey] then
+            BadStormsSettings.exportData[dateKey] = {}
+        end
+        table.insert(BadStormsSettings.exportData[dateKey], {
+            character = d.name,
+            item_id = tostring(itemId or ""),
+            item_name = itemName,
+            date_time = dateTime,
+            public_note = d.note or "Award",
+            officer_note = ""
+        })
+        if BadStorms.GetDialogPlusOneChecked() then
+            local hasSR = itemId and BadStorms.PlayerHasReservation(itemId, d.name) or 0
+            if hasSR == 0 then
+                BadStormsSettings.plusOnes[d.name] = (BadStormsSettings.plusOnes[d.name] or 0) + 1
+            end
+        end
+        if itemId and BadStormsSettings.softReserves then
+            local nameLower = d.name:lower()
+            for _, r in ipairs(BadStormsSettings.softReserves) do
+                if r.itemId == itemId and r.name:lower() == nameLower and not r.received then
+                    r.received = true
+                    break
+                end
+            end
+        end
+        if d.lootSlot then
+            for ci = 1, 40 do
+                local candidate = GetMasterLootCandidate(ci)
+                if not candidate then
+                    break
+                end
+                if candidate == d.name then
+                    GiveMasterLoot(d.lootSlot, ci)
+                    break
+                end
+            end
+        elseif not UnitIsUnit(d.unit, "player") then
+            BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
+            if not BadStormsSettings.pendingTrades[d.name] then
+                BadStormsSettings.pendingTrades[d.name] = {}
+            end
+            table.insert(BadStormsSettings.pendingTrades[d.name], {
+                itemId = itemId,
+                link = d.link,
+                itemName = itemName,
+                bag = d.bag,
+                slot = d.slot,
+                date = dateTime
+            })
+            if not CheckInteractDistance(d.unit, 2) then
+                SendChatMessage("WARNING: " .. d.name .. " is out of trade range. Please open trade with me for " ..
+                                    d.link .. "!", "WHISPER", nil, d.name)
+                return
+            end
+            BadStormsMenuFrame:Hide()
+            InitiateTrade(d.unit)
+        end
+    end, nil, true)
+end
+
+function BadStorms.ShowDisenchantDialog(data)
+    BadStorms.ShowDialog("Send " .. data.link .. " to " .. data.disenchanter .. " to be disenchanted?", data,
+        function(d)
+            if not CheckItemExists(d) then
+                return
+            end
+            SendToChannel("LOOT: " .. d.link .. " sent to " .. d.disenchanter .. " (disenchant)")
+            if d.lootSlot then
+                for ci = 1, 40 do
+                    local candidate = GetMasterLootCandidate(ci)
+                    if not candidate then
+                        break
+                    end
+                    if candidate == d.disenchanter then
+                        GiveMasterLoot(d.lootSlot, ci)
+                        break
+                    end
+                end
+            elseif d.disenchanter ~= UnitName("player") then
+                BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
+                if not BadStormsSettings.pendingTrades[d.disenchanter] then
+                    BadStormsSettings.pendingTrades[d.disenchanter] = {}
+                end
+                local itemId = BadStorms.GetItemID(d.link)
+                local itemName = d.link:match("%[(.-)%]") or "Unknown"
+                table.insert(BadStormsSettings.pendingTrades[d.disenchanter], {
+                    itemId = itemId,
+                    link = d.link,
+                    itemName = itemName,
+                    bag = d.bag,
+                    slot = d.slot,
+                    date = date("%Y-%m-%d %H:%M:%S")
+                })
+                local unit = BadStorms.GetPlayerUnit(d.disenchanter)
+                if unit and not UnitIsUnit(unit, "player") then
+                    if not CheckInteractDistance(unit, 2) then
+                        SendChatMessage("WARNING: " .. d.disenchanter ..
+                                            " is out of trade range. Please open trade with me for " .. d.link .. "!",
+                            "WHISPER", nil, d.disenchanter)
+                        return
+                    end
+                    BadStormsMenuFrame:Hide()
+                    InitiateTrade(unit)
+                end
+            end
+        end)
+end
+
 hooksecurefunc("StaticPopup_Show", function(which)
     if which == "LOOT_BIND" then
         C_Timer.After(0.05, AutoAcceptBoP)
@@ -2152,19 +2694,15 @@ local function HookCustomLootButtons()
 
         if not button._badStormsHooked then
             local slotIdx = i
-            button:SetAttribute("type", nil)
-            button:SetAttribute("loot-slot", nil)
-            button:SetScript("OnClick", function()
-                local slot = tonumber(button.slot) or slotIdx
+            local oldHandler = button:GetScript("OnClick")
+            button:SetScript("OnClick", function(self, ...)
+                local slot = tonumber(self.slot) or slotIdx
                 if not slot then
                     return
                 end
 
                 if IsAltKeyDown() and BadStormsSettings.enabled then
-                    local inGroup = BadStorms.InGroup()
-                    if inGroup and not BadStorms.CanManageLoot() then
-                        local msg = "You do not have permission to manage loot."
-                        print("|cff00ff00BadStorms:|r" .. msg)
+                    if not CheckPermission(BadStorms.CanManageLoot, "You do not have permission to manage loot.") then
                         return
                     end
 
@@ -2174,36 +2712,72 @@ local function HookCustomLootButtons()
                     end
 
                     CloseDropDownMenus()
-        if IsControlKeyDown() then
+                    local _, _, _, quality = GetLootSlotInfo(slot)
+                    if quality and quality < 2 then
+                        if oldHandler then
+                            oldHandler(self, ...)
+                        end
+                        return
+                    end
+                    if IsShiftKeyDown() then
                         BadStorms.ShowAwardDialogForLoot(slot, link)
                     else
-                        BadStorms.CreateConfigFrame()
-                        local f = BadStorms.configFrame
-                        if BadStorms.isRolling then
-                            print("|cff00ff00BadStorms:|r Cannot change item during an active roll.")
-                            return
-                        end
-                        BadStorms.UpdateItemSelection(f, link)
-                        f.data.lootSlot = slot
-                        BadStorms.currentRolls = {}
-                        f.selectedRollLabel:SetText("Player: None")
-                        for _, btn in ipairs(f.rollButtons) do
-                            btn.selectedTexture:Hide()
-                            btn.rollData = nil
-                            btn:Hide()
-                        end
-                        f.rollAssignButton:Disable()
-                        f:SelectTab("roll")
-                        f:Show()
+                        BadStorms.ShowRollDialogForLoot(link, slot)
                     end
-                else
-                    LootSlot(slot)
+                elseif oldHandler then
+                    oldHandler(self, ...)
                 end
             end)
             button._badStormsHooked = true
         end
     end
 end
+
+-- this is needed for ALT+CLICK and ALT+SHIFT+CLICK in chat edit box
+hooksecurefunc("ChatEdit_InsertLink", function(link)
+    if IsAltKeyDown() and BadStormsSettings.enabled and BadStorms.CanManageLoot() then
+        if IsShiftKeyDown() then
+            BadStorms.ShowAwardDialogForLoot(nil, link)
+        end
+    end
+end)
+
+hooksecurefunc("SetItemRef", function(link, text, button, ...)
+    if not link or not string.find(link, "^item:") then
+        return
+    end
+    if not IsAltKeyDown() then
+        return
+    end
+    if not BadStormsSettings.enabled then
+        return
+    end
+    if not CheckLootPermissionSpam("You do not have permission to manage loot.") then
+        return
+    end
+
+    local itemLink = BadStorms.NormalizeItemLink(link)
+    if not itemLink then
+        local itemId = BadStorms.GetItemID(link)
+        if not itemId then
+            itemId = tonumber(link:match("^item:(%d+)"))
+        end
+        if not itemId then
+            return
+        end
+        local _, fullLink = GetItemInfo(itemId)
+        if not fullLink then
+            return
+        end
+        itemLink = fullLink
+    end
+
+    if IsShiftKeyDown() then
+        BadStorms.ShowAwardDialogForLoot(nil, itemLink)
+    else
+        BadStorms.ShowRollDialogForLoot(itemLink)
+    end
+end)
 
 local customLootFrame = CreateFrame("Frame")
 customLootFrame:RegisterEvent("LOOT_OPENED")
@@ -2212,280 +2786,6 @@ customLootFrame:SetScript("OnEvent", function()
     C_Timer.After(0.4, HookCustomLootButtons)
 end)
 
-StaticPopupDialogs["BadStormsConfirmAssign"] = {
-    text = "Assign %s to %s?",
-    button1 = "Yes",
-    button2 = "No",
-    OnAccept = function(self, data)
-        if not BadStorms.ItemExistsInSlot(data) then
-            print("|cff00ff00BadStorms:|r Item is no longer available.")
-            return
-        end
-
-        SendToChannel("LOOT: " .. data.link .. " awarded to " .. data.name)
-
-        local itemId = BadStorms.GetItemID(data.link)
-        local itemName = data.link:match("%[(.-)%]") or "Unknown"
-        local dateKey = date("%Y-%m-%d")
-        local dateTime = date("%Y-%m-%d %H:%M:%S")
-        if not BadStormsSettings.exportData then
-            BadStormsSettings.exportData = {}
-        end
-        if not BadStormsSettings.exportData[dateKey] then
-            BadStormsSettings.exportData[dateKey] = {}
-        end
-        table.insert(BadStormsSettings.exportData[dateKey], {
-            character = data.name,
-            item_id = tostring(itemId or ""),
-            item_name = itemName,
-            date_time = dateTime,
-            public_note = data.note or "Award",
-            officer_note = ""
-        })
-
-        if BadStormsSettings.trackPlusOnes and data.note and data.note:find("^Roll .- MS") then
-            local hasSR = itemId and BadStorms.PlayerHasReservation(itemId, data.name) or 0
-            if hasSR == 0 then
-                BadStormsSettings.plusOnes[data.name] = (BadStormsSettings.plusOnes[data.name] or 0) + 1
-            end
-        end
-
-        if itemId and BadStormsSettings.srReservations then
-            local nameLower = data.name:lower()
-            for _, r in ipairs(BadStormsSettings.srReservations) do
-                if r.itemId == itemId and r.name:lower() == nameLower and not r.received then
-                    r.received = true
-                    break
-                end
-            end
-        end
-
-        if data.lootSlot then
-            for ci = 1, 40 do
-                local candidate = GetMasterLootCandidate(ci)
-                if not candidate then
-                    break
-                end
-                if candidate == data.name then
-                    GiveMasterLoot(data.lootSlot, ci)
-                    break
-                end
-            end
-        else
-            BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
-            if not BadStormsSettings.pendingTrades[data.name] then
-                BadStormsSettings.pendingTrades[data.name] = {}
-            end
-            table.insert(BadStormsSettings.pendingTrades[data.name], {
-                itemId = itemId,
-                link = data.link,
-                itemName = itemName,
-                bag = data.bag,
-                slot = data.slot,
-                date = dateTime
-            })
-
-            BadStormsSettings.tradeTotals = BadStormsSettings.tradeTotals or {}
-            if not BadStormsSettings.tradeTotals[data.name] then
-                BadStormsSettings.tradeTotals[data.name] = {
-                    awarded = 0,
-                    traded = 0
-                }
-            end
-            BadStormsSettings.tradeTotals[data.name].awarded = BadStormsSettings.tradeTotals[data.name].awarded + 1
-
-            if not UnitIsUnit(data.unit, "player") then
-                if not CheckInteractDistance(data.unit, 2) then
-                    SendChatMessage(
-                        "WARNING: " .. data.name .. " is out of trade range. Please open trade with me for " ..
-                            data.link .. "!", "WHISPER", nil, data.name)
-                    return
-                end
-                BadStormsMenuFrame:Hide()
-                InitiateTrade(data.unit)
-            end
-        end
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = false
-}
-
-StaticPopupDialogs["BadStormsDisenchantConfirm"] = {
-    text = "Disenchant %s?\n\nWARNING: Award this item to %s for disenchanting.",
-    button1 = "Yes",
-    button2 = "No",
-    OnAccept = function(self, data)
-        if not BadStorms.ItemExistsInSlot(data) then
-            print("|cff00ff00BadStorms:|r Item is no longer available.")
-            return
-        end
-        SendToChannel("LOOT: " .. data.link .. " sent to " .. data.disenchanter .. " (disenchant)")
-
-        if data.lootSlot then
-            for ci = 1, 40 do
-                local candidate = GetMasterLootCandidate(ci)
-                if not candidate then
-                    break
-                end
-                if candidate == data.disenchanter then
-                    GiveMasterLoot(data.lootSlot, ci)
-                    break
-                end
-            end
-        else
-            BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
-            if not BadStormsSettings.pendingTrades[data.disenchanter] then
-                BadStormsSettings.pendingTrades[data.disenchanter] = {}
-            end
-            local itemId = BadStorms.GetItemID(data.link)
-            local itemName = data.link:match("%[(.-)%]") or "Unknown"
-            table.insert(BadStormsSettings.pendingTrades[data.disenchanter], {
-                itemId = itemId,
-                link = data.link,
-                itemName = itemName,
-                bag = data.bag,
-                slot = data.slot,
-                date = date("%Y-%m-%d %H:%M:%S")
-            })
-            local unit = BadStorms.GetPlayerUnit(data.disenchanter)
-            if unit and not UnitIsUnit(unit, "player") then
-                if not CheckInteractDistance(unit, 2) then
-                    SendChatMessage("WARNING: " .. data.disenchanter .. " is out of trade range. Please open trade with me for " ..
-                                        data.link .. "!", "WHISPER", nil, data.disenchanter)
-                    return
-                end
-                BadStormsMenuFrame:Hide()
-                InitiateTrade(unit)
-            end
-        end
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = false
-}
-
-StaticPopupDialogs["BadStormsConfirmClearExportDate"] = {
-    text = "Clear all export data for %s?",
-    button1 = "Yes",
-    button2 = "No",
-    OnAccept = function(self, data)
-        if data and BadStormsSettings.exportData[data] then
-            BadStormsSettings.exportData[data] = nil
-        end
-        local f = BadStorms.configFrame
-        if f then
-            f.selectedExportDate = nil
-            if f.PopulateExportList then
-                f.PopulateExportList()
-            end
-        end
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = false
-}
-
-StaticPopupDialogs["BadStormsConfirmClearExportAll"] = {
-    text = "Clear ALL export data? This cannot be undone.",
-    button1 = "Yes",
-    button2 = "No",
-    OnAccept = function()
-        BadStormsSettings.exportData = {}
-        local f = BadStorms.configFrame
-        if f then
-            f.selectedExportDate = nil
-            if f.PopulateExportList then
-                f.PopulateExportList()
-            end
-        end
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = false
-}
-
-StaticPopupDialogs["BadStormsConfirmClearPlusOnes"] = {
-    text = "Clear ALL plus one counts? This cannot be undone.",
-    button1 = "Yes",
-    button2 = "No",
-    OnAccept = function()
-        BadStormsSettings.plusOnes = {}
-        local f = BadStorms.configFrame
-        if f then
-            if f.PopulatePlusOnesList then
-                f.PopulatePlusOnesList()
-            end
-            BadStorms.UpdateRollDisplay(f)
-        end
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = false
-}
-
-StaticPopupDialogs["BadStormsConfirmClearPlusOnesOnImport"] = {
-    text = "Clear existing plus one counts?",
-    button1 = "Yes",
-    button2 = "No",
-    OnAccept = function()
-        BadStormsSettings.plusOnes = {}
-        local f = BadStorms.configFrame
-        if f then
-            if f.PopulatePlusOnesList then
-                f.PopulatePlusOnesList()
-            end
-            BadStorms.UpdateRollDisplay(f)
-        end
-        print("|cff00ff00BadStorms:|r Plus ones cleared after SR import.")
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = false
-}
-
-StaticPopupDialogs["BadStormsConfirmEnablePlusOnes"] = {
-    text = "Enable plus ones tracking?",
-    button1 = "Yes",
-    button2 = "No",
-    OnAccept = function()
-        BadStormsSettings.trackPlusOnes = true
-        local checkbox = _G["BadStormsPlusOneCheckbox"]
-        if checkbox then
-            checkbox:SetChecked(true)
-        end
-        local f = BadStorms.configFrame
-        if f then
-            if f.PopulatePlusOnesList then
-                f.PopulatePlusOnesList()
-            end
-            BadStorms.UpdateRollDisplay(f)
-        end
-        print("|cff00ff00BadStorms:|r Plus ones tracking enabled.")
-        if next(BadStormsSettings.plusOnes) then
-            StaticPopup_Show("BadStormsConfirmClearPlusOnesOnImport")
-        end
-    end,
-    OnCancel = function()
-        BadStormsSettings.trackPlusOnes = false
-        local checkbox = _G["BadStormsPlusOneCheckbox"]
-        if checkbox then
-            checkbox:SetChecked(false)
-        end
-        local f = BadStorms.configFrame
-        if f then
-            if f.PopulatePlusOnesList then
-                f.PopulatePlusOnesList()
-            end
-            BadStorms.UpdateRollDisplay(f)
-        end
-        print("|cff00ff00BadStorms:|r Plus ones tracking disabled.")
-    end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = false
-}
-
 hooksecurefunc("HandleModifiedItemClick", function(link)
     if not BadStormsSettings.enabled then
         return
@@ -2493,23 +2793,8 @@ hooksecurefunc("HandleModifiedItemClick", function(link)
     if not IsAltKeyDown() then
         return
     end
-    if not BadStorms.CanManageLoot() then
-        local inGroup = BadStorms.InGroup()
-        if inGroup then
-            local msg = "You do not have permission to manage loot."
-            print("|cff00ff00BadStorms:|r" .. msg)
-            if UIErrorsFrame then
-                msg = "BadStorms: " .. msg
-                UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0)
-                C_Timer.After(1, function()
-                    UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0)
-                end)
-                C_Timer.After(2, function()
-                    UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0)
-                end)
-            end
-            return
-        end
+    if not CheckLootPermissionSpam("You do not have permission to manage loot.") then
+        return
     end
     if not link then
         return
@@ -2519,27 +2804,14 @@ hooksecurefunc("HandleModifiedItemClick", function(link)
         local slotLink = GetLootSlotLink(i)
         if slotLink and slotLink == link then
             CloseDropDownMenus()
+            local _, _, _, quality = GetLootSlotInfo(i)
+            if quality and quality < 2 then
+                break
+            end
             if IsShiftKeyDown() then
                 BadStorms.ShowAwardDialogForLoot(i, link)
             else
-                BadStorms.CreateConfigFrame()
-                local f = BadStorms.configFrame
-                if BadStorms.isRolling then
-                    print("|cff00ff00BadStorms:|r Cannot change item during an active roll.")
-                    return
-                end
-                BadStorms.UpdateItemSelection(f, link)
-                f.data.lootSlot = i
-                BadStorms.currentRolls = {}
-                f.selectedRollLabel:SetText("Player: None")
-                for _, btn in ipairs(f.rollButtons) do
-                    btn.selectedTexture:Hide()
-                    btn.rollData = nil
-                    btn:Hide()
-                end
-                f.rollAssignButton:Disable()
-                f:SelectTab("roll")
-                f:Show()
+                BadStorms.ShowRollDialogForLoot(link, i)
             end
             break
         end

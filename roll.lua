@@ -15,8 +15,8 @@ local function UpdateRollDisplay(frame)
         if aSR > 0 and bSR > 0 then
             return a.roll > b.roll
         end
-        local aPO = BadStormsSettings.trackPlusOnes and (BadStormsSettings.plusOnes[a.name] or 0) or 0
-        local bPO = BadStormsSettings.trackPlusOnes and (BadStormsSettings.plusOnes[b.name] or 0) or 0
+        local aPO = BadStormsSettings.plusOnesEnabled and (BadStormsSettings.plusOnes[a.name] or 0) or 0
+        local bPO = BadStormsSettings.plusOnesEnabled and (BadStormsSettings.plusOnes[b.name] or 0) or 0
         local aIsMS = a.max == 100
         local bIsMS = b.max == 100
         local aHasPO = aPO > 0
@@ -46,7 +46,7 @@ local function UpdateRollDisplay(frame)
             local r, g, b = BadStorms.GetClassColor(data.class)
 
             local hasSR = currentItemId and PlayerHasReservation(currentItemId, data.name) or 0
-            local plusOnes = BadStormsSettings.trackPlusOnes and (BadStormsSettings.plusOnes[data.name] or 0) or 0
+            local plusOnes = BadStormsSettings.plusOnesEnabled and (BadStormsSettings.plusOnes[data.name] or 0) or 0
             btn.nameText:SetText(data.name)
             btn.nameText:SetTextColor(r, g, b)
 
@@ -115,7 +115,7 @@ local function EndRoll(frame)
             local anyNonZero = false
             for _, entry in ipairs(BadStorms.currentRolls) do
                 if entry.max == 100 then
-                    local po = BadStormsSettings.trackPlusOnes and (BadStormsSettings.plusOnes[entry.name] or 0) or 0
+                    local po = BadStormsSettings.plusOnesEnabled and (BadStormsSettings.plusOnes[entry.name] or 0) or 0
                     if po > 0 then anyNonZero = true end
                     table.insert(plusParts, entry.name .. "(" .. po .. ")")
                 end
@@ -132,18 +132,9 @@ local function EndRoll(frame)
         else
             winMsg = string.format("Winner: %s [%d] (OS)", winner.name, winner.roll)
         end
-        if BadStorms.CanRaidWarning() then
-            SendChatMessage(winMsg, "RAID_WARNING")
-        else
-            SendToChannel(string.format("ROLLS CLOSED! %s", winMsg))
-        end
+        SendToChannel(string.format("ROLLS CLOSED! %s", winMsg))
     else 
-        local winMsg = string.format("ROLLS CLOSED!")
-        if BadStorms.CanRaidWarning() then
-            SendChatMessage(winMsg, "RAID_WARNING")
-        else
-            SendToChannel(winMsg)
-        end
+        SendToChannel("ROLLS CLOSED!")
     end
 
     frame.rollTimerText:SetText("Roll ended")
@@ -161,7 +152,7 @@ local function StartRoll(frame)
 
     BadStorms.currentRolls = {}
     BadStorms.isRolling = true
-    BadStorms.rollRemaining = BadStormsSettings.rollTimer
+    BadStorms.rollRemaining = BadStormsSettings.rollTimer or 10
 
     UpdateRollDisplay(frame)
 
@@ -174,9 +165,9 @@ local function StartRoll(frame)
     end
 
     local currentItemId = frame.data and GetItemID(frame.data.link)
-    if currentItemId and BadStormsSettings.srReservations then
+    if currentItemId and BadStormsSettings.softReserves then
         local srPlayers = {}
-        for _, r in ipairs(BadStormsSettings.srReservations) do
+        for _, r in ipairs(BadStormsSettings.softReserves) do
             if r.itemId == currentItemId then
                 local count = (tonumber(r.plus) or 0) + 1
                 srPlayers[r.name] = (srPlayers[r.name] or 0) + count
@@ -207,13 +198,9 @@ local function StartRoll(frame)
             local remaining = BadStorms.rollRemaining
             local sec = remaining == 1 and "second" or "seconds"
             local msg = "Roll ends in " .. tostring(remaining) .. " " .. sec .. "..."
-            if BadStorms.CanRaidWarning() and BadStorms.rollRemaining == 5 then
-                SendChatMessage(msg, "RAID_WARNING")
-            else
-                local chan = GetChannel()
-                if chan ~= "PRINT" then
-                    SendChatMessage(msg, chan)
-                end
+            local chan = GetChannel()
+            if chan ~= "PRINT" then
+                SendChatMessage(msg, chan)
             end
         end
 

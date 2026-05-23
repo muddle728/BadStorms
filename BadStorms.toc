@@ -4,7 +4,15 @@
 ## Version: 1.0
 ## SavedVariables: BadStormsSettings
 
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\AceComm-3.0\ChatThrottleLib.lua
+Libs\AceComm-3.0\AceComm-3.0.lua
+Libs\AceSerializer-3.0\AceSerializer-3.0.lua
+Libs\LibDeflate\LibDeflate.lua
+
 core.lua
+sync.lua
 data.lua
 sr.lua
 roll.lua

@@ -4,7 +4,6 @@ local AceSerializer = LibStub:GetLibrary("AceSerializer-3.0")
 local LibDeflate = LibStub:GetLibrary("LibDeflate")
 
 local _syncFields = {"exportData", "pendingTrades", "plusOnes", "softReserves", "softReservesCsv"}
-local _syncInitialized = false
 local _syncPrevious = {}
 
 local function Encode(data)
@@ -13,6 +12,54 @@ end
 
 local function Decode(str)
     return AceSerializer:Deserialize(LibDeflate:DecompressDeflate(LibDeflate:DecodeForWoWAddonChannel(str)))
+end
+
+function BadStorms.GetLatestHistoryEntry(key)
+    local history = BadStormsSettings.syncHistory or {}
+    local best
+    for _, entry in ipairs(history) do
+        if entry.key == key and entry.version then
+            if not best or entry.version > best.version then
+                best = entry
+            end
+        end
+    end
+    if best then
+        local ok, decoded = Decode(best.compressed)
+        if ok and decoded then
+            return decoded
+        end
+    end
+    return nil
+end
+
+function BadStorms.PushToHistory(payload)
+    local history = BadStormsSettings.syncHistory or {}
+    table.insert(history, 1, {
+        compressed = Encode(payload),
+        timestamp = time(),
+        key = payload.key,
+        version = payload.version
+    })
+    for i = 21, #history do
+        history[i] = nil
+    end
+    BadStormsSettings.syncHistory = history
+end
+
+function BadStorms.RestoreFromHistory(entry)
+    local ok, payload = Decode(entry.compressed)
+    if not ok or not payload then
+        print("|cff00ff00BadStorms:|r Failed to decode history entry.")
+        return
+    end
+    BadStorms.RefreshUIAfterSync(payload)
+    _syncPrevious = {}
+    print("|cff00ff00BadStorms:|r Restored from version " .. (payload.version or "?") .. " (" .. (payload.key or "unknown") .. ")")
+end
+
+function BadStorms.GetHistoryList()
+    return BadStormsSettings.syncHistory or {}
 end
 
 function BadStorms.RefreshUIAfterSync(payload)
@@ -35,7 +82,6 @@ function BadStorms.RefreshUIAfterSync(payload)
     if payload["exportData"] ~= nil then
         frame.PopulateExportList()
     end
-    BadStormsSettings.payload = payload
 end
 
 function BadStorms.SyncRecoverData()
@@ -55,11 +101,12 @@ function BadStorms.SyncToAll()
         return
     end
 
-    local currentPayload = BadStormsSettings.payload or {}
+    local myKey = UnitName("player") .. "_" .. date("%Y%m%d")
+    local currentPayload = BadStorms.GetLatestHistoryEntry(myKey) or {}
     local payload = {
         action = "sync",
-        key = UnitName("player") .. "_" .. date("%Y%m%d"),
-        version = currentPayload.version and (currentPayload.version + 1) or 0
+        key = myKey,
+        version = (currentPayload.version or -1) + 1
     }
 
     local send = false
@@ -72,13 +119,12 @@ function BadStorms.SyncToAll()
             send = true
         end
     end
-    _syncInitialized = true
 
     if not send then
         return
     end
 
-    BadStormsSettings.payload = payload
+    BadStorms.PushToHistory(payload)
 
     AceComm:SendCommMessage("BadStorms", Encode(payload), BadStorms.GetChannel(), nil, "BULK")
 
@@ -94,7 +140,7 @@ AceComm:RegisterComm("BadStorms", function(prefix, payload, distribution, sender
         return
     end
 
-    local currentPayload = BadStormsSettings.payload or {}
+    local currentPayload = BadStorms.GetLatestHistoryEntry(rp.key) or {}
 
     if rp.action == "sync" then
         if currentPayload.key == rp.key and currentPayload.version and currentPayload.version > rp.version then
@@ -112,12 +158,14 @@ AceComm:RegisterComm("BadStorms", function(prefix, payload, distribution, sender
             return
         end
         BadStorms.RefreshUIAfterSync(rp)
+        BadStorms.PushToHistory(rp)
     elseif rp.action == "restore" then
-        if currentPayload.key == rp.key and rp.version > (currentPayload.version or 0) then
+        if rp.key == currentPayload.key and rp.version > (currentPayload.version or 0) then
             print("|cff00ff00BadStorms:|r Restoring data from " .. sender)
             BadStorms.RefreshUIAfterSync(rp)
+            BadStorms.PushToHistory(rp)
         end
     end
 end)
 
-C_Timer.NewTicker(15, BadStorms.SyncToAll)
+C_Timer.NewTicker(60, BadStorms.SyncToAll)

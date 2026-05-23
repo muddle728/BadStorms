@@ -310,34 +310,41 @@ local function CreateConfigFrame()
     frame.title:SetJustifyH("LEFT")
 
     local settingsTab = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-    settingsTab:SetSize(100, 24)
-    settingsTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -50)
+    settingsTab:SetSize(70, 24)
+    settingsTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 26, -50)
     settingsTab:SetText("General")
 
     local awardTab = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-    awardTab:SetSize(100, 24)
+    awardTab:SetSize(85, 24)
     awardTab:SetPoint("LEFT", settingsTab, "RIGHT", 4, 0)
     awardTab:SetText("Award Item")
 
     local rollTab = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-    rollTab:SetSize(100, 24)
+    rollTab:SetSize(80, 24)
     rollTab:SetPoint("LEFT", awardTab, "RIGHT", 4, 0)
     rollTab:SetText("Roll Item")
 
     local plusOneTab = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-    plusOneTab:SetSize(90, 24)
+    plusOneTab:SetSize(80, 24)
     plusOneTab:SetPoint("LEFT", rollTab, "RIGHT", 4, 0)
     plusOneTab:SetText("Plus Ones")
 
     local srTab = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-    srTab:SetSize(120, 24)
+    srTab:SetSize(105, 24)
     srTab:SetPoint("LEFT", plusOneTab, "RIGHT", 4, 0)
-    srTab:SetText("Soft-Reserves")
+    srTab:SetText("Soft Reserves")
 
     local exportTab = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-    exportTab:SetSize(80, 24)
+    exportTab:SetSize(75, 24)
     exportTab:SetPoint("LEFT", srTab, "RIGHT", 4, 0)
     exportTab:SetText("Export")
+
+    local syncHistoryTab = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
+    syncHistoryTab:SetSize(70, 24)
+    syncHistoryTab:SetPoint("LEFT", exportTab, "RIGHT", 4, 0)
+    syncHistoryTab:SetText("History")
+
+
 
     local settingsPanel = CreateFrame("Frame", nil, frame)
     settingsPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -94)
@@ -706,6 +713,143 @@ local function CreateConfigFrame()
     local plusOnesPanel = CreateFrame("Frame", nil, frame)
     plusOnesPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -94)
     plusOnesPanel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, 15)
+
+    -- Sync History panel
+    local syncHistoryPanel = CreateFrame("Frame", nil, frame)
+    syncHistoryPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -94)
+    syncHistoryPanel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, 15)
+
+    local shTitle = syncHistoryPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    shTitle:SetPoint("TOPLEFT", syncHistoryPanel, "TOPLEFT", 10, -10)
+    shTitle:SetText("Change History (max 25)")
+
+    local shScrollFrame = CreateFrame("ScrollFrame", nil, syncHistoryPanel)
+    shScrollFrame:EnableMouseWheel(true)
+    shScrollFrame:SetScript("OnMouseWheel", function(self, delta)
+        local range = self:GetVerticalScrollRange()
+        local val = self:GetVerticalScroll() - delta * 20
+        self:SetVerticalScroll(math.max(0, math.min(val, range)))
+    end)
+    shScrollFrame:SetPoint("TOPLEFT", syncHistoryPanel, "TOPLEFT", 10, -35)
+    shScrollFrame:SetPoint("BOTTOMRIGHT", syncHistoryPanel, "BOTTOMRIGHT", -10, 50)
+
+    local shScrollChild = CreateFrame("Frame", nil, shScrollFrame)
+    shScrollChild:SetSize(580, 800)
+    shScrollFrame:SetScrollChild(shScrollChild)
+
+    local shButtons = {}
+    local shSelectedEntry, shRestoreBtn, shClearBtn
+
+    for i = 1, 25 do
+        local btn = CreateFrame("Button", nil, shScrollChild)
+        btn:SetPoint("TOPLEFT", shScrollChild, "TOPLEFT", 0, -(i - 1) * 24)
+        btn:SetPoint("TOPRIGHT", shScrollChild, "TOPRIGHT", 0, -(i - 1) * 24)
+        btn:SetHeight(22)
+
+        btn.bg = btn:CreateTexture(nil, "BACKGROUND")
+        btn.bg:SetAllPoints()
+        btn.bg:SetTexture(0, 0, 0, 0.2)
+
+        btn.selectedTexture = btn:CreateTexture(nil, "BACKGROUND")
+        btn.selectedTexture:SetAllPoints()
+        btn.selectedTexture:SetTexture(1, 0.82, 0, 0.25)
+        btn.selectedTexture:Hide()
+
+        btn.text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        btn.text:SetPoint("LEFT", btn, "LEFT", 4, 0)
+        btn.text:SetWidth(540)
+        btn.text:SetJustifyH("LEFT")
+
+        local hl = btn:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetTexture("Interface\\Buttons\\WHITE8X8")
+        hl:SetVertexColor(1, 1, 1, 0.1)
+        hl:SetAllPoints()
+        btn:SetHighlightTexture(hl)
+
+        btn:SetScript("OnClick", function(self)
+            if not self.entry then return end
+            for _, other in ipairs(shButtons) do
+                if other == self then
+                    other.selectedTexture:Show()
+                else
+                    other.selectedTexture:Hide()
+                end
+            end
+            shSelectedEntry = self.entry
+            shRestoreBtn:Enable()
+        end)
+
+        btn:Hide()
+        shButtons[i] = btn
+    end
+
+    shSelectedEntry = nil
+    shRestoreBtn = CreateFrame("Button", nil, syncHistoryPanel, "GameMenuButtonTemplate")
+    shRestoreBtn:SetSize(100, 24)
+    shRestoreBtn:SetPoint("BOTTOMLEFT", syncHistoryPanel, "BOTTOMLEFT", 10, 10)
+    shRestoreBtn:SetText("Restore")
+    shRestoreBtn:Disable()
+
+    shClearBtn = CreateFrame("Button", nil, syncHistoryPanel, "GameMenuButtonTemplate")
+    shClearBtn:SetSize(120, 24)
+    shClearBtn:SetPoint("LEFT", shRestoreBtn, "RIGHT", 4, 0)
+    shClearBtn:SetText("Clear History")
+
+    local function PopulateSyncHistoryList()
+        local history = BadStorms.GetHistoryList()
+        for i, btn in ipairs(shButtons) do
+            local entry = history[i]
+            if entry then
+                btn.entry = entry
+                local ts = entry.timestamp and date("%Y-%m-%d %H:%M:%S", entry.timestamp) or "?"
+                local ver = entry.version or "?"
+                local key = entry.key or "?"
+                btn.text:SetText("v" .. ver .. " | " .. key .. " | " .. ts)
+                if shSelectedEntry == entry then
+                    btn.selectedTexture:Show()
+                else
+                    btn.selectedTexture:Hide()
+                end
+                btn:Show()
+            else
+                btn.entry = nil
+                btn.selectedTexture:Hide()
+                btn:Hide()
+            end
+        end
+        if #history == 0 then
+            shSelectedEntry = nil
+            shRestoreBtn:Disable()
+        end
+    end
+    frame.PopulateSyncHistoryList = PopulateSyncHistoryList
+
+    shRestoreBtn:SetScript("OnClick", function()
+        local entry = shSelectedEntry
+        if not entry then return end
+        BadStorms.ShowDialog(
+            "Restore from version " .. (entry.version or "?") .. "?\n\n|cffff0000This will overwrite current data.|r",
+            entry,
+            function(e)
+                BadStorms.RestoreFromHistory(e)
+                PopulateSyncHistoryList()
+                shRestoreBtn:Disable()
+            end
+        )
+    end)
+
+    shClearBtn:SetScript("OnClick", function()
+        BadStorms.ShowDialog(
+            "Clear ALL sync history?\n\n|cffff0000This cannot be undone.|r",
+            nil,
+            function()
+                BadStormsSettings.syncHistory = {}
+                shSelectedEntry = nil
+                PopulateSyncHistoryList()
+                shRestoreBtn:Disable()
+            end
+        )
+    end)
 
     -- Settings panel
     local autoLootCheckbox
@@ -1749,12 +1893,14 @@ local function CreateConfigFrame()
     frame.srPanel = srPanel
     frame.exportPanel = exportPanel
     frame.plusOnesPanel = plusOnesPanel
+    frame.syncHistoryPanel = syncHistoryPanel
     frame.settingsTab = settingsTab
     frame.awardTab = awardTab
     frame.rollTab = rollTab
     frame.srTab = srTab
     frame.exportTab = exportTab
     frame.plusOneTab = plusOneTab
+    frame.syncHistoryTab = syncHistoryTab
 
     function frame:SelectTab(tab)
         self.settingsPanel:Hide()
@@ -1763,12 +1909,14 @@ local function CreateConfigFrame()
         self.srPanel:Hide()
         self.exportPanel:Hide()
         self.plusOnesPanel:Hide()
+        self.syncHistoryPanel:Hide()
         self.settingsTab:UnlockHighlight()
         self.awardTab:UnlockHighlight()
         self.rollTab:UnlockHighlight()
         self.srTab:UnlockHighlight()
         self.exportTab:UnlockHighlight()
         self.plusOneTab:UnlockHighlight()
+        self.syncHistoryTab:UnlockHighlight()
 
         if tab == "settings" then
             self.settingsPanel:Show()
@@ -1788,6 +1936,10 @@ local function CreateConfigFrame()
             self.plusOnesPanel:Show()
             self.plusOneTab:LockHighlight()
             self.PopulatePlusOnesList()
+        elseif tab == "synchistory" then
+            self.syncHistoryPanel:Show()
+            self.syncHistoryTab:LockHighlight()
+            self.PopulateSyncHistoryList()
         else
             self.awardPanel:Show()
             self.awardTab:LockHighlight()
@@ -1879,6 +2031,9 @@ local function CreateConfigFrame()
     end)
     plusOneTab:SetScript("OnClick", function()
         frame:SelectTab("plusones")
+    end)
+    syncHistoryTab:SetScript("OnClick", function()
+        frame:SelectTab("synchistory")
     end)
 
     frame:SelectTab("settings")

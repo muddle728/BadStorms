@@ -29,7 +29,7 @@ if not BadStormsSettings then
         rollTimer = 10,
         softReserves = {},
         softReservesCsv = "",
-        payload = {}
+        syncHistory = {}
     }
 end
 
@@ -39,7 +39,7 @@ BadStormsSettings.disenchanter = BadStormsSettings.disenchanter or ""
 BadStormsSettings.exportData = BadStormsSettings.exportData or {}
 BadStormsSettings.frameScale = BadStormsSettings.frameScale or 1.0
 BadStormsSettings.minimapPos = BadStormsSettings.minimapPos or 0
-BadStormsSettings.payload = BadStormsSettings.payload or {}
+BadStormsSettings.syncHistory = BadStormsSettings.syncHistory or {}
 BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
 BadStormsSettings.plusOnes = BadStormsSettings.plusOnes or {}
 BadStormsSettings.plusOnesEnabled = BadStormsSettings.plusOnesEnabled or true

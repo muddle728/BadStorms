@@ -926,7 +926,7 @@ local function CreateConfigFrame()
     shClearBtn:SetText("Clear History")
 
     local function PopulateSyncHistoryList()
-        local history = BadStorms.GetHistoryList()
+        local history = BadStorms.GetHistoryList and BadStorms.GetHistoryList() or {}
         for i, btn in ipairs(shButtons) do
             local entry = history[i]
             if entry then

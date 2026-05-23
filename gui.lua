@@ -66,8 +66,8 @@ end
 
 local function UpdateDisenchantButtons(frame)
     local canDisenchant =
-        BadStormsSettings.disenchantEnabled and BadStormsSettings.disenchanter ~= "" and frame.data and
-            frame.data.link and BadStorms.IsItemEquippable(frame.data.link)
+        BadStormsSettings.disenchantEnabled and BadStormsSettings.disenchanter ~= "" and frame.data and frame.data.link and
+            BadStorms.IsItemEquippable(frame.data.link)
     if frame.disenchantRollButton then
         if canDisenchant then
             frame.disenchantRollButton:Enable()
@@ -343,8 +343,6 @@ local function CreateConfigFrame()
     syncHistoryTab:SetSize(70, 24)
     syncHistoryTab:SetPoint("LEFT", exportTab, "RIGHT", 4, 0)
     syncHistoryTab:SetText("History")
-
-
 
     local settingsPanel = CreateFrame("Frame", nil, frame)
     settingsPanel:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -94)
@@ -721,8 +719,9 @@ local function CreateConfigFrame()
 
     local shTitle = syncHistoryPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     shTitle:SetPoint("TOPLEFT", syncHistoryPanel, "TOPLEFT", 10, -10)
-    shTitle:SetText("Change History (max 25)")
+    shTitle:SetText("Change History (max 50)")
 
+    -- Left: entry list
     local shScrollFrame = CreateFrame("ScrollFrame", nil, syncHistoryPanel)
     shScrollFrame:EnableMouseWheel(true)
     shScrollFrame:SetScript("OnMouseWheel", function(self, delta)
@@ -731,16 +730,120 @@ local function CreateConfigFrame()
         self:SetVerticalScroll(math.max(0, math.min(val, range)))
     end)
     shScrollFrame:SetPoint("TOPLEFT", syncHistoryPanel, "TOPLEFT", 10, -35)
-    shScrollFrame:SetPoint("BOTTOMRIGHT", syncHistoryPanel, "BOTTOMRIGHT", -10, 50)
+    shScrollFrame:SetPoint("BOTTOMLEFT", syncHistoryPanel, "BOTTOMLEFT", 10, 50)
+    shScrollFrame:SetPoint("TOPRIGHT", syncHistoryPanel, "TOPLEFT", 158, -35)
 
     local shScrollChild = CreateFrame("Frame", nil, shScrollFrame)
-    shScrollChild:SetSize(580, 800)
+    shScrollChild:SetSize(148, 2000)
     shScrollFrame:SetScrollChild(shScrollChild)
+
+    -- Right: preview pane
+    local shPreviewScroll = CreateFrame("ScrollFrame", nil, syncHistoryPanel)
+    shPreviewScroll:EnableMouseWheel(true)
+    shPreviewScroll:SetScript("OnMouseWheel", function(self, delta)
+        local range = self:GetVerticalScrollRange()
+        local val = self:GetVerticalScroll() - delta * 20
+        self:SetVerticalScroll(math.max(0, math.min(val, range)))
+    end)
+    shPreviewScroll:SetPoint("TOPLEFT", shScrollFrame, "TOPRIGHT", 4, 0)
+    shPreviewScroll:SetPoint("BOTTOMRIGHT", syncHistoryPanel, "BOTTOMRIGHT", -10, 50)
+
+    local shPreviewChild = CreateFrame("Frame", nil, shPreviewScroll)
+    shPreviewChild:SetSize(438, 200)
+    shPreviewScroll:SetScrollChild(shPreviewChild)
+
+    local shPreviewText = shPreviewChild:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    shPreviewText:SetPoint("TOPLEFT", shPreviewChild, "TOPLEFT", 4, 0)
+    shPreviewText:SetWidth(420)
+    shPreviewText:SetJustifyH("LEFT")
+    shPreviewText:SetText("Select an entry to see its data")
+
+    local function UpdatePreviewHeight()
+        local h = shPreviewText:GetStringHeight()
+        shPreviewChild:SetHeight(math.max(h + 13, shPreviewScroll:GetHeight()))
+    end
+
+    local function FormatPayloadPreview(decoded, entry)
+        if not decoded then
+            return "|cffff0000Unable to decode this entry.|r"
+        end
+        local lines = {}
+        local add = table.insert
+
+        if entry and entry.timestamp then
+            add(lines, "|cff00ff00Date:|r " .. date("%Y-%m-%d %H:%M:%S", entry.timestamp))
+        end
+        add(lines,
+            "|cffffd700Key:|r " .. (decoded.key or "?") .. " Version:|r " .. tostring(decoded.version or "?") ..
+                " Action:|r " .. (decoded.action or "?"))
+        add(lines, "")
+
+        if decoded.plusOnes then
+            add(lines, "|cff00ff00Plus Ones:|r")
+            local n = 0
+            for player, count in pairs(decoded.plusOnes) do
+                if count and count > 0 then
+                    add(lines, "  " .. player .. ": " .. count)
+                    n = n + 1
+                end
+            end
+            if n == 0 then
+                add(lines, "  (empty)")
+            end
+            add(lines, "")
+        end
+
+        if decoded.pendingTrades then
+            add(lines, "|cff00ff00Pending Trades:|r")
+            local n = 0
+            for player, trades in pairs(decoded.pendingTrades) do
+                for _, t in ipairs(trades) do
+                    add(lines, "  " .. player .. " <- " .. (t.itemName or "?"))
+                    n = n + 1
+                end
+            end
+            if n == 0 then
+                add(lines, "  (empty)")
+            end
+            add(lines, "")
+        end
+
+        if decoded.softReserves then
+            add(lines, "|cff00ff00Soft Reserves:|r")
+            if #decoded.softReserves > 0 then
+                for _, sr in ipairs(decoded.softReserves) do
+                    local note = (sr.note and sr.note ~= "") and " (" .. sr.note .. ")" or ""
+                    add(lines, "  " .. (sr.name or "?") .. " -> " .. (sr.item or "?") .. note)
+                end
+            else
+                add(lines, "  (empty)")
+            end
+            add(lines, "")
+        end
+
+        if decoded.exportData then
+            add(lines, "|cff00ff00Export Data:|r")
+            local n = 0
+            for date, entries in pairs(decoded.exportData) do
+                add(lines, "  " .. date .. " (" .. #entries .. " award" .. (#entries ~= 1 and "s" or "") .. ")")
+                for _, e in ipairs(entries) do
+                    add(lines, "    " .. (e.character or "?") .. " <- " .. (e.item_name or "?"))
+                end
+                n = n + 1
+            end
+            if n == 0 then
+                add(lines, "  (empty)")
+            end
+            add(lines, "")
+        end
+
+        return table.concat(lines, "\n")
+    end
 
     local shButtons = {}
     local shSelectedEntry, shRestoreBtn, shClearBtn
 
-    for i = 1, 25 do
+    for i = 1, 50 do
         local btn = CreateFrame("Button", nil, shScrollChild)
         btn:SetPoint("TOPLEFT", shScrollChild, "TOPLEFT", 0, -(i - 1) * 24)
         btn:SetPoint("TOPRIGHT", shScrollChild, "TOPRIGHT", 0, -(i - 1) * 24)
@@ -757,7 +860,7 @@ local function CreateConfigFrame()
 
         btn.text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         btn.text:SetPoint("LEFT", btn, "LEFT", 4, 0)
-        btn.text:SetWidth(540)
+        btn.text:SetWidth(140)
         btn.text:SetJustifyH("LEFT")
 
         local hl = btn:CreateTexture(nil, "HIGHLIGHT")
@@ -767,7 +870,9 @@ local function CreateConfigFrame()
         btn:SetHighlightTexture(hl)
 
         btn:SetScript("OnClick", function(self)
-            if not self.entry then return end
+            if not self.entry then
+                return
+            end
             for _, other in ipairs(shButtons) do
                 if other == self then
                     other.selectedTexture:Show()
@@ -777,6 +882,9 @@ local function CreateConfigFrame()
             end
             shSelectedEntry = self.entry
             shRestoreBtn:Enable()
+            local decoded = BadStorms.DecodeHistoryEntry(self.entry)
+            shPreviewText:SetText(FormatPayloadPreview(decoded, self.entry))
+            UpdatePreviewHeight()
         end)
 
         btn:Hide()
@@ -801,10 +909,9 @@ local function CreateConfigFrame()
             local entry = history[i]
             if entry then
                 btn.entry = entry
-                local ts = entry.timestamp and date("%Y-%m-%d %H:%M:%S", entry.timestamp) or "?"
                 local ver = entry.version or "?"
-                local key = entry.key or "?"
-                btn.text:SetText("v" .. ver .. " | " .. key .. " | " .. ts)
+                local tm = entry.timestamp and date("%H:%M:%S", entry.timestamp) or "?"
+                btn.text:SetText("v" .. ver .. " | " .. tm)
                 if shSelectedEntry == entry then
                     btn.selectedTexture:Show()
                 else
@@ -820,35 +927,34 @@ local function CreateConfigFrame()
         if #history == 0 then
             shSelectedEntry = nil
             shRestoreBtn:Disable()
+            shPreviewText:SetText("Select an entry to see its data")
+            UpdatePreviewHeight()
         end
     end
     frame.PopulateSyncHistoryList = PopulateSyncHistoryList
 
     shRestoreBtn:SetScript("OnClick", function()
         local entry = shSelectedEntry
-        if not entry then return end
-        BadStorms.ShowDialog(
-            "Restore from version " .. (entry.version or "?") .. "?\n\n|cffff0000This will overwrite current data.|r",
-            entry,
-            function(e)
-                BadStorms.RestoreFromHistory(e)
-                PopulateSyncHistoryList()
-                shRestoreBtn:Disable()
-            end
-        )
+        if not entry then
+            return
+        end
+        BadStorms.ShowDialog("Restore from version " .. (entry.version or "?") ..
+                                 "?\n\n|cffff0000This will overwrite current data.|r", entry, function(e)
+            BadStorms.RestoreFromHistory(e)
+            PopulateSyncHistoryList()
+            shRestoreBtn:Disable()
+            shPreviewText:SetText("|cff00ff00Restored!|r Sync pushed to all clients.")
+            UpdatePreviewHeight()
+        end)
     end)
 
     shClearBtn:SetScript("OnClick", function()
-        BadStorms.ShowDialog(
-            "Clear ALL sync history?\n\n|cffff0000This cannot be undone.|r",
-            nil,
-            function()
-                BadStormsSettings.syncHistory = {}
-                shSelectedEntry = nil
-                PopulateSyncHistoryList()
-                shRestoreBtn:Disable()
-            end
-        )
+        BadStorms.ShowDialog("Clear ALL sync history?\n\n|cffff0000This cannot be undone.|r", nil, function()
+            BadStormsSettings.syncHistory = {}
+            shSelectedEntry = nil
+            PopulateSyncHistoryList()
+            shRestoreBtn:Disable()
+        end)
     end)
 
     -- Settings panel
@@ -1601,9 +1707,7 @@ local function CreateConfigFrame()
         if not frame.selectedExportDate then
             return
         end
-        BadStorms.ShowDialog(
-            "Clear all export data for " .. frame.selectedExportDate .. "?",
-            frame.selectedExportDate,
+        BadStorms.ShowDialog("Clear all export data for " .. frame.selectedExportDate .. "?", frame.selectedExportDate,
             function(data)
                 if data and BadStormsSettings.exportData[data] then
                     BadStormsSettings.exportData[data] = nil
@@ -1611,10 +1715,11 @@ local function CreateConfigFrame()
                 local f = BadStorms.configFrame
                 if f then
                     f.selectedExportDate = nil
-                    if f.PopulateExportList then f.PopulateExportList() end
+                    if f.PopulateExportList then
+                        f.PopulateExportList()
+                    end
                 end
-            end
-        )
+            end)
     end)
 
     local clearAllBtn = CreateFrame("Button", nil, exportPanel, "GameMenuButtonTemplate")
@@ -1622,18 +1727,16 @@ local function CreateConfigFrame()
     clearAllBtn:SetPoint("LEFT", clearDateBtn, "RIGHT", 4, 0)
     clearAllBtn:SetText("Clear All")
     clearAllBtn:SetScript("OnClick", function()
-        BadStorms.ShowDialog(
-            "Clear ALL export data? This cannot be undone.",
-            nil,
-            function()
-                BadStormsSettings.exportData = {}
-                local f = BadStorms.configFrame
-                if f then
-                    f.selectedExportDate = nil
-                    if f.PopulateExportList then f.PopulateExportList() end
+        BadStorms.ShowDialog("Clear ALL export data? This cannot be undone.", nil, function()
+            BadStormsSettings.exportData = {}
+            local f = BadStorms.configFrame
+            if f then
+                f.selectedExportDate = nil
+                if f.PopulateExportList then
+                    f.PopulateExportList()
                 end
             end
-        )
+        end)
     end)
 
     local csvTitle = exportPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -1788,7 +1891,7 @@ local function CreateConfigFrame()
     local function PopulatePlusOnesList()
 
         BadStormsSettings.plusOnes = BadStormsSettings.plusOnes or {}
-        
+
         local seen = {}
         local list = {}
         local raid = GetNumRaidMembers() > 0
@@ -1853,18 +1956,17 @@ local function CreateConfigFrame()
     plusOneClearBtn:SetPoint("BOTTOMLEFT", plusOnesPanel, "BOTTOMLEFT", 10, 10)
     plusOneClearBtn:SetText("Clear All")
     plusOneClearBtn:SetScript("OnClick", function()
-        BadStorms.ShowDialog(
-            "Clear ALL plus one counts?\n\n|cffff0000WARNING: This cannot be undone!|r",
-            nil,
+        BadStorms.ShowDialog("Clear ALL plus one counts?\n\n|cffff0000WARNING: This cannot be undone!|r", nil,
             function()
                 BadStormsSettings.plusOnes = {}
                 local f = BadStorms.configFrame
                 if f then
-                    if f.PopulatePlusOnesList then f.PopulatePlusOnesList() end
+                    if f.PopulatePlusOnesList then
+                        f.PopulatePlusOnesList()
+                    end
                     BadStorms.UpdateRollDisplay(f)
                 end
-            end
-        )
+            end)
     end)
 
     frame.closeButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
@@ -2007,7 +2109,7 @@ local function CreateConfigFrame()
     end
     frame.UpdateLootMasterState = UpdateLootMasterState
     UpdateLootMasterState()
-    
+
     settingsTab:SetScript("OnClick", function()
         frame:SelectTab("settings")
     end)
@@ -2371,7 +2473,9 @@ do
         if BadStorms.configFrame then
             BadStorms.configFrame:SetAlpha(1.0)
         end
-        if fn then fn(data) end
+        if fn then
+            fn(data)
+        end
     end)
 
     noBtn:SetScript("OnClick", function()
@@ -2385,7 +2489,9 @@ do
         if BadStorms.configFrame then
             BadStorms.configFrame:SetAlpha(1.0)
         end
-        if fn then fn(data) end
+        if fn then
+            fn(data)
+        end
     end)
 
     dialog:EnableKeyboard(true)
@@ -2401,93 +2507,100 @@ do
             if BadStorms.configFrame then
                 BadStorms.configFrame:SetAlpha(1.0)
             end
-            if fn then fn(data) end
+            if fn then
+                fn(data)
+            end
         end
     end)
 end
 
 function BadStorms.ShowAssignDialog(data)
-    BadStorms.ShowDialog(
-        "Assign " .. data.link .. " to " .. data.name .. "?",
-        data,
-        function(d)
-            if not CheckItemExists(d) then return end
-            SendToChannel("LOOT: " .. d.link .. " awarded to " .. d.name)
-            local itemId = BadStorms.GetItemID(d.link)
-            local itemName = d.link:match("%[(.-)%]") or "Unknown"
-            local dateKey = date("%Y-%m-%d")
-            local dateTime = date("%Y-%m-%d %H:%M:%S")
-            if not BadStormsSettings.exportData then BadStormsSettings.exportData = {} end
-            if not BadStormsSettings.exportData[dateKey] then BadStormsSettings.exportData[dateKey] = {} end
-            table.insert(BadStormsSettings.exportData[dateKey], {
-                character = d.name,
-                item_id = tostring(itemId or ""),
-                item_name = itemName,
-                date_time = dateTime,
-                public_note = d.note or "Award",
-                officer_note = ""
+    BadStorms.ShowDialog("Assign " .. data.link .. " to " .. data.name .. "?", data, function(d)
+        if not CheckItemExists(d) then
+            return
+        end
+        SendToChannel("LOOT: " .. d.link .. " awarded to " .. d.name)
+        local itemId = BadStorms.GetItemID(d.link)
+        local itemName = d.link:match("%[(.-)%]") or "Unknown"
+        local dateKey = date("%Y-%m-%d")
+        local dateTime = date("%Y-%m-%d %H:%M:%S")
+        if not BadStormsSettings.exportData then
+            BadStormsSettings.exportData = {}
+        end
+        if not BadStormsSettings.exportData[dateKey] then
+            BadStormsSettings.exportData[dateKey] = {}
+        end
+        table.insert(BadStormsSettings.exportData[dateKey], {
+            character = d.name,
+            item_id = tostring(itemId or ""),
+            item_name = itemName,
+            date_time = dateTime,
+            public_note = d.note or "Award",
+            officer_note = ""
+        })
+        if BadStorms.GetDialogPlusOneChecked() then
+            local hasSR = itemId and BadStorms.PlayerHasReservation(itemId, d.name) or 0
+            if hasSR == 0 then
+                BadStormsSettings.plusOnes[d.name] = (BadStormsSettings.plusOnes[d.name] or 0) + 1
+            end
+        end
+        if itemId and BadStormsSettings.softReserves then
+            local nameLower = d.name:lower()
+            for _, r in ipairs(BadStormsSettings.softReserves) do
+                if r.itemId == itemId and r.name:lower() == nameLower and not r.received then
+                    r.received = true
+                    break
+                end
+            end
+        end
+        if d.lootSlot then
+            for ci = 1, 40 do
+                local candidate = GetMasterLootCandidate(ci)
+                if not candidate then
+                    break
+                end
+                if candidate == d.name then
+                    GiveMasterLoot(d.lootSlot, ci)
+                    break
+                end
+            end
+        elseif not UnitIsUnit(d.unit, "player") then
+            BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
+            if not BadStormsSettings.pendingTrades[d.name] then
+                BadStormsSettings.pendingTrades[d.name] = {}
+            end
+            table.insert(BadStormsSettings.pendingTrades[d.name], {
+                itemId = itemId,
+                link = d.link,
+                itemName = itemName,
+                bag = d.bag,
+                slot = d.slot,
+                date = dateTime
             })
-            if BadStorms.GetDialogPlusOneChecked() then
-                local hasSR = itemId and BadStorms.PlayerHasReservation(itemId, d.name) or 0
-                if hasSR == 0 then
-                    BadStormsSettings.plusOnes[d.name] = (BadStormsSettings.plusOnes[d.name] or 0) + 1
-                end
+            if not CheckInteractDistance(d.unit, 2) then
+                SendChatMessage("WARNING: " .. d.name .. " is out of trade range. Please open trade with me for " ..
+                                    d.link .. "!", "WHISPER", nil, d.name)
+                return
             end
-            if itemId and BadStormsSettings.softReserves then
-                local nameLower = d.name:lower()
-                for _, r in ipairs(BadStormsSettings.softReserves) do
-                    if r.itemId == itemId and r.name:lower() == nameLower and not r.received then
-                        r.received = true
-                        break
-                    end
-                end
-            end
-            if d.lootSlot then
-                for ci = 1, 40 do
-                    local candidate = GetMasterLootCandidate(ci)
-                    if not candidate then break end
-                    if candidate == d.name then
-                        GiveMasterLoot(d.lootSlot, ci)
-                        break
-                    end
-                end
-            elseif not UnitIsUnit(d.unit, "player") then
-                BadStormsSettings.pendingTrades = BadStormsSettings.pendingTrades or {}
-                if not BadStormsSettings.pendingTrades[d.name] then
-                    BadStormsSettings.pendingTrades[d.name] = {}
-                end
-                table.insert(BadStormsSettings.pendingTrades[d.name], {
-                    itemId = itemId,
-                    link = d.link,
-                    itemName = itemName,
-                    bag = d.bag,
-                    slot = d.slot,
-                    date = dateTime
-                })
-                if not CheckInteractDistance(d.unit, 2) then
-                    SendChatMessage("WARNING: " .. d.name .. " is out of trade range. Please open trade with me for " .. d.link .. "!", "WHISPER", nil, d.name)
-                    return
-                end
-                BadStormsMenuFrame:Hide()
-                InitiateTrade(d.unit)
-            end
-        end,
-        nil,
-        true
-    )
+            BadStormsMenuFrame:Hide()
+            InitiateTrade(d.unit)
+        end
+    end, nil, true)
 end
 
 function BadStorms.ShowDisenchantDialog(data)
-    BadStorms.ShowDialog(
-        "Send " .. data.link .. " to " .. data.disenchanter .. " to be disenchanted?",
-        data,
+    BadStorms.ShowDialog("Send " .. data.link .. " to " .. data.disenchanter .. " to be disenchanted?", data,
         function(d)
-            if not CheckItemExists(d) then return end
+            if not CheckItemExists(d) then
+                return
+            end
             SendToChannel("LOOT: " .. d.link .. " sent to " .. d.disenchanter .. " (disenchant)")
             if d.lootSlot then
                 for ci = 1, 40 do
                     local candidate = GetMasterLootCandidate(ci)
-                    if not candidate then break end
+                    if not candidate then
+                        break
+                    end
                     if candidate == d.disenchanter then
                         GiveMasterLoot(d.lootSlot, ci)
                         break
@@ -2511,15 +2624,16 @@ function BadStorms.ShowDisenchantDialog(data)
                 local unit = BadStorms.GetPlayerUnit(d.disenchanter)
                 if unit and not UnitIsUnit(unit, "player") then
                     if not CheckInteractDistance(unit, 2) then
-                        SendChatMessage("WARNING: " .. d.disenchanter .. " is out of trade range. Please open trade with me for " .. d.link .. "!", "WHISPER", nil, d.disenchanter)
+                        SendChatMessage("WARNING: " .. d.disenchanter ..
+                                            " is out of trade range. Please open trade with me for " .. d.link .. "!",
+                            "WHISPER", nil, d.disenchanter)
                         return
                     end
                     BadStormsMenuFrame:Hide()
                     InitiateTrade(unit)
                 end
             end
-        end
-    )
+        end)
 end
 
 hooksecurefunc("StaticPopup_Show", function(which)

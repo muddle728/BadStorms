@@ -41,7 +41,7 @@ function BadStorms.PushToHistory(payload)
         key = payload.key,
         version = payload.version
     })
-    for i = 21, #history do
+    for i = 51, #history do
         history[i] = nil
     end
     BadStormsSettings.syncHistory = history
@@ -55,7 +55,15 @@ function BadStorms.RestoreFromHistory(entry)
     end
     BadStorms.RefreshUIAfterSync(payload)
     _syncPrevious = {}
+    BadStorms.SyncToAll()
     print("|cff00ff00BadStorms:|r Restored from version " .. (payload.version or "?") .. " (" .. (payload.key or "unknown") .. ")")
+end
+
+function BadStorms.DecodeHistoryEntry(entry)
+    if not entry or not entry.compressed then return nil end
+    local ok, decoded = Decode(entry.compressed)
+    if not ok then return nil end
+    return decoded
 end
 
 function BadStorms.GetHistoryList()

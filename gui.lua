@@ -398,6 +398,28 @@ local function CreateConfigFrame()
         ShowSRImportDialog()
     end)
 
+    local srClearBtn = CreateFrame("Button", nil, srPanel, "GameMenuButtonTemplate")
+    srClearBtn:SetSize(80, 24)
+    srClearBtn:SetPoint("LEFT", srImportBtn, "RIGHT", 4, 0)
+    srClearBtn:SetText("Clear All")
+    srClearBtn:SetScript("OnClick", function()
+        BadStorms.ShowDialog(
+            "|cffff0000WARNING:|r Clear all soft reserves?",
+            nil,
+            function()
+                BadStormsSettings.softReserves = {}
+                BadStormsSettings.softReservesCsv = ""
+                print("|cff00ff00BadStorms:|r Soft reserves cleared.")
+                frame.PopulateSRList()
+                if frame.rollPanel and frame.rollPanel:IsShown() then
+                    BadStorms.UpdateRollDisplay(frame)
+                elseif frame.awardPanel and frame.awardPanel:IsShown() then
+                    BadStorms.PopulatePlayerList(frame)
+                end
+            end
+        )
+    end)
+
     local srCountText = srPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     srCountText:SetPoint("TOPLEFT", srPanel, "TOPRIGHT", -200, 0)
     srCountText:SetText("")
@@ -938,8 +960,8 @@ local function CreateConfigFrame()
         if not entry then
             return
         end
-        BadStorms.ShowDialog("Restore from version " .. (entry.version or "?") ..
-                                 "?\n\n|cffff0000This will overwrite current data.|r", entry, function(e)
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Restore from version " .. (entry.version or "?") ..
+                                 "?\n\nIf you're not sure, choose No.", entry, function(e)
             BadStorms.RestoreFromHistory(e)
             PopulateSyncHistoryList()
             shRestoreBtn:Disable()
@@ -949,7 +971,7 @@ local function CreateConfigFrame()
     end)
 
     shClearBtn:SetScript("OnClick", function()
-        BadStorms.ShowDialog("Clear ALL sync history?\n\n|cffff0000This cannot be undone.|r", nil, function()
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear ALL sync history?\n\nIf you're not sure, choose No.", nil, function()
             BadStormsSettings.syncHistory = {}
             shSelectedEntry = nil
             PopulateSyncHistoryList()
@@ -1707,7 +1729,7 @@ local function CreateConfigFrame()
         if not frame.selectedExportDate then
             return
         end
-        BadStorms.ShowDialog("Clear all export data for " .. frame.selectedExportDate .. "?", frame.selectedExportDate,
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear export data for " .. frame.selectedExportDate .. "?\n\nIf you're not sure, choose No.", frame.selectedExportDate,
             function(data)
                 if data and BadStormsSettings.exportData[data] then
                     BadStormsSettings.exportData[data] = nil
@@ -1727,7 +1749,7 @@ local function CreateConfigFrame()
     clearAllBtn:SetPoint("LEFT", clearDateBtn, "RIGHT", 4, 0)
     clearAllBtn:SetText("Clear All")
     clearAllBtn:SetScript("OnClick", function()
-        BadStorms.ShowDialog("Clear ALL export data? This cannot be undone.", nil, function()
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear ALL export data?\n\nIf you're not sure, choose No.", nil, function()
             BadStormsSettings.exportData = {}
             local f = BadStorms.configFrame
             if f then
@@ -1956,7 +1978,7 @@ local function CreateConfigFrame()
     plusOneClearBtn:SetPoint("BOTTOMLEFT", plusOnesPanel, "BOTTOMLEFT", 10, 10)
     plusOneClearBtn:SetText("Clear All")
     plusOneClearBtn:SetScript("OnClick", function()
-        BadStorms.ShowDialog("Clear ALL plus one counts?\n\n|cffff0000WARNING: This cannot be undone!|r", nil,
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear plus one counts?", nil,
             function()
                 BadStormsSettings.plusOnes = {}
                 local f = BadStorms.configFrame
@@ -2400,7 +2422,7 @@ local function AutoAcceptBoP()
 end
 do
     local dialog = CreateFrame("Frame", nil, UIParent)
-    dialog:SetSize(350, 110)
+    dialog:SetSize(350, 130)
     dialog:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Buttons\\WHITE8X8",
@@ -2412,8 +2434,8 @@ do
     dialog:Hide()
 
     local text = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    text:SetPoint("TOP", dialog, "TOP", 0, -12)
-    text:SetWidth(360)
+    text:SetPoint("TOP", dialog, "TOP", 0, -22)
+    text:SetWidth(330)
     text:SetWordWrap(true)
     text:SetJustifyH("CENTER")
 
@@ -2428,7 +2450,7 @@ do
     noBtn:SetText("No")
 
     local plusOneCb = CreateFrame("CheckButton", nil, dialog, "InterfaceOptionsCheckButtonTemplate")
-    plusOneCb:SetPoint("TOPLEFT", yesBtn, "TOPRIGHT", -30, 30)
+    plusOneCb:SetPoint("TOPLEFT", yesBtn, "TOPRIGHT", -30, 35)
     plusOneCb:Hide()
     local cbText = plusOneCb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     cbText:SetPoint("LEFT", plusOneCb, "RIGHT", 4, 0)

@@ -132,6 +132,50 @@ local function ShowSRImportDialog()
             editScroll:SetVerticalScroll(math.max(0, math.min(val - delta * 40, range)))
         end)
 
+        local function ShowImportPostDialog()
+            BadStorms.ShowDialog(
+                "|cffff0000Confirmation Needed!|r\n\nEnable plus one tracking?",
+                nil,
+                function()
+                    BadStormsSettings.plusOnesEnabled = true
+                    local checkbox = _G["BadStormsPlusOneCheckbox"]
+                    if checkbox then checkbox:SetChecked(true) end
+                    local f = BadStorms.configFrame
+                    if f then
+                        if f.PopulatePlusOnesList then f.PopulatePlusOnesList() end
+                        BadStorms.UpdateRollDisplay(f)
+                    end
+                    print("|cff00ff00BadStorms:|r Plus ones tracking enabled.")
+                    if next(BadStormsSettings.plusOnes) then
+                        BadStorms.ShowDialog(
+                            "|cffff0000Confirmation Needed!|r\n\nClear existing plus one counts?",
+                            nil,
+                            function()
+                                BadStormsSettings.plusOnes = {}
+                                local f2 = BadStorms.configFrame
+                                if f2 then
+                                    if f2.PopulatePlusOnesList then f2.PopulatePlusOnesList() end
+                                    BadStorms.UpdateRollDisplay(f2)
+                                end
+                                print("|cff00ff00BadStorms:|r Plus ones cleared after SR import.")
+                            end
+                        )
+                    end
+                end,
+                function()
+                    BadStormsSettings.plusOnesEnabled = false
+                    local checkbox = _G["BadStormsPlusOneCheckbox"]
+                    if checkbox then checkbox:SetChecked(false) end
+                    local f = BadStorms.configFrame
+                    if f then
+                        if f.PopulatePlusOnesList then f.PopulatePlusOnesList() end
+                        BadStorms.UpdateRollDisplay(f)
+                    end
+                    print("|cff00ff00BadStorms:|r Plus ones tracking disabled.")
+                end
+            )
+        end
+
         local importBtn = CreateFrame("Button", nil, dialog, "GameMenuButtonTemplate")
         importBtn:SetSize(80, 24)
         importBtn:SetPoint("BOTTOMRIGHT", dialog, "BOTTOM", -20, 15)
@@ -139,50 +183,28 @@ local function ShowSRImportDialog()
         importBtn:SetScript("OnClick", function()
             local text = editBox:GetText()
             if text and text ~= "" then
-                ParseSRCSV(text)
-                editBox:SetText("")
-                dialog:Hide()
-                BadStorms.ShowDialog(
-                    "|cffff0000Confirmation Needed!|r\n\nEnable plus one tracking?",
-                    nil,
-                    function()
-                        BadStormsSettings.plusOnesEnabled = true
-                        local checkbox = _G["BadStormsPlusOneCheckbox"]
-                        if checkbox then checkbox:SetChecked(true) end
-                        local f = BadStorms.configFrame
-                        if f then
-                            if f.PopulatePlusOnesList then f.PopulatePlusOnesList() end
-                            BadStorms.UpdateRollDisplay(f)
+                local existing = BadStormsSettings.softReserves or {}
+                if next(existing) then
+                    dialog:Hide()
+                    BadStorms.ShowDialog(
+                        "|cffff0000WARNING:|r |cffffff00This will overwrite the existing soft reserves.\n\nContinue with import?|r",
+                        nil,
+                        function()
+                            ParseSRCSV(text)
+                            editBox:SetText("")
+                            dialog:Hide()
+                            ShowImportPostDialog()
+                        end,
+                        function()
+                            dialog:Show()
                         end
-                        print("|cff00ff00BadStorms:|r Plus ones tracking enabled.")
-                        if next(BadStormsSettings.plusOnes) then
-                            BadStorms.ShowDialog(
-                                "|cffff0000WARNING: This cannot be undone!|r\n\nClear existing plus one counts?",
-                                nil,
-                                function()
-                                    BadStormsSettings.plusOnes = {}
-                                    local f2 = BadStorms.configFrame
-                                    if f2 then
-                                        if f2.PopulatePlusOnesList then f2.PopulatePlusOnesList() end
-                                        BadStorms.UpdateRollDisplay(f2)
-                                    end
-                                    print("|cff00ff00BadStorms:|r Plus ones cleared after SR import.")
-                                end
-                            )
-                        end
-                    end,
-                    function()
-                        BadStormsSettings.plusOnesEnabled = false
-                        local checkbox = _G["BadStormsPlusOneCheckbox"]
-                        if checkbox then checkbox:SetChecked(false) end
-                        local f = BadStorms.configFrame
-                        if f then
-                            if f.PopulatePlusOnesList then f.PopulatePlusOnesList() end
-                            BadStorms.UpdateRollDisplay(f)
-                        end
-                        print("|cff00ff00BadStorms:|r Plus ones tracking disabled.")
-                    end
-                )
+                    )
+                else
+                    ParseSRCSV(text)
+                    editBox:SetText("")
+                    dialog:Hide()
+                    ShowImportPostDialog()
+                end
             else
                 editBox:SetText("")
                 dialog:Hide()
@@ -203,20 +225,26 @@ local function ShowSRImportDialog()
         clearBtn:SetPoint("BOTTOMLEFT", dialog, "BOTTOM", 20, 15)
         clearBtn:SetText("Clear")
         clearBtn:SetScript("OnClick", function()
-            BadStormsSettings.softReserves = {}
-            BadStormsSettings.softReservesCsv = ""
-            print("|cff00ff00BadStorms:|r Soft reserves cleared.")
-            editBox:SetText("")
             dialog:Hide()
-            local f = BadStorms.configFrame
-            if f then
-                f.PopulateSRList()
-                if f.rollPanel and f.rollPanel:IsShown() then
-                    BadStorms.UpdateRollDisplay(f)
-                elseif f.awardPanel and f.awardPanel:IsShown() then
-                    BadStorms.PopulatePlayerList(f)
+            BadStorms.ShowDialog(
+                "|cffff0000WARNING:|r Clear all soft reserves?",
+                nil,
+                function()
+                    BadStormsSettings.softReserves = {}
+                    BadStormsSettings.softReservesCsv = ""
+                    print("|cff00ff00BadStorms:|r Soft reserves cleared.")
+                    local f = BadStorms.configFrame
+                    if f then
+                        f.PopulateSRList()
+                        if f.rollPanel and f.rollPanel:IsShown() then
+                            BadStorms.UpdateRollDisplay(f)
+                        elseif f.awardPanel and f.awardPanel:IsShown() then
+                            BadStorms.PopulatePlayerList(f)
+                        end
+                    end
                 end
-            end
+            )
+            editBox:SetText("")
         end)
 
         dialog:Hide()

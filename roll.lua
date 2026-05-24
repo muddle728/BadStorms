@@ -193,6 +193,15 @@ local function StartRoll(frame)
     BadStorms.rollTimerActive = C_Timer.NewTicker(1, function()
         BadStorms.rollRemaining = BadStorms.rollRemaining - 1
         frame.rollTimerText:SetText("Rolling... " .. BadStorms.rollRemaining)
+        local roller = BadStorms.lootRoller
+        if roller and roller.statusText and roller:IsShown() then
+            local rem = BadStorms.rollRemaining
+            if rem > 0 then
+                roller.statusText:SetText("Rolling... (" .. rem .. "s)")
+            else
+                roller.statusText:SetText("Roll ended")
+            end
+        end
 
         if BadStorms.rollRemaining > 0 and BadStorms.rollRemaining <= 10 then
             local remaining = BadStorms.rollRemaining
@@ -237,7 +246,25 @@ rollListener:SetScript("OnEvent", function(self, event, msg)
     local _, class = UnitClass(name)
     local unit = BadStorms.GetPlayerUnit(name)
     local frame = BadStorms.configFrame
+    local lootRoller = BadStorms.lootRoller
     local currentItemId = frame and frame.data and GetItemID(frame.data.link)
+    if not currentItemId and lootRoller and lootRoller.data then
+        currentItemId = GetItemID(lootRoller.data.link)
+    end
+    if currentItemId then
+        local srCount = PlayerHasReservation(currentItemId, name)
+        local maxRolls = srCount > 0 and srCount or 1
+        local rollCount = 0
+        for _, v in ipairs(BadStorms.currentRolls) do
+            if v.name == name then
+                rollCount = rollCount + 1
+
+            end
+        end
+        if rollCount >= maxRolls then
+            return
+        end
+    end
     if currentItemId then
         local srCount = PlayerHasReservation(currentItemId, name)
         local maxRolls = srCount > 0 and srCount or 1
@@ -262,5 +289,8 @@ rollListener:SetScript("OnEvent", function(self, event, msg)
 
     if frame and frame.rollButtons then
         UpdateRollDisplay(frame)
+    end
+    if lootRoller and lootRoller.rollButtons then
+        UpdateRollDisplay(lootRoller)
     end
 end)

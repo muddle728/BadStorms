@@ -152,6 +152,7 @@ local function ShowSRImportDialog()
                             nil,
                             function()
                                 BadStormsSettings.plusOnes = {}
+                                BadStorms.SyncPlusOnes()
                                 local f2 = BadStorms.configFrame
                                 if f2 then
                                     if f2.PopulatePlusOnesList then f2.PopulatePlusOnesList() end

@@ -1000,7 +1000,7 @@ local function CreateConfigFrame()
     autoLootCheckbox = CreateFrame("CheckButton", "BadStormsAutoLootCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
     autoLootCheckbox:SetPoint("TOPLEFT", enableCheckbox, "BOTTOMLEFT", 0, -36)
-    _G["BadStormsAutoLootCheckboxText"]:SetText("Enable Auto-Loot (Hold SHIFT to Bypass)")
+    _G["BadStormsAutoLootCheckboxText"]:SetText("Enable Auto-Loot (Requires Master Looter, Hold SHIFT to Bypass)")
     autoLootCheckbox:SetChecked(BadStormsSettings.autoloot)
     autoLootCheckbox:SetScript("OnClick", function(self)
         BadStormsSettings.autoloot = self:GetChecked()
@@ -1125,9 +1125,18 @@ local function CreateConfigFrame()
         ToggleDropDownMenu(1, nil, disenchanterMenu, self:GetName(), 0, 0)
     end)
 
+    local lootRollerCheckbox = CreateFrame("CheckButton", "BadStormsLootRollerCheckbox", settingsPanel,
+        "InterfaceOptionsCheckButtonTemplate")
+    lootRollerCheckbox:SetPoint("TOPLEFT", disenchanterCheckbox, "BOTTOMLEFT", 0, -25)
+    _G["BadStormsLootRollerCheckboxText"]:SetText("Enable Loot Roller (For Raiders)")
+    lootRollerCheckbox:SetChecked(BadStormsSettings.lootRollerEnabled)
+    lootRollerCheckbox:SetScript("OnClick", function(self)
+        BadStormsSettings.lootRollerEnabled = self:GetChecked()
+    end)
+
     local hideMinimapCheckbox = CreateFrame("CheckButton", "BadStormsHideMinimapCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
-    hideMinimapCheckbox:SetPoint("TOPLEFT", disenchanterCheckbox, "BOTTOMLEFT", 0, -20)
+    hideMinimapCheckbox:SetPoint("TOPLEFT", lootRollerCheckbox, "BOTTOMLEFT", 0, -5)
     _G["BadStormsHideMinimapCheckboxText"]:SetText("Show Minimap Button")
     hideMinimapCheckbox:SetChecked(not BadStormsSettings.hideMinimap)
     hideMinimapCheckbox:SetScript("OnClick", function(self)
@@ -1144,7 +1153,7 @@ local function CreateConfigFrame()
     end)
 
     local notes = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    notes:SetPoint("TOPLEFT", hideMinimapCheckbox, "BOTTOMLEFT", 25, -10)
+    notes:SetPoint("TOPLEFT", hideMinimapCheckbox, "BOTTOMLEFT", 25, 5)
     notes:SetWidth(520)
     notes:SetJustifyH("LEFT")
     notes:SetText(
@@ -1880,6 +1889,7 @@ local function CreateConfigFrame()
                 row.editBox:SetText(tostring(val))
                 if row.playerName then
                     BadStormsSettings.plusOnes[row.playerName] = val
+                    BadStorms.SyncPlusOnes()
                 end
             end
         end)
@@ -1890,6 +1900,7 @@ local function CreateConfigFrame()
             row.editBox:SetText(tostring(val))
             if row.playerName then
                 BadStormsSettings.plusOnes[row.playerName] = val
+                BadStorms.SyncPlusOnes()
             end
         end)
 
@@ -1903,6 +1914,7 @@ local function CreateConfigFrame()
             local val = tonumber(cleaned) or 0
             if row.playerName then
                 BadStormsSettings.plusOnes[row.playerName] = val
+                BadStorms.SyncPlusOnes()
             end
         end)
         row._onTextChanged = row.editBox:GetScript("OnTextChanged")
@@ -1981,6 +1993,7 @@ local function CreateConfigFrame()
         BadStorms.ShowDialog("|cffff0000WARNING:|r Clear existing plus one counts?", nil,
             function()
                 BadStormsSettings.plusOnes = {}
+                BadStorms.SyncPlusOnes()
                 local f = BadStorms.configFrame
                 if f then
                     if f.PopulatePlusOnesList then
@@ -2161,11 +2174,16 @@ local function CreateConfigFrame()
     end)
 
     frame:SelectTab("settings")
-    frame:SetScript("OnShow", UpdateLootMasterState)
+    frame:SetScript("OnShow", function()
+        UpdateLootMasterState()
+    end)
     frame:SetScript("OnMouseDown", function(self, button)
         if button == "RightButton" and IsControlKeyDown() then
             BadStormsSettings.frameScale = 1.0
             self:SetScale(1.0)
+            if BadStorms.lootRoller then
+                BadStorms.lootRoller:SetScale(1.0)
+            end
         end
     end)
     frame:SetScript("OnMouseWheel", function(self, delta)
@@ -2174,6 +2192,9 @@ local function CreateConfigFrame()
             s = math.max(0.60, math.min(1.25, s))
             BadStormsSettings.frameScale = s
             self:SetScale(s)
+            if BadStorms.lootRoller then
+                BadStorms.lootRoller:SetScale(s)
+            end
         end
     end)
 
@@ -2564,6 +2585,7 @@ function BadStorms.ShowAssignDialog(data)
             local hasSR = itemId and BadStorms.PlayerHasReservation(itemId, d.name) or 0
             if hasSR == 0 then
                 BadStormsSettings.plusOnes[d.name] = (BadStormsSettings.plusOnes[d.name] or 0) + 1
+                BadStorms.SyncPlusOnes()
             end
         end
         if itemId and BadStormsSettings.softReserves then

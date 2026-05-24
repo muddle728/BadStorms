@@ -1,8 +1,5 @@
 local BadStorms = _G.BadStorms
 
-local closeTimerFrame = nil
-local rollTimerTicker = nil
-
 local frame = CreateFrame("Frame", "BadStormsLootRoller", UIParent)
 frame:SetSize(300, 300)
 local savedPos = BadStormsSettings.lootRollerPos
@@ -18,7 +15,12 @@ frame:SetBackdrop({
     tile = true,
     tileSize = 32,
     edgeSize = 1,
-    insets = { left = 1, right = 1, top = 1, bottom = 1 }
+    insets = {
+        left = 1,
+        right = 1,
+        top = 1,
+        bottom = 1
+    }
 })
 frame:SetBackdropColor(0, 0, 0, 0.85)
 frame:SetBackdropBorderColor(0, 0, 0, 1)
@@ -47,6 +49,10 @@ frame:SetScript("OnMouseWheel", function(self, delta)
         self:SetScale(s)
         if BadStorms.configFrame then
             BadStorms.configFrame:SetScale(s)
+            if BadStorms.configFrame:IsShown() then
+                self:ClearAllPoints()
+                self:SetPoint("TOPLEFT", BadStorms.configFrame, "TOPRIGHT", 4, 0)
+            end
         end
     end
 end)
@@ -56,6 +62,10 @@ frame:SetScript("OnMouseDown", function(self, button)
         self:SetScale(1.0)
         if BadStorms.configFrame then
             BadStorms.configFrame:SetScale(1.0)
+            if BadStorms.configFrame:IsShown() then
+                self:ClearAllPoints()
+                self:SetPoint("TOPLEFT", BadStorms.configFrame, "TOPRIGHT", 4, 0)
+            end
         end
     end
 end)
@@ -134,13 +144,14 @@ for i = 1, 30 do
     frame.rollButtons[i] = btn
 end
 
+local countdownTicker
 local statusText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 statusText:SetPoint("BOTTOM", frame, "BOTTOM", 0, 40)
 frame.statusText = statusText
 
 local rollMSBtn = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
 rollMSBtn:SetSize(80, 24)
-rollMSBtn:SetPoint("BOTTOM", frame, "BOTTOM", -42, 8)
+rollMSBtn:SetPoint("BOTTOM", frame, "BOTTOM", -85, 8)
 rollMSBtn:SetText("Roll MS")
 rollMSBtn:SetScript("OnClick", function()
     RandomRoll(1, 100)
@@ -157,13 +168,12 @@ end)
 frame.rollOSBtn = rollOSBtn
 
 local function HideRollTracker()
-    if rollTimerTicker then
-        rollTimerTicker:Cancel()
-        rollTimerTicker = nil
+    if not frame:IsShown() then
+        return
     end
-    if closeTimerFrame then
-        closeTimerFrame:SetScript("OnUpdate", nil)
-        closeTimerFrame = nil
+    if BadStorms.rollerCloseTimer then
+        BadStorms.rollerCloseTimer:Cancel()
+        BadStorms.rollerCloseTimer = nil
     end
     if not BadStorms.IsMasterLooter() then
         BadStorms.isRolling = false
@@ -174,15 +184,24 @@ local function HideRollTracker()
     frame:Hide()
 end
 
+local passBtn = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
+passBtn:SetSize(80, 24)
+passBtn:SetPoint("LEFT", rollOSBtn, "RIGHT", 4, 0)
+passBtn:SetText("Pass")
+passBtn:SetScript("OnClick", function()
+    HideRollTracker()
+end)
+frame.passBtn = passBtn
+
 local function ShowRollTracker(link)
-    if closeTimerFrame then
-        closeTimerFrame:SetScript("OnUpdate", nil)
-        closeTimerFrame = nil
+    if BadStorms.rollerCloseTimer then
+        BadStorms.rollerCloseTimer:Cancel()
+        BadStorms.rollerCloseTimer = nil
     end
 
     if BadStorms.configFrame and BadStorms.configFrame:IsShown() then
         frame:ClearAllPoints()
-        frame:SetPoint("LEFT", BadStorms.configFrame, "RIGHT", 4, 0)
+        frame:SetPoint("TOPLEFT", BadStorms.configFrame, "TOPRIGHT", 4, 0)
     elseif not BadStormsSettings.lootRollerPos then
         frame:ClearAllPoints()
         frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
@@ -190,7 +209,9 @@ local function ShowRollTracker(link)
 
     BadStorms.isRolling = true
     BadStorms.currentRolls = {}
-    frame.data = { link = link }
+    frame.data = {
+        link = link
+    }
 
     local itemNameStr, _, quality, _, _, _, _, _, _, texture = GetItemInfo(link)
     if itemNameStr then
@@ -213,7 +234,9 @@ local function ShowRollTracker(link)
         itemIcon:SetBackdropBorderColor(0.5, 0.5, 0.5)
         itemIcon.texture:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
         C_Timer.After(0.5, function()
-            if not BadStorms.isRolling then return end
+            if not BadStorms.isRolling then
+                return
+            end
             local n2, _, q2, _, _, _, _, _, _, t2 = GetItemInfo(link)
             if n2 then
                 local qc = q2 and ITEM_QUALITY_COLORS[q2]
@@ -242,38 +265,13 @@ local function ShowRollTracker(link)
         GameTooltip_Hide()
     end)
 
-    if rollTimerTicker then
-        rollTimerTicker:Cancel()
-        rollTimerTicker = nil
-    end
-    local remaining = BadStormsSettings.rollTimer or 10
-    if BadStorms.IsMasterLooter() then
-        statusText:SetText("Rolling...")
-    else
-        statusText:SetText("Rolling... (" .. remaining .. "s)")
-        rollTimerTicker = C_Timer.NewTicker(1, function()
-            if not BadStorms.isRolling then
-                if rollTimerTicker then
-                    rollTimerTicker:Cancel()
-                    rollTimerTicker = nil
-                end
-                return
-            end
-            remaining = remaining - 1
-            if remaining > 0 then
-                statusText:SetText("Rolling... (" .. remaining .. "s)")
-            else
-                statusText:SetText("Roll ended")
-                if rollTimerTicker then
-                    rollTimerTicker:Cancel()
-                    rollTimerTicker = nil
-                end
-            end
-        end)
-    end
+    statusText:SetText("")
     BadStorms.UpdateRollDisplay(frame)
 
     PlaySoundFile("Sound\\Interface\\RaidWarningHorn.ogg")
+
+    local closeTime = tonumber(BadStormsSettings.lootRollerCloseTime) or 15
+    BadStorms.rollerCloseTimer = C_Timer.After(closeTime, HideRollTracker)
 
     frame:Show()
 end
@@ -295,6 +293,7 @@ local chatListener = CreateFrame("Frame")
 chatListener:RegisterEvent("CHAT_MSG_RAID_WARNING")
 chatListener:RegisterEvent("CHAT_MSG_RAID")
 chatListener:RegisterEvent("CHAT_MSG_PARTY")
+chatListener:RegisterEvent("CHAT_MSG_PARTY_LEADER")
 chatListener:SetScript("OnEvent", function(self, event, msg)
     if not BadStormsSettings.lootRollerEnabled then
         return
@@ -303,7 +302,18 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
         return
     end
 
-    if msg:find("^Roll for ") then
+    if msg:find("^ROLLS CLOSED") then
+        if not frame:IsShown() then
+            return
+        end
+        BadStorms.isRolling = false
+        local winnerName, winnerRoll, winnerSpec = msg:match("Winner: (.+) %[(%d+)%] %((%a+)%)")
+        if winnerName then
+            statusText:SetText("Winner: " .. winnerName .. " [" .. winnerRoll .. "] (" .. winnerSpec .. ")")
+        else
+            statusText:SetText("Rolls closed")
+        end
+    elseif msg:find("^[Rr][Oo][Ll][Ll]") then
         local link = msg:match("(|c[%x]+|Hitem:[^|]+|h%[.-%]|h|r)")
         if not link then
             local itemID = msg:match("Hitem:(%d+)")
@@ -314,32 +324,5 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
         if link then
             ShowRollTracker(link)
         end
-    elseif msg:find("^ROLLS CLOSED") then
-        if not BadStorms.isRolling then
-            return
-        end
-        if rollTimerTicker then
-            rollTimerTicker:Cancel()
-            rollTimerTicker = nil
-        end
-        BadStorms.isRolling = false
-        BadStorms.UpdateRollDisplay(frame)
-        local winnerName, winnerRoll, winnerSpec = msg:match("Winner: (.+) %[(%d+)%] %((%a+)%)")
-        if winnerName then
-            statusText:SetText("Winner: " .. winnerName .. " [" .. winnerRoll .. "] (" .. winnerSpec .. ")")
-        else
-            statusText:SetText("Rolls closed")
-        end
-        if closeTimerFrame then
-            closeTimerFrame:SetScript("OnUpdate", nil)
-        end
-        closeTimerFrame = CreateFrame("Frame")
-        closeTimerFrame.elapsed = 0
-        closeTimerFrame:SetScript("OnUpdate", function(self, delta)
-            self.elapsed = self.elapsed + delta
-            if self.elapsed >= 10 then
-                HideRollTracker()
-            end
-        end)
     end
 end)

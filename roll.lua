@@ -157,7 +157,8 @@ local function StartRoll(frame)
     UpdateRollDisplay(frame)
 
     local link = frame.data and frame.data.link or "an item"
-    local rollMsg = "Roll for " .. link .. " (/roll for MS or /roll 99 for OS)"
+    local rollTimer = BadStormsSettings.rollTimer or 10
+    local rollMsg = "Roll for " .. link .. " (/roll for MS or /roll 99 for OS) [RollTimer:" .. rollTimer .. "]"
     if BadStorms.CanRaidWarning() then
         SendChatMessage(rollMsg, "RAID_WARNING")
     else
@@ -286,7 +287,6 @@ rollListener:SetScript("OnEvent", function(self, event, msg)
         max = max,
         class = class
     })
-
     if frame and frame.rollButtons then
         UpdateRollDisplay(frame)
     end

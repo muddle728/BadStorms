@@ -22,6 +22,7 @@ BadStormsSettings.plusOnesEnabled = BadStormsSettings.plusOnesEnabled or true
 BadStormsSettings.softReserves = BadStormsSettings.softReserves or {}
 BadStormsSettings.softReservesCsv = BadStormsSettings.softReservesCsv or ""
 BadStormsSettings.rollTimer = BadStormsSettings.rollTimer or 10
+BadStormsSettings.lootRollerCloseTime = BadStormsSettings.lootRollerCloseTime or 15
 if BadStormsSettings.lootRollerEnabled == nil then
     BadStormsSettings.lootRollerEnabled = true
 end
@@ -29,14 +30,19 @@ end
 if not C_Timer then
     C_Timer = {}
     function C_Timer.After(delay, callback)
-        local timer = CreateFrame("Frame")
+        local timerFrame = CreateFrame("Frame")
         local start = GetTime()
-        timer:SetScript("OnUpdate", function()
+        timerFrame:SetScript("OnUpdate", function()
             if GetTime() - start >= delay then
                 callback()
-                timer:SetScript("OnUpdate", nil)
+                timerFrame:SetScript("OnUpdate", nil)
             end
         end)
+        return {
+            Cancel = function()
+                timerFrame:SetScript("OnUpdate", nil)
+            end
+        }
     end
     function C_Timer.NewTicker(interval, callback)
         local frame = CreateFrame("Frame")

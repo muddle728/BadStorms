@@ -186,29 +186,18 @@ local function ShowSRImportDialog()
             if text and text ~= "" then
                 local existing = BadStormsSettings.softReserves or {}
                 if next(existing) then
-                    dialog:Hide()
                     BadStorms.ShowDialog(
                         "|cffff0000WARNING:|r |cffffff00This will overwrite the existing soft reserves.\n\nContinue with import?|r",
                         nil,
                         function()
                             ParseSRCSV(text)
-                            editBox:SetText("")
-                            dialog:Hide()
                             ShowImportPostDialog()
-                        end,
-                        function()
-                            dialog:Show()
                         end
                     )
                 else
                     ParseSRCSV(text)
-                    editBox:SetText("")
-                    dialog:Hide()
                     ShowImportPostDialog()
                 end
-            else
-                editBox:SetText("")
-                dialog:Hide()
             end
         end)
 
@@ -224,15 +213,15 @@ local function ShowSRImportDialog()
         local clearBtn = CreateFrame("Button", nil, dialog, "GameMenuButtonTemplate")
         clearBtn:SetSize(80, 24)
         clearBtn:SetPoint("BOTTOMLEFT", dialog, "BOTTOM", 20, 15)
-        clearBtn:SetText("Clear")
+        clearBtn:SetText("Clear All")
         clearBtn:SetScript("OnClick", function()
-            dialog:Hide()
             BadStorms.ShowDialog(
                 "|cffff0000WARNING:|r Clear existing soft reserves?",
                 nil,
                 function()
                     BadStormsSettings.softReserves = {}
                     BadStormsSettings.softReservesCsv = ""
+                    editBox:SetText("")
                     print("|cff00ff00BadStorms:|r Soft reserves cleared.")
                     local f = BadStorms.configFrame
                     if f then
@@ -245,7 +234,6 @@ local function ShowSRImportDialog()
                     end
                 end
         )
-        editBox:SetText("")
     end)
 
     local function UpdateClearBtnEnabled()

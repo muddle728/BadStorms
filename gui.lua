@@ -420,6 +420,21 @@ local function CreateConfigFrame()
         )
     end)
 
+    local function UpdateSREnabledState()
+        if BadStorms.InGroup() and not BadStorms.IsMasterLooter() then
+            srClearBtn:Disable()
+        else
+            srClearBtn:Enable()
+        end
+    end
+    UpdateSREnabledState()
+    frame:RegisterEvent("GROUP_ROSTER_UPDATE")
+    frame:SetScript("OnEvent", function(self, event)
+        if event == "GROUP_ROSTER_UPDATE" then
+            UpdateSREnabledState()
+        end
+    end)
+
     local srCountText = srPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     srCountText:SetPoint("TOPLEFT", srPanel, "TOPRIGHT", -200, 0)
     srCountText:SetText("")

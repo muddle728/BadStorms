@@ -152,6 +152,7 @@ local function ShowSRImportDialog()
                             nil,
                             function()
                                 BadStormsSettings.plusOnes = {}
+                                BadStorms.SyncPlusOnes()
                                 local f2 = BadStorms.configFrame
                                 if f2 then
                                     if f2.PopulatePlusOnesList then f2.PopulatePlusOnesList() end
@@ -185,29 +186,18 @@ local function ShowSRImportDialog()
             if text and text ~= "" then
                 local existing = BadStormsSettings.softReserves or {}
                 if next(existing) then
-                    dialog:Hide()
                     BadStorms.ShowDialog(
                         "|cffff0000WARNING:|r |cffffff00This will overwrite the existing soft reserves.\n\nContinue with import?|r",
                         nil,
                         function()
                             ParseSRCSV(text)
-                            editBox:SetText("")
-                            dialog:Hide()
                             ShowImportPostDialog()
-                        end,
-                        function()
-                            dialog:Show()
                         end
                     )
                 else
                     ParseSRCSV(text)
-                    editBox:SetText("")
-                    dialog:Hide()
                     ShowImportPostDialog()
                 end
-            else
-                editBox:SetText("")
-                dialog:Hide()
             end
         end)
 
@@ -223,15 +213,15 @@ local function ShowSRImportDialog()
         local clearBtn = CreateFrame("Button", nil, dialog, "GameMenuButtonTemplate")
         clearBtn:SetSize(80, 24)
         clearBtn:SetPoint("BOTTOMLEFT", dialog, "BOTTOM", 20, 15)
-        clearBtn:SetText("Clear")
+        clearBtn:SetText("Clear All")
         clearBtn:SetScript("OnClick", function()
-            dialog:Hide()
             BadStorms.ShowDialog(
                 "|cffff0000WARNING:|r Clear existing soft reserves?",
                 nil,
                 function()
                     BadStormsSettings.softReserves = {}
                     BadStormsSettings.softReservesCsv = ""
+                    editBox:SetText("")
                     print("|cff00ff00BadStorms:|r Soft reserves cleared.")
                     local f = BadStorms.configFrame
                     if f then
@@ -243,12 +233,26 @@ local function ShowSRImportDialog()
                         end
                     end
                 end
-            )
-            editBox:SetText("")
-        end)
+        )
+    end)
 
-        dialog:Hide()
-        BadStorms.srDialogFrame = dialog
+    local function UpdateClearBtnEnabled()
+        if BadStorms.InGroup() and not BadStorms.IsMasterLooter() then
+            clearBtn:Disable()
+        else
+            clearBtn:Enable()
+        end
+    end
+    UpdateClearBtnEnabled()
+    dialog:RegisterEvent("GROUP_ROSTER_UPDATE")
+    dialog:SetScript("OnEvent", function(self, event)
+        if event == "GROUP_ROSTER_UPDATE" then
+            UpdateClearBtnEnabled()
+        end
+    end)
+
+    dialog:Hide()
+    BadStorms.srDialogFrame = dialog
     end
 
     dialog.editBox:SetText(BadStormsSettings.softReservesCsv or "")

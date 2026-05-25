@@ -420,6 +420,21 @@ local function CreateConfigFrame()
         )
     end)
 
+    local function UpdateSREnabledState()
+        if BadStorms.InGroup() and not BadStorms.IsMasterLooter() then
+            srClearBtn:Disable()
+        else
+            srClearBtn:Enable()
+        end
+    end
+    UpdateSREnabledState()
+    frame:RegisterEvent("GROUP_ROSTER_UPDATE")
+    frame:SetScript("OnEvent", function(self, event)
+        if event == "GROUP_ROSTER_UPDATE" then
+            UpdateSREnabledState()
+        end
+    end)
+
     local srCountText = srPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     srCountText:SetPoint("TOPLEFT", srPanel, "TOPRIGHT", -200, 0)
     srCountText:SetText("")
@@ -965,13 +980,13 @@ local function CreateConfigFrame()
             BadStorms.RestoreFromHistory(e)
             PopulateSyncHistoryList()
             shRestoreBtn:Disable()
-            shPreviewText:SetText("|cff00ff00Restored!|r Sync pushed to all clients.")
+            shPreviewText:SetText("|cff00ff00Restored|r version " .. (entry.version or "?") .. ".")
             UpdatePreviewHeight()
         end)
     end)
 
     shClearBtn:SetScript("OnClick", function()
-        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear ALL sync history?\n\nIf you're not sure, choose No.", nil, function()
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear ALL history?\n\nIf you're not sure, choose No.", nil, function()
             BadStormsSettings.syncHistory = {}
             shSelectedEntry = nil
             PopulateSyncHistoryList()
@@ -1000,7 +1015,7 @@ local function CreateConfigFrame()
     autoLootCheckbox = CreateFrame("CheckButton", "BadStormsAutoLootCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
     autoLootCheckbox:SetPoint("TOPLEFT", enableCheckbox, "BOTTOMLEFT", 0, -36)
-    _G["BadStormsAutoLootCheckboxText"]:SetText("Enable Auto-Loot (Hold SHIFT to Bypass)")
+    _G["BadStormsAutoLootCheckboxText"]:SetText("Enable Auto-Loot (Requires Master Looter, Hold SHIFT to Bypass)")
     autoLootCheckbox:SetChecked(BadStormsSettings.autoloot)
     autoLootCheckbox:SetScript("OnClick", function(self)
         BadStormsSettings.autoloot = self:GetChecked()
@@ -1125,9 +1140,114 @@ local function CreateConfigFrame()
         ToggleDropDownMenu(1, nil, disenchanterMenu, self:GetName(), 0, 0)
     end)
 
+    local lootRollerCheckbox = CreateFrame("CheckButton", "BadStormsLootRollerCheckbox", settingsPanel,
+        "InterfaceOptionsCheckButtonTemplate")
+    lootRollerCheckbox:SetPoint("TOPLEFT", disenchanterCheckbox, "BOTTOMLEFT", 0, -25)
+    _G["BadStormsLootRollerCheckboxText"]:SetText("Enable Loot Roller (Loot Blare)")
+    lootRollerCheckbox:SetChecked(BadStormsSettings.lootRollerEnabled)
+    lootRollerCheckbox:SetScript("OnClick", function(self)
+        BadStormsSettings.lootRollerEnabled = self:GetChecked()
+    end)
+
+    local rollerCloseLabel = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    rollerCloseLabel:SetPoint("LEFT", lootRollerCheckbox, "RIGHT", 200, 0)
+    rollerCloseLabel:SetText("Close in:")
+
+    local rollerCloseMinus = CreateFrame("Button", nil, settingsPanel, "GameMenuButtonTemplate")
+    rollerCloseMinus:SetSize(18, 18)
+    rollerCloseMinus:SetPoint("LEFT", rollerCloseLabel, "RIGHT", 4, 0)
+    rollerCloseMinus:SetText("-")
+    rollerCloseMinus:SetNormalFontObject("GameFontNormalSmall")
+    rollerCloseMinus:SetHighlightFontObject("GameFontHighlightSmall")
+
+    local rollerCloseEdit = CreateFrame("EditBox", "BadStormsRollerCloseEdit", settingsPanel, "InputBoxTemplate")
+    rollerCloseEdit:ClearAllPoints()
+    rollerCloseEdit:SetSize(24, 18)
+    rollerCloseEdit:SetPoint("LEFT", rollerCloseMinus, "RIGHT", 8, 0)
+    rollerCloseEdit:SetAutoFocus(false)
+    rollerCloseEdit:SetNumeric(true)
+    rollerCloseEdit:SetMaxLetters(2)
+    rollerCloseEdit:SetJustifyH("CENTER")
+    rollerCloseEdit:SetTextInsets(-5, 0, 0, 0)
+    rollerCloseEdit:SetText(tostring(BadStormsSettings.lootRollerCloseTime or 15))
+
+    local rollerClosePlus = CreateFrame("Button", nil, settingsPanel, "GameMenuButtonTemplate")
+    rollerClosePlus:SetSize(18, 18)
+    rollerClosePlus:SetPoint("LEFT", rollerCloseEdit, "RIGHT", 2, 0)
+    rollerClosePlus:SetText("+")
+    rollerClosePlus:SetNormalFontObject("GameFontNormalSmall")
+    rollerClosePlus:SetHighlightFontObject("GameFontHighlightSmall")
+
+    local rollerCloseSecLabel = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    rollerCloseSecLabel:SetPoint("LEFT", rollerClosePlus, "RIGHT", 4, 0)
+    rollerCloseSecLabel:SetText("Seconds")
+
+    local function UpdateRollerCloseTime(val)
+        val = tonumber(val) or 15
+        if val < 5 then val = 5 end
+        if val > 120 then val = 120 end
+        BadStormsSettings.lootRollerCloseTime = val
+        rollerCloseEdit:SetText(tostring(val))
+    end
+
+    rollerCloseMinus:SetScript("OnClick", function()
+        local val = tonumber(rollerCloseEdit:GetText()) or 15
+        if val > 5 then
+            val = val - 1
+            UpdateRollerCloseTime(val)
+        end
+    end)
+
+    rollerClosePlus:SetScript("OnClick", function()
+        local val = tonumber(rollerCloseEdit:GetText()) or 15
+        if val < 120 then
+            val = val + 1
+            UpdateRollerCloseTime(val)
+        end
+    end)
+
+    rollerCloseEdit:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
+        CloseDropDownMenus()
+    end)
+    rollerCloseEdit:SetScript("OnEnterPressed", function(self)
+        UpdateRollerCloseTime(tonumber(self:GetText()) or 15)
+        self:ClearFocus()
+        CloseDropDownMenus()
+    end)
+    rollerCloseEdit:SetScript("OnTabPressed", function(self)
+        self:ClearFocus()
+        CloseDropDownMenus()
+    end)
+    rollerCloseEdit:SetScript("OnEditFocusLost", function(self)
+        local val = tonumber(self:GetText()) or 15
+        UpdateRollerCloseTime(val)
+    end)
+    rollerCloseEdit:SetScript("OnTextChanged", function()
+        local text = rollerCloseEdit:GetText()
+        local cleaned = text:gsub("%D", "")
+        if cleaned ~= text then
+            rollerCloseEdit:SetText(cleaned)
+            rollerCloseEdit:SetCursorPosition(#cleaned)
+        end
+        local val = tonumber(cleaned) or 15
+        if val < 5 then val = 5 end
+        if val > 120 then val = 120 end
+        BadStormsSettings.lootRollerCloseTime = val
+    end)
+
+    rollerCloseEdit:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("5-120, Time in Seconds")
+        GameTooltip:Show()
+    end)
+    rollerCloseEdit:SetScript("OnLeave", function()
+        GameTooltip_Hide()
+    end)
+
     local hideMinimapCheckbox = CreateFrame("CheckButton", "BadStormsHideMinimapCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
-    hideMinimapCheckbox:SetPoint("TOPLEFT", disenchanterCheckbox, "BOTTOMLEFT", 0, -20)
+    hideMinimapCheckbox:SetPoint("TOPLEFT", lootRollerCheckbox, "BOTTOMLEFT", 0, -5)
     _G["BadStormsHideMinimapCheckboxText"]:SetText("Show Minimap Button")
     hideMinimapCheckbox:SetChecked(not BadStormsSettings.hideMinimap)
     hideMinimapCheckbox:SetScript("OnClick", function(self)
@@ -1144,7 +1264,7 @@ local function CreateConfigFrame()
     end)
 
     local notes = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    notes:SetPoint("TOPLEFT", hideMinimapCheckbox, "BOTTOMLEFT", 25, -10)
+    notes:SetPoint("TOPLEFT", hideMinimapCheckbox, "BOTTOMLEFT", 25, 5)
     notes:SetWidth(520)
     notes:SetJustifyH("LEFT")
     notes:SetText(
@@ -1514,13 +1634,16 @@ local function CreateConfigFrame()
         frame.startRollButton:Disable()
     end)
 
-    frame.timerEdit = CreateFrame("EditBox", nil, rollPanel, "InputBoxTemplate")
-    frame.timerEdit:SetSize(36, 18)
-    frame.timerEdit:SetPoint("LEFT", frame.rollClearButton, "RIGHT", 4, 0)
+    frame.timerEdit = CreateFrame("EditBox", "BadStormsTimerEdit", rollPanel, "InputBoxTemplate")
+    frame.timerEdit:SetSize(24, 18)
+    frame.timerEdit:ClearAllPoints()
+
+    frame.timerEdit:SetPoint("LEFT", frame.rollClearButton, "RIGHT", 8, 0)
     frame.timerEdit:SetAutoFocus(false)
     frame.timerEdit:SetNumeric(true)
     frame.timerEdit:SetMaxLetters(2)
     frame.timerEdit:SetJustifyH("CENTER")
+    frame.timerEdit:SetTextInsets(-5, 0, 0, 0)
     frame.timerEdit:SetText(tostring(BadStormsSettings.rollTimer or 10))
 
     local function SetRollTimer(val)
@@ -1855,15 +1978,14 @@ local function CreateConfigFrame()
         row.minusBtn:SetNormalFontObject("GameFontNormalSmall")
         row.minusBtn:SetHighlightFontObject("GameFontHighlightSmall")
 
-        row.editBox = CreateFrame("EditBox", nil, row)
-        row.editBox:SetSize(36, 18)
-        row.editBox:SetPoint("LEFT", row.minusBtn, "RIGHT", 2, 0)
+        row.editBox = CreateFrame("EditBox", "BadStormsPlusOneEdit" .. i, row, "InputBoxTemplate")
+        row.editBox:SetSize(24, 18)
+        row.editBox:SetPoint("LEFT", row.minusBtn, "RIGHT", 8, 0)
         row.editBox:SetAutoFocus(false)
         row.editBox:SetNumeric(true)
-        row.editBox:SetMaxLetters(3)
-        row.editBox:SetFontObject("GameFontNormalSmall")
+        row.editBox:SetMaxLetters(2)
         row.editBox:SetJustifyH("CENTER")
-        row.editBox:SetTextInsets(0, 0, 0, 0)
+        row.editBox:SetTextInsets(-5, 0, 0, 0)
         row.editBox:SetText("0")
 
         row.plusBtn = CreateFrame("Button", nil, row, "GameMenuButtonTemplate")
@@ -1880,6 +2002,7 @@ local function CreateConfigFrame()
                 row.editBox:SetText(tostring(val))
                 if row.playerName then
                     BadStormsSettings.plusOnes[row.playerName] = val
+                    BadStorms.SyncPlusOnes()
                 end
             end
         end)
@@ -1890,6 +2013,7 @@ local function CreateConfigFrame()
             row.editBox:SetText(tostring(val))
             if row.playerName then
                 BadStormsSettings.plusOnes[row.playerName] = val
+                BadStorms.SyncPlusOnes()
             end
         end)
 
@@ -1903,6 +2027,7 @@ local function CreateConfigFrame()
             local val = tonumber(cleaned) or 0
             if row.playerName then
                 BadStormsSettings.plusOnes[row.playerName] = val
+                BadStorms.SyncPlusOnes()
             end
         end)
         row._onTextChanged = row.editBox:GetScript("OnTextChanged")
@@ -1981,6 +2106,7 @@ local function CreateConfigFrame()
         BadStorms.ShowDialog("|cffff0000WARNING:|r Clear existing plus one counts?", nil,
             function()
                 BadStormsSettings.plusOnes = {}
+                BadStorms.SyncPlusOnes()
                 local f = BadStorms.configFrame
                 if f then
                     if f.PopulatePlusOnesList then
@@ -2161,11 +2287,20 @@ local function CreateConfigFrame()
     end)
 
     frame:SelectTab("settings")
-    frame:SetScript("OnShow", UpdateLootMasterState)
+    frame:SetScript("OnShow", function()
+        UpdateLootMasterState()
+    end)
     frame:SetScript("OnMouseDown", function(self, button)
         if button == "RightButton" and IsControlKeyDown() then
             BadStormsSettings.frameScale = 1.0
             self:SetScale(1.0)
+            if BadStorms.lootRoller then
+                BadStorms.lootRoller:SetScale(1.0)
+                if BadStorms.lootRoller:IsShown() then
+                    BadStorms.lootRoller:ClearAllPoints()
+                    BadStorms.lootRoller:SetPoint("TOPLEFT", self, "TOPRIGHT", 4, 0)
+                end
+            end
         end
     end)
     frame:SetScript("OnMouseWheel", function(self, delta)
@@ -2174,6 +2309,13 @@ local function CreateConfigFrame()
             s = math.max(0.60, math.min(1.25, s))
             BadStormsSettings.frameScale = s
             self:SetScale(s)
+            if BadStorms.lootRoller then
+                BadStorms.lootRoller:SetScale(s)
+                if BadStorms.lootRoller:IsShown() then
+                    BadStorms.lootRoller:ClearAllPoints()
+                    BadStorms.lootRoller:SetPoint("TOPLEFT", self, "TOPRIGHT", 4, 0)
+                end
+            end
         end
     end)
 
@@ -2195,12 +2337,6 @@ function BadStorms:ToggleConfigFrame()
         BadStorms.configFrame:SelectTab("settings")
         BadStorms.configFrame:Show()
     end
-end
-
-SLASH_BADSTORMS1 = "/badstorms"
-SLASH_BADSTORMS2 = "/bs"
-SlashCmdList.BADSTORMS = function(msg)
-    BadStorms:ToggleConfigFrame()
 end
 
 local function HookGameTooltips()
@@ -2564,6 +2700,7 @@ function BadStorms.ShowAssignDialog(data)
             local hasSR = itemId and BadStorms.PlayerHasReservation(itemId, d.name) or 0
             if hasSR == 0 then
                 BadStormsSettings.plusOnes[d.name] = (BadStormsSettings.plusOnes[d.name] or 0) + 1
+                BadStorms.SyncPlusOnes()
             end
         end
         if itemId and BadStormsSettings.softReserves then
@@ -2818,3 +2955,19 @@ hooksecurefunc("HandleModifiedItemClick", function(link)
     end
 end)
 
+SLASH_BADSTORMS1 = "/badstorms"
+SLASH_BADSTORMS2 = "/bs"
+SlashCmdList.BADSTORMS = function(msg)
+    BadStorms:ToggleConfigFrame()
+end
+
+SLASH_BADSTORMSROLLER1 = "/bsr"
+SlashCmdList.BADSTORMSROLLER = function()
+    if BadStorms.lootRoller then
+        if BadStorms.lootRoller:IsShown() then
+            BadStorms.lootRoller:Hide()
+        else
+            BadStorms.lootRoller:Show()
+        end
+    end
+end

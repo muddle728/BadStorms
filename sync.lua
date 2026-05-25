@@ -138,6 +138,20 @@ function BadStorms.SyncToAll()
 
 end
 
+function BadStorms.SyncPlusOnes()
+    if not BadStormsSettings.enabled then
+        return
+    end
+    if not BadStorms.IsMasterLooter() then
+        return
+    end
+    local payload = {
+        action = "sync",
+        plusOnes = BadStormsSettings.plusOnes
+    }
+    AceComm:SendCommMessage("BadStorms", Encode(payload), BadStorms.GetChannel(), nil, "ALERT")
+end
+
 AceComm:RegisterComm("BadStorms", function(prefix, payload, distribution, sender)
     if sender == UnitName("player") then
         return
@@ -151,7 +165,7 @@ AceComm:RegisterComm("BadStorms", function(prefix, payload, distribution, sender
     local currentPayload = BadStorms.GetLatestHistoryEntry(rp.key) or {}
 
     if rp.action == "sync" then
-        if currentPayload.key == rp.key and currentPayload.version and currentPayload.version > rp.version then
+        if rp.version and currentPayload.key == rp.key and currentPayload.version and currentPayload.version > rp.version then
             local restorePayload = {
                 action = "restore",
                 key = currentPayload.key,
@@ -166,7 +180,9 @@ AceComm:RegisterComm("BadStorms", function(prefix, payload, distribution, sender
             return
         end
         BadStorms.RefreshUIAfterSync(rp)
-        BadStorms.PushToHistory(rp)
+        if rp.version then
+            BadStorms.PushToHistory(rp)
+        end
     elseif rp.action == "restore" then
         if rp.key == currentPayload.key and rp.version > (currentPayload.version or 0) then
             print("|cff00ff00BadStorms:|r Restoring data from " .. sender)

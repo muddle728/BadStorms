@@ -10,8 +10,12 @@ local function UpdateRollDisplay(frame)
     table.sort(BadStorms.currentRolls, function(a, b)
         local aSR = currentItemId and PlayerHasReservation(currentItemId, a.name) or 0
         local bSR = currentItemId and PlayerHasReservation(currentItemId, b.name) or 0
-        if aSR > 0 and bSR == 0 then return true end
-        if bSR > 0 and aSR == 0 then return false end
+        if aSR > 0 and bSR == 0 then
+            return true
+        end
+        if bSR > 0 and aSR == 0 then
+            return false
+        end
         if aSR > 0 and bSR > 0 then
             return a.roll > b.roll
         end
@@ -22,8 +26,12 @@ local function UpdateRollDisplay(frame)
         local aHasPO = aPO > 0
         local bHasPO = bPO > 0
         local function cat(isMS, hasPO)
-            if isMS and not hasPO then return 0 end
-            if isMS and hasPO then return 1 end
+            if isMS and not hasPO then
+                return 0
+            end
+            if isMS and hasPO then
+                return 1
+            end
             return 2
         end
         local ca, cb = cat(aIsMS, aHasPO), cat(bIsMS, bHasPO)
@@ -73,8 +81,12 @@ local function UpdateRollDisplay(frame)
             btn:Show()
         else
             btn.rollData = nil
-            if btn.srText then btn.srText:SetText("") end
-            if btn.plusText then btn.plusText:SetText("") end
+            if btn.srText then
+                btn.srText:SetText("")
+            end
+            if btn.plusText then
+                btn.plusText:SetText("")
+            end
             btn:Hide()
         end
     end
@@ -92,7 +104,7 @@ local function EndRoll(frame)
     end
 
     UpdateRollDisplay(frame)
-    
+
     if #BadStorms.currentRolls > 0 then
         local winner = BadStorms.currentRolls[1]
         frame.selectedRoll = winner
@@ -116,7 +128,9 @@ local function EndRoll(frame)
             for _, entry in ipairs(BadStorms.currentRolls) do
                 if entry.max == 100 then
                     local po = BadStormsSettings.plusOnesEnabled and (BadStormsSettings.plusOnes[entry.name] or 0) or 0
-                    if po > 0 then anyNonZero = true end
+                    if po > 0 then
+                        anyNonZero = true
+                    end
                     table.insert(plusParts, entry.name .. "(" .. po .. ")")
                 end
             end
@@ -133,7 +147,7 @@ local function EndRoll(frame)
             winMsg = string.format("Winner: %s [%d] (OS)", winner.name, winner.roll)
         end
         SendToChannel(string.format("ROLLS CLOSED! %s", winMsg))
-    else 
+    else
         SendToChannel("ROLLS CLOSED!")
     end
 
@@ -157,7 +171,8 @@ local function StartRoll(frame)
     UpdateRollDisplay(frame)
 
     local link = frame.data and frame.data.link or "an item"
-    local rollMsg = "Roll for " .. link .. " (/roll for MS or /roll 99 for OS)"
+    local rollTimer = BadStormsSettings.rollTimer or 10
+    local rollMsg = "Roll for " .. link .. " (/roll for MS, /roll 99 for OS) [Roll Timer: " .. rollTimer .. " seconds]"
     if BadStorms.CanRaidWarning() then
         SendChatMessage(rollMsg, "RAID_WARNING")
     else
@@ -194,7 +209,7 @@ local function StartRoll(frame)
         BadStorms.rollRemaining = BadStorms.rollRemaining - 1
         frame.rollTimerText:SetText("Rolling... " .. BadStorms.rollRemaining)
 
-        if BadStorms.rollRemaining > 0 and BadStorms.rollRemaining <= 10 then
+        if BadStorms.rollRemaining > 0 and BadStorms.rollRemaining <= 5 then
             local remaining = BadStorms.rollRemaining
             local sec = remaining == 1 and "second" or "seconds"
             local msg = "Roll ends in " .. tostring(remaining) .. " " .. sec .. "..."
@@ -203,6 +218,8 @@ local function StartRoll(frame)
                 SendChatMessage(msg, chan)
             end
         end
+        
+        frame.rollTimerText:SetTextColor(1, 0, 0)
 
         if BadStorms.rollRemaining <= 0 then
             EndRoll(frame)
@@ -237,7 +254,25 @@ rollListener:SetScript("OnEvent", function(self, event, msg)
     local _, class = UnitClass(name)
     local unit = BadStorms.GetPlayerUnit(name)
     local frame = BadStorms.configFrame
+    local lootRoller = BadStorms.lootRoller
     local currentItemId = frame and frame.data and GetItemID(frame.data.link)
+    if not currentItemId and lootRoller and lootRoller.data then
+        currentItemId = GetItemID(lootRoller.data.link)
+    end
+    if currentItemId then
+        local srCount = PlayerHasReservation(currentItemId, name)
+        local maxRolls = srCount > 0 and srCount or 1
+        local rollCount = 0
+        for _, v in ipairs(BadStorms.currentRolls) do
+            if v.name == name then
+                rollCount = rollCount + 1
+
+            end
+        end
+        if rollCount >= maxRolls then
+            return
+        end
+    end
     if currentItemId then
         local srCount = PlayerHasReservation(currentItemId, name)
         local maxRolls = srCount > 0 and srCount or 1
@@ -259,8 +294,10 @@ rollListener:SetScript("OnEvent", function(self, event, msg)
         max = max,
         class = class
     })
-
     if frame and frame.rollButtons then
         UpdateRollDisplay(frame)
+    end
+    if lootRoller and lootRoller.rollButtons then
+        UpdateRollDisplay(lootRoller)
     end
 end)

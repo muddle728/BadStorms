@@ -8,31 +8,7 @@ BadStorms.isRolling = false
 BadStorms.rollTimerActive = nil
 BadStorms.rollRemaining = 0
 
-BadStormsSettings = {}
-
-if not BadStormsSettings then
-    BadStormsSettings = {
-        altClickLooting = true,
-        autoloot = false,
-        autoMasterLoot = false,
-        disenchantEnabled = false,
-        disenchanter = "",
-        enabled = false,
-        exportData = {},
-        framePos = nil,
-        frameScale = 1.0,
-        hideMinimap = false,
-        minimapPos = 0,
-        pendingTrades = {},
-        plusOnesEnabled = true,
-        plusOnes = {},
-        rollTimer = 10,
-        softReserves = {},
-        softReservesCsv = "",
-        syncHistory = {}
-    }
-end
-
+BadStormsSettings = BadStormsSettings or {}
 BadStormsSettings.autoMasterLoot = BadStormsSettings.autoMasterLoot or false
 BadStormsSettings.disenchantEnabled = BadStormsSettings.disenchantEnabled or false
 BadStormsSettings.disenchanter = BadStormsSettings.disenchanter or ""
@@ -46,18 +22,27 @@ BadStormsSettings.plusOnesEnabled = BadStormsSettings.plusOnesEnabled or true
 BadStormsSettings.softReserves = BadStormsSettings.softReserves or {}
 BadStormsSettings.softReservesCsv = BadStormsSettings.softReservesCsv or ""
 BadStormsSettings.rollTimer = BadStormsSettings.rollTimer or 10
+BadStormsSettings.lootRollerCloseTime = BadStormsSettings.lootRollerCloseTime or 15
+if BadStormsSettings.lootRollerEnabled == nil then
+    BadStormsSettings.lootRollerEnabled = true
+end
 
 if not C_Timer then
     C_Timer = {}
     function C_Timer.After(delay, callback)
-        local timer = CreateFrame("Frame")
+        local timerFrame = CreateFrame("Frame")
         local start = GetTime()
-        timer:SetScript("OnUpdate", function()
+        timerFrame:SetScript("OnUpdate", function()
             if GetTime() - start >= delay then
                 callback()
-                timer:SetScript("OnUpdate", nil)
+                timerFrame:SetScript("OnUpdate", nil)
             end
         end)
+        return {
+            Cancel = function()
+                timerFrame:SetScript("OnUpdate", nil)
+            end
+        }
     end
     function C_Timer.NewTicker(interval, callback)
         local frame = CreateFrame("Frame")

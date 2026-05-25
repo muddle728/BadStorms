@@ -175,6 +175,10 @@ local function HideRollTracker()
         BadStorms.rollerCloseTimer:Cancel()
         BadStorms.rollerCloseTimer = nil
     end
+    if BadStorms.currentRollTimer then
+        BadStorms.currentRollTimer:Cancel()
+        BadStorms.currentRollTimer = nil
+    end
     if not BadStorms.IsMasterLooter() then
         BadStorms.isRolling = false
         BadStorms.currentRolls = {}
@@ -303,9 +307,6 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
     end
 
     if msg:find("^ROLLS CLOSED") then
-        if not frame:IsShown() then
-            return
-        end
         BadStorms.isRolling = false
         local winnerName, winnerRoll, winnerSpec = msg:match("Winner: (.+) %[(%d+)%] %((%a+)%)")
         if winnerName then
@@ -323,6 +324,22 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
         end
         if link then
             ShowRollTracker(link)
+            local seconds = tonumber(msg:match(".+Roll Timer: (%d+)%s*second[s]?"))
+            if seconds and not BadStorms.currentRollTimer then
+                local timerStart = time()
+                BadStorms.currentRollTimer = C_Timer.NewTicker(0.5, function()
+                    local elapsed = time() - timerStart
+                    local remaining = math.max(0, seconds - elapsed)
+                    local display = math.ceil(remaining)
+                    if display > 0 then
+                        statusText:SetText("Roll ends in " .. display .. " second" .. (display > 1 and "s" or ""))
+                    else
+                        statusText:SetText("Roll Timer Ended")
+                        BadStorms.currentRollTimer:Cancel()
+                        BadStorms.currentRollTimer = nil
+                    end
+                end)
+            end
         end
     end
 end)

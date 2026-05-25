@@ -10,8 +10,12 @@ local function UpdateRollDisplay(frame)
     table.sort(BadStorms.currentRolls, function(a, b)
         local aSR = currentItemId and PlayerHasReservation(currentItemId, a.name) or 0
         local bSR = currentItemId and PlayerHasReservation(currentItemId, b.name) or 0
-        if aSR > 0 and bSR == 0 then return true end
-        if bSR > 0 and aSR == 0 then return false end
+        if aSR > 0 and bSR == 0 then
+            return true
+        end
+        if bSR > 0 and aSR == 0 then
+            return false
+        end
         if aSR > 0 and bSR > 0 then
             return a.roll > b.roll
         end
@@ -22,8 +26,12 @@ local function UpdateRollDisplay(frame)
         local aHasPO = aPO > 0
         local bHasPO = bPO > 0
         local function cat(isMS, hasPO)
-            if isMS and not hasPO then return 0 end
-            if isMS and hasPO then return 1 end
+            if isMS and not hasPO then
+                return 0
+            end
+            if isMS and hasPO then
+                return 1
+            end
             return 2
         end
         local ca, cb = cat(aIsMS, aHasPO), cat(bIsMS, bHasPO)
@@ -73,8 +81,12 @@ local function UpdateRollDisplay(frame)
             btn:Show()
         else
             btn.rollData = nil
-            if btn.srText then btn.srText:SetText("") end
-            if btn.plusText then btn.plusText:SetText("") end
+            if btn.srText then
+                btn.srText:SetText("")
+            end
+            if btn.plusText then
+                btn.plusText:SetText("")
+            end
             btn:Hide()
         end
     end
@@ -92,7 +104,7 @@ local function EndRoll(frame)
     end
 
     UpdateRollDisplay(frame)
-    
+
     if #BadStorms.currentRolls > 0 then
         local winner = BadStorms.currentRolls[1]
         frame.selectedRoll = winner
@@ -116,7 +128,9 @@ local function EndRoll(frame)
             for _, entry in ipairs(BadStorms.currentRolls) do
                 if entry.max == 100 then
                     local po = BadStormsSettings.plusOnesEnabled and (BadStormsSettings.plusOnes[entry.name] or 0) or 0
-                    if po > 0 then anyNonZero = true end
+                    if po > 0 then
+                        anyNonZero = true
+                    end
                     table.insert(plusParts, entry.name .. "(" .. po .. ")")
                 end
             end
@@ -133,7 +147,7 @@ local function EndRoll(frame)
             winMsg = string.format("Winner: %s [%d] (OS)", winner.name, winner.roll)
         end
         SendToChannel(string.format("ROLLS CLOSED! %s", winMsg))
-    else 
+    else
         SendToChannel("ROLLS CLOSED!")
     end
 
@@ -158,7 +172,7 @@ local function StartRoll(frame)
 
     local link = frame.data and frame.data.link or "an item"
     local rollTimer = BadStormsSettings.rollTimer or 10
-    local rollMsg = "Roll for " .. link .. " (/roll for MS or /roll 99 for OS) [RollTimer:" .. rollTimer .. "]"
+    local rollMsg = "Roll for " .. link .. " (/roll for MS, /roll 99 for OS) [Roll Timer: " .. rollTimer .. " seconds]"
     if BadStorms.CanRaidWarning() then
         SendChatMessage(rollMsg, "RAID_WARNING")
     else
@@ -194,17 +208,8 @@ local function StartRoll(frame)
     BadStorms.rollTimerActive = C_Timer.NewTicker(1, function()
         BadStorms.rollRemaining = BadStorms.rollRemaining - 1
         frame.rollTimerText:SetText("Rolling... " .. BadStorms.rollRemaining)
-        local roller = BadStorms.lootRoller
-        if roller and roller.statusText and roller:IsShown() then
-            local rem = BadStorms.rollRemaining
-            if rem > 0 then
-                roller.statusText:SetText("Rolling... (" .. rem .. "s)")
-            else
-                roller.statusText:SetText("Roll ended")
-            end
-        end
 
-        if BadStorms.rollRemaining > 0 and BadStorms.rollRemaining <= 10 then
+        if BadStorms.rollRemaining > 0 and BadStorms.rollRemaining <= 5 then
             local remaining = BadStorms.rollRemaining
             local sec = remaining == 1 and "second" or "seconds"
             local msg = "Roll ends in " .. tostring(remaining) .. " " .. sec .. "..."

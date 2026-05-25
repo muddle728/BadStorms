@@ -299,9 +299,12 @@ BadStorms.lootRoller = frame
 local chatListener = CreateFrame("Frame")
 chatListener:RegisterEvent("CHAT_MSG_RAID_WARNING")
 chatListener:RegisterEvent("CHAT_MSG_RAID")
+chatListener:RegisterEvent("CHAT_MSG_RAID_LEADER")
+chatListener:RegisterEvent("CHAT_MSG_PARTY_WARNING")
 chatListener:RegisterEvent("CHAT_MSG_PARTY")
 chatListener:RegisterEvent("CHAT_MSG_PARTY_LEADER")
 chatListener:SetScript("OnEvent", function(self, event, msg)
+
     if not BadStormsSettings.lootRollerEnabled then
         return
     end
@@ -311,6 +314,10 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
 
     if msg:find("^ROLLS CLOSED") then
         BadStorms.isRolling = false
+        if BadStorms.currentRollTimer then
+            BadStorms.currentRollTimer:Cancel()
+            BadStorms.currentRollTimer = nil
+        end
         local winnerName, winnerRoll, winnerSpec = msg:match("Winner: (.+) %[(%d+)%] %((%a+)%)")
         if winnerName then
             statusText:SetText("Winner: " .. winnerName .. " [" .. winnerRoll .. "] (" .. winnerSpec .. ")")
@@ -327,14 +334,14 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
         end
         if link then
             ShowRollTracker(link)
-            local seconds = tonumber(msg:match(".+Roll Timer: (%d+)%s*second[s]?"))
+            local seconds = tonumber(msg:match("Roll Timer: (%d+)%s*second[s]?"))
             if seconds and not BadStorms.currentRollTimer then
                 local timerStart = time()
                 BadStorms.currentRollTimer = C_Timer.NewTicker(0.5, function()
                     local elapsed = time() - timerStart
                     local remaining = math.max(0, seconds - elapsed)
                     local display = math.ceil(remaining)
-if display > 0 then
+                    if display > 0 then
                         statusText:SetText(display)
                     else
                         statusText:SetText("ROLLS CLOSED")

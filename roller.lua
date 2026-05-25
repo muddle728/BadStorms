@@ -145,9 +145,12 @@ for i = 1, 30 do
 end
 
 local countdownTicker
-local statusText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+local statusText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
 statusText:SetPoint("BOTTOM", frame, "BOTTOM", 0, 40)
-frame.statusText = statusText
+statusText:SetTextColor(1, 0, 0)
+statusText:SetText("")
+BadStorms.UpdateRollDisplay(frame)
+PlaySoundFile("Sound\\Interface\\RaidWarningHorn.ogg")
 
 local rollMSBtn = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
 rollMSBtn:SetSize(80, 24)
@@ -331,10 +334,10 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
                     local elapsed = time() - timerStart
                     local remaining = math.max(0, seconds - elapsed)
                     local display = math.ceil(remaining)
-                    if display > 0 then
-                        statusText:SetText("Roll ends in " .. display .. " second" .. (display > 1 and "s" or ""))
+if display > 0 then
+                        statusText:SetText(display)
                     else
-                        statusText:SetText("Roll Timer Ended")
+                        statusText:SetText("ROLLS CLOSED")
                         BadStorms.currentRollTimer:Cancel()
                         BadStorms.currentRollTimer = nil
                     end

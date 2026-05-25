@@ -218,6 +218,8 @@ local function StartRoll(frame)
                 SendChatMessage(msg, chan)
             end
         end
+        
+        frame.rollTimerText:SetTextColor(1, 0, 0)
 
         if BadStorms.rollRemaining <= 0 then
             EndRoll(frame)

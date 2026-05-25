@@ -145,9 +145,12 @@ for i = 1, 30 do
 end
 
 local countdownTicker
-local statusText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+local statusText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
 statusText:SetPoint("BOTTOM", frame, "BOTTOM", 0, 40)
-frame.statusText = statusText
+statusText:SetTextColor(1, 0, 0)
+statusText:SetText("")
+BadStorms.UpdateRollDisplay(frame)
+PlaySoundFile("Sound\\Interface\\RaidWarningHorn.ogg")
 
 local rollMSBtn = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
 rollMSBtn:SetSize(80, 24)
@@ -174,6 +177,10 @@ local function HideRollTracker()
     if BadStorms.rollerCloseTimer then
         BadStorms.rollerCloseTimer:Cancel()
         BadStorms.rollerCloseTimer = nil
+    end
+    if BadStorms.currentRollTimer then
+        BadStorms.currentRollTimer:Cancel()
+        BadStorms.currentRollTimer = nil
     end
     if not BadStorms.IsMasterLooter() then
         BadStorms.isRolling = false
@@ -292,9 +299,12 @@ BadStorms.lootRoller = frame
 local chatListener = CreateFrame("Frame")
 chatListener:RegisterEvent("CHAT_MSG_RAID_WARNING")
 chatListener:RegisterEvent("CHAT_MSG_RAID")
+chatListener:RegisterEvent("CHAT_MSG_RAID_LEADER")
+chatListener:RegisterEvent("CHAT_MSG_PARTY_WARNING")
 chatListener:RegisterEvent("CHAT_MSG_PARTY")
 chatListener:RegisterEvent("CHAT_MSG_PARTY_LEADER")
 chatListener:SetScript("OnEvent", function(self, event, msg)
+
     if not BadStormsSettings.lootRollerEnabled then
         return
     end
@@ -302,18 +312,19 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
         return
     end
 
-    if msg:find("^ROLLS CLOSED") then
-        if not frame:IsShown() then
-            return
-        end
+    if (msg and string.lower(msg):match("^rolls closed")) then
         BadStorms.isRolling = false
+        if BadStorms.currentRollTimer then
+            BadStorms.currentRollTimer:Cancel()
+            BadStorms.currentRollTimer = nil
+        end
         local winnerName, winnerRoll, winnerSpec = msg:match("Winner: (.+) %[(%d+)%] %((%a+)%)")
         if winnerName then
             statusText:SetText("Winner: " .. winnerName .. " [" .. winnerRoll .. "] (" .. winnerSpec .. ")")
         else
-            statusText:SetText("Rolls closed")
+            statusText:SetText("ROLLS CLOSED")
         end
-    elseif msg:find("^[Rr][Oo][Ll][Ll]") then
+    elseif (msg and string.lower(msg):match("^roll")) then
         local link = msg:match("(|c[%x]+|Hitem:[^|]+|h%[.-%]|h|r)")
         if not link then
             local itemID = msg:match("Hitem:(%d+)")
@@ -323,6 +334,22 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
         end
         if link then
             ShowRollTracker(link)
+            local seconds = tonumber(string.lower(msg):match("roll timer: (%d+)%s*second[s]?"))
+            if seconds and not BadStorms.currentRollTimer then
+                local timerStart = time()
+                BadStorms.currentRollTimer = C_Timer.NewTicker(0.5, function()
+                    local elapsed = time() - timerStart
+                    local remaining = math.max(0, seconds - elapsed)
+                    local display = math.ceil(remaining)
+                    if display > 0 then
+                        statusText:SetText(display)
+                    else
+                        statusText:SetText("ROLLS CLOSED")
+                        BadStorms.currentRollTimer:Cancel()
+                        BadStorms.currentRollTimer = nil
+                    end
+                end)
+            end
         end
     end
 end)

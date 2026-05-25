@@ -312,7 +312,7 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
         return
     end
 
-    if msg:find("^ROLLS CLOSED") then
+    if (msg and string.lower(msg):match("^rolls closed")) then
         BadStorms.isRolling = false
         if BadStorms.currentRollTimer then
             BadStorms.currentRollTimer:Cancel()
@@ -322,9 +322,9 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
         if winnerName then
             statusText:SetText("Winner: " .. winnerName .. " [" .. winnerRoll .. "] (" .. winnerSpec .. ")")
         else
-            statusText:SetText("Rolls closed")
+            statusText:SetText("ROLLS CLOSED")
         end
-    elseif msg:find("^[Rr][Oo][Ll][Ll]") then
+    elseif (msg and string.lower(msg):match("^roll")) then
         local link = msg:match("(|c[%x]+|Hitem:[^|]+|h%[.-%]|h|r)")
         if not link then
             local itemID = msg:match("Hitem:(%d+)")
@@ -334,7 +334,7 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
         end
         if link then
             ShowRollTracker(link)
-            local seconds = tonumber(msg:match("Roll Timer: (%d+)%s*second[s]?"))
+            local seconds = tonumber(string.lower(msg):match("roll timer: (%d+)%s*second[s]?"))
             if seconds and not BadStorms.currentRollTimer then
                 local timerStart = time()
                 BadStorms.currentRollTimer = C_Timer.NewTicker(0.5, function()

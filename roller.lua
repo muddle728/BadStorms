@@ -334,11 +334,16 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
             BadStorms.currentRollTimer:Cancel()
             BadStorms.currentRollTimer = nil
         end
-        local winnerName, winnerRoll, winnerSpec = msg:match("Winner: (.+) %[(%d+)%] %((%a+)%)")
-        if winnerName then
-            statusText:SetText("Winner: " .. winnerName .. " [" .. winnerRoll .. "] (" .. winnerSpec .. ")")
+        local reRollNames = msg:match("Re%-Roll: (.+)")
+        if reRollNames then
+            statusText:SetText("Re-Roll: " .. reRollNames)
         else
-            statusText:SetText("ROLLS CLOSED")
+            local winnerName, winnerRoll, winnerSpec = msg:match("Winner: (.+) %[(%d+)%] %((%a+)%)")
+            if winnerName then
+                statusText:SetText("Winner: " .. winnerName .. " [" .. winnerRoll .. "] (" .. winnerSpec .. ")")
+            else
+                statusText:SetText("ROLLS CLOSED")
+            end
         end
     elseif (msg and string.lower(msg):match("^roll")) then
         local link = msg:match("(|c[%x]+|Hitem:[^|]+|h%[.-%]|h|r)")

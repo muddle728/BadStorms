@@ -106,52 +106,77 @@ local function EndRoll(frame)
     UpdateRollDisplay(frame)
 
     if #BadStorms.currentRolls > 0 then
-        local winner = BadStorms.currentRolls[1]
-        frame.selectedRoll = winner
-        frame.selectedRollLabel:SetText("Player: " .. winner.name)
-        frame.rollAssignButton:Enable()
-        for _, btn in ipairs(frame.rollButtons) do
-            if btn.rollData and btn.rollData.name == winner.name then
-                btn.selectedTexture:Show()
-            else
+        local top = BadStorms.currentRolls[1]
+        local currentItemId = frame.data and GetItemID(frame.data.link)
+
+        local tieNames = {}
+        for _, entry in ipairs(BadStorms.currentRolls) do
+            if entry.roll ~= top.roll then break end
+            if entry.max ~= top.max then break end
+            local entrySR = currentItemId and PlayerHasReservation(currentItemId, entry.name) or 0
+            local topSR = currentItemId and PlayerHasReservation(currentItemId, top.name) or 0
+            if entrySR ~= topSR then break end
+            table.insert(tieNames, entry.name)
+        end
+
+        if #tieNames > 1 then
+            local tieMsg = "Re-Roll: " .. table.concat(tieNames, ", ")
+            SendToChannel(string.format("ROLLS CLOSED! %s", tieMsg))
+            frame.selectedRoll = nil
+            frame.selectedRollLabel:SetText("Player: None")
+            frame.rollAssignButton:Disable()
+            for _, btn in ipairs(frame.rollButtons) do
                 btn.selectedTexture:Hide()
             end
-        end
-        local currentItemId = frame.data and GetItemID(frame.data.link)
-        local winnerHasSR = currentItemId and PlayerHasReservation(currentItemId, winner.name) or 0
-        local winMsg
-        if winnerHasSR > 0 then
-            winMsg = string.format("Winner: %s [%d] (SR)", winner.name, winner.roll)
-        elseif winner.max == 100 then
-            local plusParts = {}
-            local anyNonZero = false
-            for _, entry in ipairs(BadStorms.currentRolls) do
-                if entry.max == 100 then
-                    local po = BadStormsSettings.plusOnesEnabled and (BadStormsSettings.plusOnes[entry.name] or 0) or 0
-                    if po > 0 then
-                        anyNonZero = true
-                    end
-                    table.insert(plusParts, entry.name .. "(" .. po .. ")")
-                end
-            end
-            if anyNonZero then
-                local plusStr = table.concat(plusParts, " ")
-                if #plusStr > 250 then
-                    plusStr = plusStr:sub(1, 150) .. "..."
-                end
-                winMsg = string.format("Winner: %s [%d] (MS) - +1s: %s", winner.name, winner.roll, plusStr)
-            else
-                winMsg = string.format("Winner: %s [%d] (MS)", winner.name, winner.roll)
-            end
+            frame.rollTimerText:SetText("Tie - Re-Roll!")
         else
-            winMsg = string.format("Winner: %s [%d] (OS)", winner.name, winner.roll)
+            local winner = top
+            frame.selectedRoll = winner
+            frame.selectedRollLabel:SetText("Player: " .. winner.name)
+            frame.rollAssignButton:Enable()
+            for _, btn in ipairs(frame.rollButtons) do
+                if btn.rollData and btn.rollData.name == winner.name then
+                    btn.selectedTexture:Show()
+                else
+                    btn.selectedTexture:Hide()
+                end
+            end
+            local winnerHasSR = currentItemId and PlayerHasReservation(currentItemId, winner.name) or 0
+            local winMsg
+            if winnerHasSR > 0 then
+                winMsg = string.format("Winner: %s [%d] (SR)", winner.name, winner.roll)
+            elseif winner.max == 100 then
+                local plusParts = {}
+                local anyNonZero = false
+                for _, entry in ipairs(BadStorms.currentRolls) do
+                    if entry.max == 100 then
+                        local po = BadStormsSettings.plusOnesEnabled and (BadStormsSettings.plusOnes[entry.name] or 0) or 0
+                        if po > 0 then
+                            anyNonZero = true
+                        end
+                        table.insert(plusParts, entry.name .. "(" .. po .. ")")
+                    end
+                end
+                if anyNonZero then
+                    local plusStr = table.concat(plusParts, " ")
+                    if #plusStr > 250 then
+                        plusStr = plusStr:sub(1, 150) .. "..."
+                    end
+                    winMsg = string.format("Winner: %s [%d] (MS) - +1s: %s", winner.name, winner.roll, plusStr)
+                else
+                    winMsg = string.format("Winner: %s [%d] (MS)", winner.name, winner.roll)
+                end
+            else
+                winMsg = string.format("Winner: %s [%d] (OS)", winner.name, winner.roll)
+            end
+            SendToChannel(string.format("ROLLS CLOSED! %s", winMsg))
+            frame.rollTimerText:SetText("Roll ended")
         end
-        SendToChannel(string.format("ROLLS CLOSED! %s", winMsg))
     else
         SendToChannel("ROLLS CLOSED!")
+        frame.rollTimerText:SetText("Roll ended")
     end
 
-    frame.rollTimerText:SetText("Roll ended")
     if frame.data and frame.data.link then
         frame.startRollButton:Enable()
     end

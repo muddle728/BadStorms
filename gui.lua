@@ -403,36 +403,17 @@ local function CreateConfigFrame()
     srClearBtn:SetPoint("LEFT", srImportBtn, "RIGHT", 4, 0)
     srClearBtn:SetText("Clear All")
     srClearBtn:SetScript("OnClick", function()
-        BadStorms.ShowDialog(
-            "|cffff0000WARNING:|r Clear existing soft reserves?",
-            nil,
-            function()
-                BadStormsSettings.softReserves = {}
-                BadStormsSettings.softReservesCsv = ""
-                print("|cff00ff00BadStorms:|r Soft reserves cleared.")
-                frame.PopulateSRList()
-                if frame.rollPanel and frame.rollPanel:IsShown() then
-                    BadStorms.UpdateRollDisplay(frame)
-                elseif frame.awardPanel and frame.awardPanel:IsShown() then
-                    BadStorms.PopulatePlayerList(frame)
-                end
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear existing soft reserves?", nil, function()
+            BadStormsSettings.softReserves = {}
+            BadStormsSettings.softReservesCsv = ""
+            print("|cff00ff00BadStorms:|r Soft reserves cleared.")
+            frame.PopulateSRList()
+            if frame.rollPanel and frame.rollPanel:IsShown() then
+                BadStorms.UpdateRollDisplay(frame)
+            elseif frame.awardPanel and frame.awardPanel:IsShown() then
+                BadStorms.PopulatePlayerList(frame)
             end
-        )
-    end)
-
-    local function UpdateSREnabledState()
-        if BadStorms.InGroup() and not BadStorms.IsMasterLooter() then
-            srClearBtn:Disable()
-        else
-            srClearBtn:Enable()
-        end
-    end
-    UpdateSREnabledState()
-    frame:RegisterEvent("GROUP_ROSTER_UPDATE")
-    frame:SetScript("OnEvent", function(self, event)
-        if event == "GROUP_ROSTER_UPDATE" then
-            UpdateSREnabledState()
-        end
+        end)
     end)
 
     local srCountText = srPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -986,12 +967,13 @@ local function CreateConfigFrame()
     end)
 
     shClearBtn:SetScript("OnClick", function()
-        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear ALL history?\n\nIf you're not sure, choose No.", nil, function()
-            BadStormsSettings.syncHistory = {}
-            shSelectedEntry = nil
-            PopulateSyncHistoryList()
-            shRestoreBtn:Disable()
-        end)
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear ALL history?\n\nIf you're not sure, choose No.", nil,
+            function()
+                BadStormsSettings.syncHistory = {}
+                shSelectedEntry = nil
+                PopulateSyncHistoryList()
+                shRestoreBtn:Disable()
+            end)
     end)
 
     -- Settings panel
@@ -1184,8 +1166,12 @@ local function CreateConfigFrame()
 
     local function UpdateRollerCloseTime(val)
         val = tonumber(val) or 15
-        if val < 5 then val = 5 end
-        if val > 120 then val = 120 end
+        if val < 5 then
+            val = 5
+        end
+        if val > 120 then
+            val = 120
+        end
         BadStormsSettings.lootRollerCloseTime = val
         rollerCloseEdit:SetText(tostring(val))
     end
@@ -1231,8 +1217,12 @@ local function CreateConfigFrame()
             rollerCloseEdit:SetCursorPosition(#cleaned)
         end
         local val = tonumber(cleaned) or 15
-        if val < 5 then val = 5 end
-        if val > 120 then val = 120 end
+        if val < 5 then
+            val = 5
+        end
+        if val > 120 then
+            val = 120
+        end
         BadStormsSettings.lootRollerCloseTime = val
     end)
 
@@ -1852,28 +1842,11 @@ local function CreateConfigFrame()
         if not frame.selectedExportDate then
             return
         end
-        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear export data for " .. frame.selectedExportDate .. "?\n\nIf you're not sure, choose No.", frame.selectedExportDate,
-            function(data)
-                if data and BadStormsSettings.exportData[data] then
-                    BadStormsSettings.exportData[data] = nil
-                end
-                local f = BadStorms.configFrame
-                if f then
-                    f.selectedExportDate = nil
-                    if f.PopulateExportList then
-                        f.PopulateExportList()
-                    end
-                end
-            end)
-    end)
-
-    local clearAllBtn = CreateFrame("Button", nil, exportPanel, "GameMenuButtonTemplate")
-    clearAllBtn:SetSize(90, 24)
-    clearAllBtn:SetPoint("LEFT", clearDateBtn, "RIGHT", 4, 0)
-    clearAllBtn:SetText("Clear All")
-    clearAllBtn:SetScript("OnClick", function()
-        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear ALL export data?\n\nIf you're not sure, choose No.", nil, function()
-            BadStormsSettings.exportData = {}
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear export data for " .. frame.selectedExportDate ..
+                                 "?\n\nIf you're not sure, choose No.", frame.selectedExportDate, function(data)
+            if data and BadStormsSettings.exportData[data] then
+                BadStormsSettings.exportData[data] = nil
+            end
             local f = BadStorms.configFrame
             if f then
                 f.selectedExportDate = nil
@@ -1882,6 +1855,24 @@ local function CreateConfigFrame()
                 end
             end
         end)
+    end)
+
+    local clearAllBtn = CreateFrame("Button", nil, exportPanel, "GameMenuButtonTemplate")
+    clearAllBtn:SetSize(90, 24)
+    clearAllBtn:SetPoint("LEFT", clearDateBtn, "RIGHT", 4, 0)
+    clearAllBtn:SetText("Clear All")
+    clearAllBtn:SetScript("OnClick", function()
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear ALL export data?\n\nIf you're not sure, choose No.", nil,
+            function()
+                BadStormsSettings.exportData = {}
+                local f = BadStorms.configFrame
+                if f then
+                    f.selectedExportDate = nil
+                    if f.PopulateExportList then
+                        f.PopulateExportList()
+                    end
+                end
+            end)
     end)
 
     local csvTitle = exportPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -2094,7 +2085,6 @@ local function CreateConfigFrame()
                 row:Hide()
             end
         end
-        frame.UpdatePlusOneState()
     end
     frame.PopulatePlusOnesList = PopulatePlusOnesList
 
@@ -2103,18 +2093,17 @@ local function CreateConfigFrame()
     plusOneClearBtn:SetPoint("BOTTOMLEFT", plusOnesPanel, "BOTTOMLEFT", 10, 10)
     plusOneClearBtn:SetText("Clear All")
     plusOneClearBtn:SetScript("OnClick", function()
-        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear existing plus one counts?", nil,
-            function()
-                BadStormsSettings.plusOnes = {}
-                BadStorms.SyncPlusOnes()
-                local f = BadStorms.configFrame
-                if f then
-                    if f.PopulatePlusOnesList then
-                        f.PopulatePlusOnesList()
-                    end
-                    BadStorms.UpdateRollDisplay(f)
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear existing plus one counts?", nil, function()
+            BadStormsSettings.plusOnes = {}
+            BadStorms.SyncPlusOnes()
+            local f = BadStorms.configFrame
+            if f then
+                if f.PopulatePlusOnesList then
+                    f.PopulatePlusOnesList()
                 end
-            end)
+                BadStorms.UpdateRollDisplay(f)
+            end
+        end)
     end)
 
     frame.closeButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
@@ -2197,33 +2186,6 @@ local function CreateConfigFrame()
         end
     end
 
-    local function UpdatePlusOneState()
-        local readOnly = BadStorms.InGroup() and not BadStorms.IsMasterLooter()
-        if readOnly then
-            plusOneCheckbox:Disable()
-            plusOneClearBtn:Disable()
-        else
-            plusOneCheckbox:Enable()
-            plusOneClearBtn:Enable()
-        end
-        for _, row in ipairs(plusOneRows) do
-            if row.playerName then
-                if readOnly then
-                    row.minusBtn:Disable()
-                    row.editBox:EnableMouse(false)
-                    row.editBox:SetScript("OnTextChanged", nil)
-                    row.plusBtn:Disable()
-                else
-                    row.minusBtn:Enable()
-                    row.editBox:EnableMouse(true)
-                    row.editBox:SetScript("OnTextChanged", row._onTextChanged)
-                    row.plusBtn:Enable()
-                end
-            end
-        end
-    end
-    frame.UpdatePlusOneState = UpdatePlusOneState
-
     local function UpdateLootMasterState()
         local isLM = BadStorms.IsMasterLooter()
         local inGroup = BadStorms.InGroup()
@@ -2234,26 +2196,15 @@ local function CreateConfigFrame()
             text:SetTextColor(1, 1, 1)
             awardTab:Enable()
             rollTab:Enable()
-            enableCheckbox:Enable()
         else
             text:SetTextColor(1, 0, 0)
             awardTab:Disable()
             rollTab:Disable()
-            enableCheckbox:Disable()
         end
-        if readOnly then
-            srImportBtn:Disable()
+        if readOnly then 
             srAnnounceBtn:Disable()
-            clearDateBtn:Disable()
-            clearAllBtn:Disable()
-        else
-            srImportBtn:Enable()
-            srAnnounceBtn:Enable()
-            clearDateBtn:Enable()
-            clearAllBtn:Enable()
         end
         UpdateDisenchantButtons(frame)
-        frame.UpdatePlusOneState()
     end
     frame.UpdateLootMasterState = UpdateLootMasterState
     UpdateLootMasterState()

@@ -236,21 +236,6 @@ local function ShowSRImportDialog()
         )
     end)
 
-    local function UpdateClearBtnEnabled()
-        if BadStorms.InGroup() and not BadStorms.IsMasterLooter() then
-            clearBtn:Disable()
-        else
-            clearBtn:Enable()
-        end
-    end
-    UpdateClearBtnEnabled()
-    dialog:RegisterEvent("GROUP_ROSTER_UPDATE")
-    dialog:SetScript("OnEvent", function(self, event)
-        if event == "GROUP_ROSTER_UPDATE" then
-            UpdateClearBtnEnabled()
-        end
-    end)
-
     dialog:Hide()
     BadStorms.srDialogFrame = dialog
     end

@@ -109,27 +109,36 @@ local function ShowSRImportDialog()
         instr:SetJustifyH("LEFT")
 
         local editBoxBg = dialog:CreateTexture(nil, "BACKGROUND")
-        editBoxBg:SetPoint("TOPLEFT", dialog, "TOPLEFT", 20, -60)
-        editBoxBg:SetSize(420, 280)
+        editBoxBg:SetPoint("TOPLEFT", dialog, "TOPLEFT", 25, -60)
+        editBoxBg:SetSize(410, 295)
         editBoxBg:SetTexture(0.05, 0.05, 0.05, 0.9)
 
         local editScroll = CreateFrame("ScrollFrame", nil, dialog)
-        editScroll:SetPoint("TOPLEFT", dialog, "TOPLEFT", 20, -60)
-        editScroll:SetSize(420, 280)
+        editScroll:SetPoint("TOPLEFT", dialog, "TOPLEFT", 25, -60)
+        editScroll:SetSize(410, 295)
+        editScroll:EnableMouse(true)
 
         local editBox = CreateFrame("EditBox", nil, editScroll)
-        editBox:SetSize(410, 1600)
         editBox:SetMultiLine(true)
         editBox:SetFontObject("GameFontHighlightSmall")
         editBox:SetAutoFocus(false)
         editBox:SetTextInsets(4, 4, 4, 4)
+        editBox:SetWidth(410)
+
         editScroll:SetScrollChild(editBox)
+        editScroll:SetScript("OnMouseDown", function()
+            editBox:SetFocus()
+        end)
         dialog.editBox = editBox
 
         dialog:SetScript("OnMouseWheel", function(self, delta)
             local val = editScroll:GetVerticalScroll()
             local range = editScroll:GetVerticalScrollRange()
             editScroll:SetVerticalScroll(math.max(0, math.min(val - delta * 40, range)))
+        end)
+
+        editBox:SetScript("OnEscapePressed", function(self)
+            self:ClearFocus()
         end)
 
         local function ShowImportPostDialog()
@@ -234,21 +243,6 @@ local function ShowSRImportDialog()
                     end
                 end
         )
-    end)
-
-    local function UpdateClearBtnEnabled()
-        if BadStorms.InGroup() and not BadStorms.IsMasterLooter() then
-            clearBtn:Disable()
-        else
-            clearBtn:Enable()
-        end
-    end
-    UpdateClearBtnEnabled()
-    dialog:RegisterEvent("GROUP_ROSTER_UPDATE")
-    dialog:SetScript("OnEvent", function(self, event)
-        if event == "GROUP_ROSTER_UPDATE" then
-            UpdateClearBtnEnabled()
-        end
     end)
 
     dialog:Hide()

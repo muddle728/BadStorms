@@ -132,6 +132,10 @@ local function ShowSRImportDialog()
             editScroll:SetVerticalScroll(math.max(0, math.min(val - delta * 40, range)))
         end)
 
+        editBox:SetScript("OnEscapePressed", function(self)
+            self:ClearFocus()
+        end)
+
         local function ShowImportPostDialog()
             BadStorms.ShowDialog(
                 "|cffff0000Confirmation Needed!|r\n\nEnable plus one tracking?",

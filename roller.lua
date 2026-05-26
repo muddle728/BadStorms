@@ -170,8 +170,10 @@ rollOSBtn:SetScript("OnClick", function()
 end)
 frame.rollOSBtn = rollOSBtn
 
-local function HideRollTracker()
-    if not frame:IsShown() then
+local rollGen = 0
+
+local function HideRollTracker(gen)
+    if gen and gen ~= rollGen then
         return
     end
     if BadStorms.rollerCloseTimer then
@@ -181,6 +183,9 @@ local function HideRollTracker()
     if BadStorms.currentRollTimer then
         BadStorms.currentRollTimer:Cancel()
         BadStorms.currentRollTimer = nil
+    end
+    if not frame:IsShown() then
+        return
     end
     if not BadStorms.IsMasterLooter() then
         BadStorms.isRolling = false
@@ -201,9 +206,14 @@ end)
 frame.passBtn = passBtn
 
 local function ShowRollTracker(link)
+    rollGen = rollGen + 1
     if BadStorms.rollerCloseTimer then
         BadStorms.rollerCloseTimer:Cancel()
         BadStorms.rollerCloseTimer = nil
+    end
+    if BadStorms.currentRollTimer then
+        BadStorms.currentRollTimer:Cancel()
+        BadStorms.currentRollTimer = nil
     end
 
     if BadStorms.configFrame and BadStorms.configFrame:IsShown() then
@@ -244,6 +254,9 @@ local function ShowRollTracker(link)
             if not BadStorms.isRolling then
                 return
             end
+            if frame.data and frame.data.link ~= link then
+                return
+            end
             local n2, _, q2, _, _, _, _, _, _, t2 = GetItemInfo(link)
             if n2 then
                 local qc = q2 and ITEM_QUALITY_COLORS[q2]
@@ -278,7 +291,10 @@ local function ShowRollTracker(link)
     PlaySoundFile("Sound\\Interface\\RaidWarningHorn.ogg")
 
     local closeTime = tonumber(BadStormsSettings.lootRollerCloseTime) or 15
-    BadStorms.rollerCloseTimer = C_Timer.After(closeTime, HideRollTracker)
+    local captureGen = rollGen
+    BadStorms.rollerCloseTimer = C_Timer.After(closeTime, function()
+        HideRollTracker(captureGen)
+    end)
 
     frame:Show()
 end

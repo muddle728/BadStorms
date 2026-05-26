@@ -204,6 +204,7 @@ local function StartRoll(frame)
 
     if BadStorms.rollTimerActive then
         BadStorms.rollTimerActive:Cancel()
+        BadStorms.rollTimerActive = nil
     end
     BadStorms.rollTimerActive = C_Timer.NewTicker(1, function()
         BadStorms.rollRemaining = BadStorms.rollRemaining - 1

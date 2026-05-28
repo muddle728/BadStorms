@@ -266,14 +266,17 @@ end
 BadStorms.ShowSRImportDialog = ShowSRImportDialog
 
 local function FormatSRName(name, count, plus)
+    --[[ keeping this for later
     local entry = name
     if plus and plus > 0 then
         entry = entry .. " (+" .. plus .. ")"
     end
-    if count > 1 then
+    if count and count > 1 then
         entry = entry .. " x" .. count
     end
     return entry
+    ]]
+    return name
 end
 
 function BadStorms.GetSRText(itemId)
@@ -316,7 +319,16 @@ function BadStorms.GetSRText(itemId)
     for _, name in ipairs(sorted) do
         table.insert(parts, "|cff888888" .. FormatSRName(name, received[name], receivedPlus[name]) .. " (received)|r")
     end
-    return "SR: " .. table.concat(parts, ", ")
+
+    local lines = {}
+    for i = 1, #parts, 3 do
+        local chunk = {}
+        for j = i, math.min(i + 2, #parts) do
+            table.insert(chunk, parts[j])
+        end
+        table.insert(lines, "SR: " .. table.concat(chunk, ", "))
+    end
+    return table.concat(lines, "\n")
 end
 
 function BadStorms.AppendSRTooltip(itemId)
@@ -325,7 +337,7 @@ function BadStorms.AppendSRTooltip(itemId)
     GameTooltip:AddLine("Bad Storms Loot Assignments", 1, 1, 1)
     if text ~= "" then
         GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("  " .. text, 0.82, 0.82, 0.82)
+        GameTooltip:AddLine(text, 0.82, 0.82, 0.82)
     end
     GameTooltip:AddLine(" ")
     GameTooltip:Show()
@@ -356,7 +368,7 @@ function BadStorms.AppendItemTooltipInfo(itemId)
     GameTooltip:AddLine("Bad Storms Loot Assignments", 1, 1, 1)
     GameTooltip:AddLine(" ")
     if srText ~= "" then
-        GameTooltip:AddLine("  " .. srText, 0.82, 0.82, 0.82)
+        GameTooltip:AddLine(srText, 0.82, 0.82, 0.82)
     end
     for playerName in pairs(pendingPlayers) do
         GameTooltip:AddLine("  Pending award: " .. playerName, 1, 1, 0)

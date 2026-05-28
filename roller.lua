@@ -122,14 +122,14 @@ for i = 1, 30 do
 
     btn.specText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     btn.specText:SetPoint("LEFT", btn, "LEFT", 152, 0)
-    btn.specText:SetWidth(35)
+    btn.specText:SetWidth(60)
 
     btn.srText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    btn.srText:SetPoint("LEFT", btn, "LEFT", 190, 0)
-    btn.srText:SetWidth(40)
+    btn.srText:SetPoint("LEFT", btn, "LEFT", 216, 0)
+    btn.srText:SetWidth(30)
 
     btn.plusText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    btn.plusText:SetPoint("LEFT", btn, "LEFT", 232, 0)
+    btn.plusText:SetPoint("LEFT", btn, "LEFT", 250, 0)
     btn.plusText:SetWidth(30)
 
     btn:Hide()
@@ -179,10 +179,8 @@ local function HideRollTracker(gen)
     if not frame:IsShown() then
         return
     end
-    if not BadStorms.IsMasterLooter() then
-        BadStorms.isRolling = false
-        BadStorms.currentRolls = {}
-    end
+    BadStorms.isRolling = false
+    BadStorms.currentRolls = {}
     itemIcon:SetScript("OnEnter", nil)
     itemIcon:SetScript("OnLeave", nil)
     frame:Hide()
@@ -318,6 +316,7 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
 
     if (msg and string.lower(msg):match("^rolls closed")) then
         BadStorms.isRolling = false
+        BadStorms.currentRolls = {}
         if BadStorms.currentRollTimer then
             BadStorms.currentRollTimer:Cancel()
             BadStorms.currentRollTimer = nil

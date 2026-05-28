@@ -2,6 +2,7 @@ local BadStorms = _G.BadStorms
 local GetItemID = BadStorms.GetItemID
 local NormalizeItemLink = BadStorms.NormalizeItemLink
 local PlayerHasReservation = BadStorms.PlayerHasReservation
+local GetPlayerSRPlus = BadStorms.GetPlayerSRPlus
 local GetSRText = BadStorms.GetSRText
 
 function BadStorms.UpdateItemSelection(frame, link, bag, slot)
@@ -161,7 +162,12 @@ function BadStorms.PopulatePlayerList(frame)
             btn.text:SetText(player.name)
             btn.text:SetTextColor(r, g, b)
             if hasSR > 0 then
-                btn.srText:SetText(hasSR > 1 and "SR x" .. hasSR or "SR")
+                local srPlus = currentItemId and GetPlayerSRPlus(currentItemId, player.name) or 0
+                if srPlus > 0 then
+                    btn.srText:SetText("SR +" .. srPlus)
+                else
+                    btn.srText:SetText(hasSR > 1 and "SR x" .. hasSR or "SR")
+                end
                 btn.srText:SetTextColor(1, 0.82, 0)
             else
                 btn.srText:SetText("")

@@ -547,19 +547,21 @@ local function CreateConfigFrame()
             if not playerMap[r.name] then
                 playerMap[r.name] = {}
             end
-            local count = (tonumber(r.plus) or 0) + 1
+            local plus = tonumber(r.plus) or 0
             local key = tostring(r.itemId)
             if not playerMap[r.name][key] then
                 playerMap[r.name][key] = {
                     item = r.item,
                     itemId = r.itemId,
                     count = 0,
+                    plus = 0,
                     received = 0
                 }
             end
-            playerMap[r.name][key].count = playerMap[r.name][key].count + count
+            playerMap[r.name][key].count = playerMap[r.name][key].count + 1
+            playerMap[r.name][key].plus = playerMap[r.name][key].plus == 0 and plus or playerMap[r.name][key].plus
             if r.received then
-                playerMap[r.name][key].received = playerMap[r.name][key].received + count
+                playerMap[r.name][key].received = playerMap[r.name][key].received + 1
             end
         end
 
@@ -667,22 +669,28 @@ local function CreateConfigFrame()
                     end
 
                     local displayName = itemName
+                    local extra = ""
+                    if data.plus > 0 then
+                        extra = " (+" .. data.plus .. ")"
+                    end
                     if data.count > 1 then
-                        displayName = displayName .. " x" .. data.count
+                        extra = extra .. " x" .. data.count
                     end
                     if data.received > 0 and data.received >= data.count then
-                        displayName = "|cff888888" .. displayName .. " (Received)|r"
+                        displayName = "|cff888888" .. displayName .. extra .. " (Received)|r"
                     else
                         local _, _, quality = GetItemInfo(data.itemId)
                         if quality then
                             local qColor = ITEM_QUALITY_COLORS[quality]
                             local hex =
                                 string.format("|cff%02x%02x%02x", qColor.r * 255, qColor.g * 255, qColor.b * 255)
-                            displayName = hex .. displayName .. "|r"
+                            displayName = hex .. displayName .. extra .. "|r"
+                        else
+                            displayName = displayName .. extra
                         end
                         if data.received > 0 then
                             displayName = displayName .. " (" .. (data.count - data.received) .. "/" .. data.count ..
-                                              ")"
+                                               ")"
                         end
                     end
 
@@ -1542,12 +1550,12 @@ local function CreateConfigFrame()
         btn.rollText:SetWidth(40)
 
         btn.specText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        btn.specText:SetPoint("LEFT", btn, "LEFT", 290, 0)
-        btn.specText:SetWidth(40)
+        btn.specText:SetPoint("LEFT", btn, "LEFT", 270, 0)
+        btn.specText:SetWidth(70)
 
         btn.srText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        btn.srText:SetPoint("LEFT", btn, "LEFT", 340, 0)
-        btn.srText:SetWidth(40)
+        btn.srText:SetPoint("LEFT", btn, "LEFT", 345, 0)
+        btn.srText:SetWidth(35)
 
         btn.plusText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         btn.plusText:SetPoint("LEFT", btn, "LEFT", 385, 0)

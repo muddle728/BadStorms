@@ -24,12 +24,6 @@ local function CheckLootPermissionSpam(msg)
             if UIErrorsFrame then
                 local errMsg = "BadStorms: " .. msg
                 UIErrorsFrame:AddMessage(errMsg, 1.0, 0.82, 0, 1.0)
-                C_Timer.After(1, function()
-                    UIErrorsFrame:AddMessage(errMsg, 1.0, 0.82, 0, 1.0)
-                end)
-                C_Timer.After(2, function()
-                    UIErrorsFrame:AddMessage(errMsg, 1.0, 0.82, 0, 1.0)
-                end)
             end
         end
         return false
@@ -54,7 +48,6 @@ local function CheckItemExists(data)
 end
 
 local function ResetRollPanel(frame)
-    BadStorms.currentRolls = {}
     frame.selectedRollLabel:SetText("Player: None")
     for _, btn in ipairs(frame.rollButtons) do
         btn.selectedTexture:Hide()
@@ -129,17 +122,22 @@ function BadStorms.ShowRollDialogForLoot(link, lootSlot)
 end
 
 local function CheckAutoMasterLoot()
-    if not BadStormsSettings.autoMasterLoot then
+    if not UnitExists("target") then
         return
     end
-    if not UnitExists("target") then
+    if not BadStormsSettings.enabled and not BadStormsSettings.autoMasterLoot then
+        return
+    end
+    if not BadStorms.InGroup() or GetNumRaidMembers() == 0 then
+        return
+    end
+    if not IsPartyLeader() or not IsRaidLeader() then
         return
     end
     local guid = UnitGUID("target")
     if not guid then
         return
     end
-
     local isBoss
     if guid:find("-") then
         local _, _, _, _, _, mobID = strsplit("-", guid)
@@ -155,14 +153,7 @@ local function CheckAutoMasterLoot()
             isBoss = UnitClassification("target") == "worldboss" or UnitLevel("target") == -1
         end
     end
-
     if not isBoss then
-        return
-    end
-    if not BadStorms.InGroup() then
-        return
-    end
-    if not IsPartyLeader() and not IsRaidLeader() and not IsRaidOfficer() then
         return
     end
     if GetLootMethod() == "master" then
@@ -377,8 +368,6 @@ local function CreateConfigFrame()
                 return
             end
             UpdateItemSelection(frame, link)
-            ResetRollPanel(frame)
-            frame.startRollButton:Disable()
             frame:SelectTab("roll")
             frame:Show()
         end
@@ -1013,7 +1002,7 @@ local function CreateConfigFrame()
     local autoMLCheckbox = CreateFrame("CheckButton", "BadStormsAutoMLCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
     autoMLCheckbox:SetPoint("TOPLEFT", autoLootCheckbox, "BOTTOMLEFT", 0, -20)
-    _G["BadStormsAutoMLCheckboxText"]:SetText("Enable Auto-Switch to Master Looter (Requires Group Leader)")
+    _G["BadStormsAutoMLCheckboxText"]:SetText("Enable Auto-Switch to Master Looter (Raid Only, Requires Leader/Officer)")
     autoMLCheckbox:SetChecked(BadStormsSettings.autoMasterLoot)
     autoMLCheckbox:SetScript("OnClick", function(self)
         BadStormsSettings.autoMasterLoot = self:GetChecked()
@@ -1026,7 +1015,7 @@ local function CreateConfigFrame()
     autoMLHelp:SetPoint("TOPLEFT", autoMLCheckbox, "BOTTOMLEFT", 24, 0)
     autoMLHelp:SetWidth(440)
     autoMLHelp:SetJustifyH("LEFT")
-    autoMLHelp:SetText("Attempts set Master Looter when targeting a boss.")
+    autoMLHelp:SetText("Attempts to set Master Looter when targeting a boss in a raid.")
     autoMLHelp:SetTextColor(1, 0.82, 0)
 
     local disenchanterCheckbox
@@ -1169,8 +1158,8 @@ local function CreateConfigFrame()
         if val < 5 then
             val = 5
         end
-        if val > 120 then
-            val = 120
+        if val > 60 then
+            val = 60
         end
         BadStormsSettings.lootRollerCloseTime = val
         rollerCloseEdit:SetText(tostring(val))
@@ -1186,7 +1175,7 @@ local function CreateConfigFrame()
 
     rollerClosePlus:SetScript("OnClick", function()
         local val = tonumber(rollerCloseEdit:GetText()) or 15
-        if val < 120 then
+        if val < 60 then
             val = val + 1
             UpdateRollerCloseTime(val)
         end
@@ -1220,15 +1209,15 @@ local function CreateConfigFrame()
         if val < 5 then
             val = 5
         end
-        if val > 120 then
-            val = 120
+        if val > 60 then
+            val = 60
         end
         BadStormsSettings.lootRollerCloseTime = val
     end)
 
     rollerCloseEdit:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("5-120, Time in Seconds")
+        GameTooltip:SetText("5-60 seconds")
         GameTooltip:Show()
     end)
     rollerCloseEdit:SetScript("OnLeave", function()
@@ -2204,7 +2193,7 @@ local function CreateConfigFrame()
             awardTab:Disable()
             rollTab:Disable()
         end
-        if readOnly then 
+        if readOnly then
             srAnnounceBtn:Disable()
         end
         UpdateDisenchantButtons(frame)
@@ -2250,10 +2239,6 @@ local function CreateConfigFrame()
             self:SetScale(1.0)
             if BadStorms.lootRoller then
                 BadStorms.lootRoller:SetScale(1.0)
-                if BadStorms.lootRoller:IsShown() then
-                    BadStorms.lootRoller:ClearAllPoints()
-                    BadStorms.lootRoller:SetPoint("TOPLEFT", self, "TOPRIGHT", 4, 0)
-                end
             end
         end
     end)
@@ -2265,10 +2250,6 @@ local function CreateConfigFrame()
             self:SetScale(s)
             if BadStorms.lootRoller then
                 BadStorms.lootRoller:SetScale(s)
-                if BadStorms.lootRoller:IsShown() then
-                    BadStorms.lootRoller:ClearAllPoints()
-                    BadStorms.lootRoller:SetPoint("TOPLEFT", self, "TOPRIGHT", 4, 0)
-                end
             end
         end
     end)
@@ -2701,6 +2682,34 @@ function BadStorms.ShowAssignDialog(data)
     end, nil, true)
 end
 
+hooksecurefunc("HandleModifiedItemClick", function(link)
+    if not BadStormsSettings.enabled and not IsAltKeyDown() then
+        return
+    end
+    if not CheckLootPermissionSpam("You do not have permission to manage loot.") then
+        return
+    end
+    if not link then
+        return
+    end
+    for i = 1, GetNumLootItems() do
+        local slotLink = GetLootSlotLink(i)
+        if slotLink and slotLink == link then
+            CloseDropDownMenus()
+            local _, _, _, quality = GetLootSlotInfo(i)
+            if quality and quality < 2 then
+                break
+            end
+            if IsShiftKeyDown() then
+                BadStorms.ShowAwardDialogForLoot(i, link)
+            else
+                BadStorms.ShowRollDialogForLoot(link, i)
+            end
+            break
+        end
+    end
+end)
+
 function BadStorms.ShowDisenchantDialog(data)
     BadStorms.ShowDialog("Send " .. data.link .. " to " .. data.disenchanter .. " to be disenchanted?", data,
         function(d)
@@ -2792,7 +2801,7 @@ local function HookCustomLootButtons()
                     return
                 end
 
-                if IsAltKeyDown() and BadStormsSettings.enabled then
+                if BadStormsSettings.enabled and IsAltKeyDown() then
                     if not CheckPermission(BadStorms.CanManageLoot, "You do not have permission to manage loot.") then
                         return
                     end
@@ -2837,16 +2846,12 @@ hooksecurefunc("SetItemRef", function(link, text, button, ...)
     if not link or not string.find(link, "^item:") then
         return
     end
-    if not IsAltKeyDown() then
-        return
-    end
-    if not BadStormsSettings.enabled then
+    if not BadStormsSettings.enabled or not IsAltKeyDown() then
         return
     end
     if not CheckLootPermissionSpam("You do not have permission to manage loot.") then
         return
     end
-
     local itemLink = BadStorms.NormalizeItemLink(link)
     if not itemLink then
         local itemId = BadStorms.GetItemID(link)
@@ -2875,38 +2880,6 @@ customLootFrame:RegisterEvent("LOOT_OPENED")
 customLootFrame:RegisterEvent("LOOT_READY")
 customLootFrame:SetScript("OnEvent", function()
     C_Timer.After(0.4, HookCustomLootButtons)
-end)
-
-hooksecurefunc("HandleModifiedItemClick", function(link)
-    if not BadStormsSettings.enabled then
-        return
-    end
-    if not IsAltKeyDown() then
-        return
-    end
-    if not CheckLootPermissionSpam("You do not have permission to manage loot.") then
-        return
-    end
-    if not link then
-        return
-    end
-
-    for i = 1, GetNumLootItems() do
-        local slotLink = GetLootSlotLink(i)
-        if slotLink and slotLink == link then
-            CloseDropDownMenus()
-            local _, _, _, quality = GetLootSlotInfo(i)
-            if quality and quality < 2 then
-                break
-            end
-            if IsShiftKeyDown() then
-                BadStorms.ShowAwardDialogForLoot(i, link)
-            else
-                BadStorms.ShowRollDialogForLoot(link, i)
-            end
-            break
-        end
-    end
 end)
 
 SLASH_BADSTORMS1 = "/badstorms"

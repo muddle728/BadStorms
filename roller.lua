@@ -49,10 +49,6 @@ frame:SetScript("OnMouseWheel", function(self, delta)
         self:SetScale(s)
         if BadStorms.configFrame then
             BadStorms.configFrame:SetScale(s)
-            if BadStorms.configFrame:IsShown() then
-                self:ClearAllPoints()
-                self:SetPoint("TOPLEFT", BadStorms.configFrame, "TOPRIGHT", 4, 0)
-            end
         end
     end
 end)
@@ -62,10 +58,6 @@ frame:SetScript("OnMouseDown", function(self, button)
         self:SetScale(1.0)
         if BadStorms.configFrame then
             BadStorms.configFrame:SetScale(1.0)
-            if BadStorms.configFrame:IsShown() then
-                self:ClearAllPoints()
-                self:SetPoint("TOPLEFT", BadStorms.configFrame, "TOPRIGHT", 4, 0)
-            end
         end
     end
 end)
@@ -102,7 +94,7 @@ scrollFrame:SetScript("OnMouseWheel", function(self, delta)
     self:SetVerticalScroll(math.max(0, math.min(val, range)))
 end)
 scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -106)
-scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, -68)
+scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 60)
 frame.scrollFrame = scrollFrame
 
 local scrollChild = CreateFrame("Frame", nil, scrollFrame)
@@ -216,16 +208,12 @@ local function ShowRollTracker(link)
         BadStorms.currentRollTimer = nil
     end
 
-    if BadStorms.configFrame and BadStorms.configFrame:IsShown() then
-        frame:ClearAllPoints()
-        frame:SetPoint("TOPLEFT", BadStorms.configFrame, "TOPRIGHT", 4, 0)
-    elseif not BadStormsSettings.lootRollerPos then
+    if not BadStormsSettings.lootRollerPos then
         frame:ClearAllPoints()
         frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     end
 
     BadStorms.isRolling = true
-    BadStorms.currentRolls = {}
     frame.data = {
         link = link
     }

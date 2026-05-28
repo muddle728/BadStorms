@@ -2239,10 +2239,6 @@ local function CreateConfigFrame()
             self:SetScale(1.0)
             if BadStorms.lootRoller then
                 BadStorms.lootRoller:SetScale(1.0)
-                if BadStorms.lootRoller:IsShown() then
-                    BadStorms.lootRoller:ClearAllPoints()
-                    BadStorms.lootRoller:SetPoint("TOPLEFT", self, "TOPRIGHT", 4, 0)
-                end
             end
         end
     end)
@@ -2254,10 +2250,6 @@ local function CreateConfigFrame()
             self:SetScale(s)
             if BadStorms.lootRoller then
                 BadStorms.lootRoller:SetScale(s)
-                if BadStorms.lootRoller:IsShown() then
-                    BadStorms.lootRoller:ClearAllPoints()
-                    BadStorms.lootRoller:SetPoint("TOPLEFT", self, "TOPRIGHT", 4, 0)
-                end
             end
         end
     end)

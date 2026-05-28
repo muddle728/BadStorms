@@ -4,7 +4,7 @@
 
 Raid helper for master loot management, soft reserves, and rolls. 
 
-[Downlaod BadStorms Loot Assistant](https://github.com/muddle728/BadStorms/releases/latest)
+[Download BadStorms Loot Assistant](https://github.com/muddle728/BadStorms/releases/latest)
 
 ## Commands
 

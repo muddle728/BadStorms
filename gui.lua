@@ -1169,8 +1169,8 @@ local function CreateConfigFrame()
         if val < 5 then
             val = 5
         end
-        if val > 120 then
-            val = 120
+        if val > 60 then
+            val = 60
         end
         BadStormsSettings.lootRollerCloseTime = val
         rollerCloseEdit:SetText(tostring(val))
@@ -1186,7 +1186,7 @@ local function CreateConfigFrame()
 
     rollerClosePlus:SetScript("OnClick", function()
         local val = tonumber(rollerCloseEdit:GetText()) or 15
-        if val < 120 then
+        if val < 60 then
             val = val + 1
             UpdateRollerCloseTime(val)
         end
@@ -1220,15 +1220,15 @@ local function CreateConfigFrame()
         if val < 5 then
             val = 5
         end
-        if val > 120 then
-            val = 120
+        if val > 60 then
+            val = 60
         end
         BadStormsSettings.lootRollerCloseTime = val
     end)
 
     rollerCloseEdit:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("5-120, Time in Seconds")
+        GameTooltip:SetText("5-60 seconds")
         GameTooltip:Show()
     end)
     rollerCloseEdit:SetScript("OnLeave", function()

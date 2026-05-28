@@ -2,6 +2,7 @@ local BadStorms = _G.BadStorms
 local GetItemID = BadStorms.GetItemID
 local NormalizeItemLink = BadStorms.NormalizeItemLink
 local PlayerHasReservation = BadStorms.PlayerHasReservation
+local GetPlayerSRPlus = BadStorms.GetPlayerSRPlus
 local GetSRText = BadStorms.GetSRText
 
 function BadStorms.UpdateItemSelection(frame, link, bag, slot)
@@ -86,21 +87,7 @@ function BadStorms.UpdateItemSelection(frame, link, bag, slot)
     if frame.startRollButton and not BadStorms.isRolling then
         frame.startRollButton:Enable()
     end
-    local equippable = BadStorms.IsItemEquippable(data.link)
-    if frame.disenchantRollButton then
-        if BadStormsSettings.disenchantEnabled and BadStormsSettings.disenchanter ~= "" and equippable then
-            frame.disenchantRollButton:Enable()
-        else
-            frame.disenchantRollButton:Disable()
-        end
-    end
-    if frame.awardDisenchantButton then
-        if BadStormsSettings.disenchantEnabled and BadStormsSettings.disenchanter ~= "" and equippable then
-            frame.awardDisenchantButton:Enable()
-        else
-            frame.awardDisenchantButton:Disable()
-        end
-    end
+    BadStorms.UpdateDisenchantButtons(frame)
 end
 
 function BadStorms.PopulatePlayerList(frame)
@@ -161,7 +148,12 @@ function BadStorms.PopulatePlayerList(frame)
             btn.text:SetText(player.name)
             btn.text:SetTextColor(r, g, b)
             if hasSR > 0 then
-                btn.srText:SetText(hasSR > 1 and "SR x" .. hasSR or "SR")
+                local srPlus = currentItemId and GetPlayerSRPlus(currentItemId, player.name) or 0
+                if srPlus > 0 then
+                    btn.srText:SetText("SR +" .. srPlus)
+                else
+                    btn.srText:SetText(hasSR > 1 and "SR x" .. hasSR or "SR")
+                end
                 btn.srText:SetTextColor(1, 0.82, 0)
             else
                 btn.srText:SetText("")
@@ -215,36 +207,21 @@ end
 BadStorms.PlayersMenu = BadStorms.ShowAwardDialog
 
 hooksecurefunc("ContainerFrameItemButton_OnModifiedClick", function(self, button)
-    if not BadStorms.CanManageLoot() then
-        local inGroup = BadStorms.InGroup()
-        if inGroup then
-            local msg = "You do not have permission to manage loot."
-            print("|cff00ff00BadStorms:|r" .. msg)
-            if UIErrorsFrame then
-                msg = "BadStorms: " .. msg
-                UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0)
-                C_Timer.After(1, function() UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0) end)
-                C_Timer.After(2, function() UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0) end)
-            end
-            return
-        end
-    end
-    if button ~= "LeftButton" then
-        return
-    end
-    if not IsAltKeyDown() then
+    if button ~= "LeftButton" or not IsAltKeyDown() then
         return
     end
     if not BadStormsSettings.enabled then
         local msg = "Addon automation is disabled. Enable it in /badstorms settings."
         print("|cff00ff00BadStorms:|r" .. msg)
-        if UIErrorsFrame then
-            msg = "BadStorms: " .. msg
-            UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0)
-            C_Timer.After(1, function() UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0) end)
-            C_Timer.After(2, function() UIErrorsFrame:AddMessage(msg, 1.0, 0.82, 0, 1.0) end)
-        end
         return
+    end
+    if not BadStorms.CanManageLoot() then
+        local inGroup = BadStorms.InGroup()
+        if inGroup then
+            local msg = "You do not have permission to manage loot."
+            print("|cff00ff00BadStorms:|r " .. msg)
+            return
+        end
     end
 
     local bag = self:GetParent():GetID()
@@ -262,14 +239,6 @@ hooksecurefunc("ContainerFrameItemButton_OnModifiedClick", function(self, button
                 return
             end
             BadStorms.UpdateItemSelection(f, link, bag, slot)
-            BadStorms.currentRolls = {}
-            f.selectedRollLabel:SetText("Player: None")
-            for _, btn in ipairs(f.rollButtons) do
-                btn.selectedTexture:Hide()
-                btn.rollData = nil
-                btn:Hide()
-            end
-            f.rollAssignButton:Disable()
             f:SelectTab("roll")
             f:Show()
         end

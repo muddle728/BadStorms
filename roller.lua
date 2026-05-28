@@ -49,10 +49,6 @@ frame:SetScript("OnMouseWheel", function(self, delta)
         self:SetScale(s)
         if BadStorms.configFrame then
             BadStorms.configFrame:SetScale(s)
-            if BadStorms.configFrame:IsShown() then
-                self:ClearAllPoints()
-                self:SetPoint("TOPLEFT", BadStorms.configFrame, "TOPRIGHT", 4, 0)
-            end
         end
     end
 end)
@@ -62,10 +58,6 @@ frame:SetScript("OnMouseDown", function(self, button)
         self:SetScale(1.0)
         if BadStorms.configFrame then
             BadStorms.configFrame:SetScale(1.0)
-            if BadStorms.configFrame:IsShown() then
-                self:ClearAllPoints()
-                self:SetPoint("TOPLEFT", BadStorms.configFrame, "TOPRIGHT", 4, 0)
-            end
         end
     end
 end)
@@ -102,7 +94,7 @@ scrollFrame:SetScript("OnMouseWheel", function(self, delta)
     self:SetVerticalScroll(math.max(0, math.min(val, range)))
 end)
 scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -106)
-scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, -68)
+scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 60)
 frame.scrollFrame = scrollFrame
 
 local scrollChild = CreateFrame("Frame", nil, scrollFrame)
@@ -130,14 +122,14 @@ for i = 1, 30 do
 
     btn.specText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     btn.specText:SetPoint("LEFT", btn, "LEFT", 152, 0)
-    btn.specText:SetWidth(35)
+    btn.specText:SetWidth(60)
 
     btn.srText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    btn.srText:SetPoint("LEFT", btn, "LEFT", 190, 0)
-    btn.srText:SetWidth(40)
+    btn.srText:SetPoint("LEFT", btn, "LEFT", 216, 0)
+    btn.srText:SetWidth(30)
 
     btn.plusText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    btn.plusText:SetPoint("LEFT", btn, "LEFT", 232, 0)
+    btn.plusText:SetPoint("LEFT", btn, "LEFT", 250, 0)
     btn.plusText:SetWidth(30)
 
     btn:Hide()
@@ -187,14 +179,13 @@ local function HideRollTracker(gen)
     if not frame:IsShown() then
         return
     end
-    if not BadStorms.IsMasterLooter() then
-        BadStorms.isRolling = false
-        BadStorms.currentRolls = {}
-    end
+    BadStorms.isRolling = false
+    BadStorms.currentRolls = {}
     itemIcon:SetScript("OnEnter", nil)
     itemIcon:SetScript("OnLeave", nil)
     frame:Hide()
 end
+BadStorms.HideRollTracker = HideRollTracker
 
 local passBtn = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
 passBtn:SetSize(80, 24)
@@ -216,16 +207,12 @@ local function ShowRollTracker(link)
         BadStorms.currentRollTimer = nil
     end
 
-    if BadStorms.configFrame and BadStorms.configFrame:IsShown() then
-        frame:ClearAllPoints()
-        frame:SetPoint("TOPLEFT", BadStorms.configFrame, "TOPRIGHT", 4, 0)
-    elseif not BadStormsSettings.lootRollerPos then
+    if not BadStormsSettings.lootRollerPos then
         frame:ClearAllPoints()
         frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     end
 
     BadStorms.isRolling = true
-    BadStorms.currentRolls = {}
     frame.data = {
         link = link
     }
@@ -330,6 +317,7 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
 
     if (msg and string.lower(msg):match("^rolls closed")) then
         BadStorms.isRolling = false
+        BadStorms.currentRolls = {}
         if BadStorms.currentRollTimer then
             BadStorms.currentRollTimer:Cancel()
             BadStorms.currentRollTimer = nil
@@ -338,7 +326,7 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
         if reRollNames then
             statusText:SetText("Re-Roll: " .. reRollNames)
         else
-            local winnerName, winnerRoll, winnerSpec = msg:match("Winner: (.+) %[(%d+)%] %((%a+)%)")
+            local winnerName, winnerRoll, winnerSpec = msg:match("Winner: (.+) %[(%d+)%] %((.+)%)")
             if winnerName then
                 statusText:SetText("Winner: " .. winnerName .. " [" .. winnerRoll .. "] (" .. winnerSpec .. ")")
             else

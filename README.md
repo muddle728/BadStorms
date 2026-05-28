@@ -1,10 +1,15 @@
 # BadStorms
 
-Raid helper for master loot management, soft reserves, and rolls.
+
+
+Raid helper for master loot management, soft reserves, and rolls. 
+
+[Download BadStorms Loot Assistant](https://github.com/muddle728/BadStorms/releases/latest)
 
 ## Commands
 
 - `/badstorms` or `/bs` — Toggle the config frame
+- `/bsr` — Toggle the loot roller frame
 
 ## Shortcuts
 
@@ -18,12 +23,19 @@ Raid helper for master loot management, soft reserves, and rolls.
 | **Ctrl+Scroll** on the frame | Adjust UI scale (0.60 – 1.25) |
 | **Ctrl+Right Click** on the frame | Reset UI scale to 1.0 |
 
+## Minimap Button
+
+| Click | Action |
+|---|---|
+| **Left-click** | Toggle loot assistant (config frame) |
+| **Right-click** | Toggle loot roller (floating roll window) |
+
 ## Tabs
 
 - **Settings** — Enable automation, auto-loot, auto-master-loot, configure disenchanter
 - **Award** — Award items to players (requires master looter)
 - **Roll** — Start/end rolls, award to winner
-- **Soft-Reserves** — Import SR CSV, view players with/without SR
+- **Soft-Reserves** — Import SR CSV, view players with/without SR, SR+ values
 - **Plus Ones** — Track plus-one counts from MS rolls
 - **Export** — View and export award history
 
@@ -35,6 +47,16 @@ Raid helper for master loot management, soft reserves, and rolls.
 4. Click **Import**
 
 The SR tab shows all raid/party members — players with SR (class-colored) and players missing SR (red).
+
+## Loot Roller
+
+The floating loot roller provides a compact roll interface:
+
+- Shows live roll results as players roll
+- **Roll MS** / **Roll OS** buttons for quick rolling
+- **Pass** button to dismiss
+- Closes automatically after the configured timeout
+- Tracks winner announcements from chat
 
 ## Auto-Loot
 

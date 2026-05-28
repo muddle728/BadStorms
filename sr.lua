@@ -7,10 +7,21 @@ function BadStorms.PlayerHasReservation(itemId, playerName)
     local total = 0
     for _, r in ipairs(BadStormsSettings.softReserves) do
         if r.itemId == itemId and r.name:lower() == playerLower and not r.received then
-            total = total + (tonumber(r.plus) or 0) + 1
+            total = total + 1
         end
     end
     return total
+end
+
+function BadStorms.GetPlayerSRPlus(itemId, playerName)
+    if not itemId or not BadStormsSettings.softReserves then return 0 end
+    local playerLower = playerName:lower()
+    for _, r in ipairs(BadStormsSettings.softReserves) do
+        if r.itemId == itemId and r.name:lower() == playerLower and not r.received then
+            return tonumber(r.plus) or 0
+        end
+    end
+    return 0
 end
 
 local function ParseSRCSV(csvText)
@@ -254,17 +265,39 @@ local function ShowSRImportDialog()
 end
 BadStorms.ShowSRImportDialog = ShowSRImportDialog
 
+local function FormatSRName(name, count, plus)
+    --[[ keeping this for later
+    local entry = name
+    if plus and plus > 0 then
+        entry = entry .. " (+" .. plus .. ")"
+    end
+    if count and count > 1 then
+        entry = entry .. " x" .. count
+    end
+    return entry
+    ]]
+    return name
+end
+
 function BadStorms.GetSRText(itemId)
     if not itemId or not BadStormsSettings.softReserves then return "" end
     local pending = {}
     local received = {}
+    local pendingPlus = {}
+    local receivedPlus = {}
     for _, r in ipairs(BadStormsSettings.softReserves) do
         if r.itemId == itemId then
-            local count = (tonumber(r.plus) or 0) + 1
+            local plus = tonumber(r.plus) or 0
             if r.received then
-                received[r.name] = (received[r.name] or 0) + count
+                received[r.name] = (received[r.name] or 0) + 1
+                if not receivedPlus[r.name] then
+                    receivedPlus[r.name] = plus
+                end
             else
-                pending[r.name] = (pending[r.name] or 0) + count
+                pending[r.name] = (pending[r.name] or 0) + 1
+                if not pendingPlus[r.name] then
+                    pendingPlus[r.name] = plus
+                end
             end
         end
     end
@@ -278,17 +311,24 @@ function BadStorms.GetSRText(itemId)
     for name in pairs(pending) do table.insert(sorted, name) end
     table.sort(sorted)
     for _, name in ipairs(sorted) do
-        local total = pending[name]
-        table.insert(parts, name .. (total > 1 and " x" .. total or ""))
+        table.insert(parts, FormatSRName(name, pending[name], pendingPlus[name]))
     end
     sorted = {}
     for name in pairs(received) do table.insert(sorted, name) end
     table.sort(sorted)
     for _, name in ipairs(sorted) do
-        local total = received[name]
-        table.insert(parts, "|cff888888" .. name .. " (received)" .. (total > 1 and " x" .. total or "") .. "|r")
+        table.insert(parts, "|cff888888" .. FormatSRName(name, received[name], receivedPlus[name]) .. " (received)|r")
     end
-    return "SR: " .. table.concat(parts, ", ")
+
+    local lines = {}
+    for i = 1, #parts, 3 do
+        local chunk = {}
+        for j = i, math.min(i + 2, #parts) do
+            table.insert(chunk, parts[j])
+        end
+        table.insert(lines, "SR: " .. table.concat(chunk, ", "))
+    end
+    return table.concat(lines, "\n")
 end
 
 function BadStorms.AppendSRTooltip(itemId)
@@ -297,7 +337,7 @@ function BadStorms.AppendSRTooltip(itemId)
     GameTooltip:AddLine("Bad Storms Loot Assignments", 1, 1, 1)
     if text ~= "" then
         GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("  " .. text, 0.82, 0.82, 0.82)
+        GameTooltip:AddLine(text, 0.82, 0.82, 0.82)
     end
     GameTooltip:AddLine(" ")
     GameTooltip:Show()
@@ -328,7 +368,7 @@ function BadStorms.AppendItemTooltipInfo(itemId)
     GameTooltip:AddLine("Bad Storms Loot Assignments", 1, 1, 1)
     GameTooltip:AddLine(" ")
     if srText ~= "" then
-        GameTooltip:AddLine("  " .. srText, 0.82, 0.82, 0.82)
+        GameTooltip:AddLine(srText, 0.82, 0.82, 0.82)
     end
     for playerName in pairs(pendingPlayers) do
         GameTooltip:AddLine("  Pending award: " .. playerName, 1, 1, 0)

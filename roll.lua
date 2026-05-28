@@ -3,6 +3,7 @@ local GetItemID = BadStorms.GetItemID
 local GetChannel = BadStorms.GetChannel
 local SendToChannel = BadStorms.SendToChannel
 local PlayerHasReservation = BadStorms.PlayerHasReservation
+local GetPlayerSRPlus = BadStorms.GetPlayerSRPlus
 
 local function UpdateRollDisplay(frame)
     local currentItemId = frame.data and GetItemID(frame.data.link)
@@ -17,7 +18,9 @@ local function UpdateRollDisplay(frame)
             return false
         end
         if aSR > 0 and bSR > 0 then
-            return a.roll > b.roll
+            local aEff = a.effectiveRoll or a.roll
+            local bEff = b.effectiveRoll or b.roll
+            return aEff > bEff
         end
         local aPO = BadStormsSettings.plusOnesEnabled and (BadStormsSettings.plusOnes[a.name] or 0) or 0
         local bPO = BadStormsSettings.plusOnesEnabled and (BadStormsSettings.plusOnes[b.name] or 0) or 0
@@ -54,15 +57,36 @@ local function UpdateRollDisplay(frame)
             local r, g, b = BadStorms.GetClassColor(data.class)
 
             local hasSR = currentItemId and PlayerHasReservation(currentItemId, data.name) or 0
+            local srPlus = data.srPlus or 0
             local plusOnes = BadStormsSettings.plusOnesEnabled and (BadStormsSettings.plusOnes[data.name] or 0) or 0
             btn.nameText:SetText(data.name)
             btn.nameText:SetTextColor(r, g, b)
 
-            btn.rollText:SetText(tostring(data.roll))
+            local effectiveRoll = (data.effectiveRoll or data.roll)
+            btn.rollText:SetText(tostring(effectiveRoll))
             btn.rollText:SetTextColor(r, g, b)
-            btn.specText:SetText(hasSR > 0 and (hasSR > 1 and "SR x" .. hasSR or "SR") or spec)
+            if hasSR > 0 then
+                local srCount = hasSR
+                if srCount > 1 then
+                    if srPlus > 0 then
+                        btn.specText:SetText("SRx" .. srCount .. " +" .. srPlus)
+                    else
+                        btn.specText:SetText("SRx" .. srCount)
+                    end
+                else
+                    if srPlus > 0 then
+                        btn.specText:SetText("SR +" .. srPlus)
+                    else
+                        btn.specText:SetText("SR")
+                    end
+                end
+                btn.srText:SetText(tostring(data.roll))
+            else
+                btn.specText:SetText(spec)
+                btn.srText:SetText("")
+            end
             btn.specText:SetTextColor(r, g, b)
-            btn.srText:SetText("")
+            btn.srText:SetTextColor(r, g, b)
 
             if data.max == 100 and plusOnes > 0 and hasSR == 0 then
                 btn.plusText:SetText("+" .. plusOnes)
@@ -105,7 +129,9 @@ local function EndRoll(frame)
 
         local tieNames = {}
         for _, entry in ipairs(BadStorms.currentRolls) do
-            if entry.roll ~= top.roll then break end
+            local entryEff = entry.effectiveRoll or entry.roll
+            local topEff = top.effectiveRoll or top.roll
+            if entryEff ~= topEff then break end
             if entry.max ~= top.max then break end
             local entrySR = currentItemId and PlayerHasReservation(currentItemId, entry.name) or 0
             local topSR = currentItemId and PlayerHasReservation(currentItemId, top.name) or 0
@@ -138,7 +164,12 @@ local function EndRoll(frame)
             local winnerHasSR = currentItemId and PlayerHasReservation(currentItemId, winner.name) or 0
             local winMsg
             if winnerHasSR > 0 then
-                winMsg = string.format("Winner: %s [%d] (SR)", winner.name, winner.roll)
+                local winnerSRPlus = currentItemId and GetPlayerSRPlus(currentItemId, winner.name) or 0
+                if winnerSRPlus > 0 then
+                    winMsg = string.format("Winner: %s [%d] (SR +%d)", winner.name, winner.effectiveRoll or winner.roll, winnerSRPlus)
+                else
+                    winMsg = string.format("Winner: %s [%d] (SR)", winner.name, winner.effectiveRoll or winner.roll)
+                end
             elseif winner.max == 100 then
                 local plusParts = {}
                 local anyNonZero = false
@@ -201,15 +232,27 @@ local function StartRoll(frame)
     local currentItemId = frame.data and GetItemID(frame.data.link)
     if currentItemId and BadStormsSettings.softReserves then
         local srPlayers = {}
+        local srPlusValues = {}
         for _, r in ipairs(BadStormsSettings.softReserves) do
             if r.itemId == currentItemId then
-                local count = (tonumber(r.plus) or 0) + 1
-                srPlayers[r.name] = (srPlayers[r.name] or 0) + count
+                local plus = tonumber(r.plus) or 0
+                srPlayers[r.name] = (srPlayers[r.name] or 0) + 1
+                if not srPlusValues[r.name] then
+                    srPlusValues[r.name] = plus
+                end
             end
         end
         local names = {}
         for name, count in pairs(srPlayers) do
-            table.insert(names, name .. (count > 1 and " x" .. count or ""))
+            local entry = name
+            local plus = srPlusValues[name]
+            if plus > 0 then
+                entry = entry .. " (+" .. plus .. ")"
+            end
+            if count > 1 then
+                entry = entry .. " x" .. count
+            end
+            table.insert(names, entry)
         end
         if #names > 0 then
             table.sort(names)
@@ -286,20 +329,6 @@ rollListener:SetScript("OnEvent", function(self, event, msg)
         for _, v in ipairs(BadStorms.currentRolls) do
             if v.name == name then
                 rollCount = rollCount + 1
-
-            end
-        end
-        if rollCount >= maxRolls then
-            return
-        end
-    end
-    if currentItemId then
-        local srCount = PlayerHasReservation(currentItemId, name)
-        local maxRolls = srCount > 0 and srCount or 1
-        local rollCount = 0
-        for _, v in ipairs(BadStorms.currentRolls) do
-            if v.name == name then
-                rollCount = rollCount + 1
             end
         end
         if rollCount >= maxRolls then
@@ -307,10 +336,13 @@ rollListener:SetScript("OnEvent", function(self, event, msg)
         end
     end
 
+    local srPlus = currentItemId and GetPlayerSRPlus(currentItemId, name) or 0
     table.insert(BadStorms.currentRolls, {
         name = name,
         unit = unit,
         roll = roll,
+        srPlus = srPlus,
+        effectiveRoll = roll + srPlus,
         max = max,
         class = class
     })

@@ -161,6 +161,9 @@ local function CheckAutoMasterLoot()
     if not BadStorms.InGroup() then
         return
     end
+    if GetNumRaidMembers() == 0 then
+        return
+    end
     if not IsPartyLeader() and not IsRaidLeader() and not IsRaidOfficer() then
         return
     end
@@ -1010,7 +1013,7 @@ local function CreateConfigFrame()
     local autoMLCheckbox = CreateFrame("CheckButton", "BadStormsAutoMLCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
     autoMLCheckbox:SetPoint("TOPLEFT", autoLootCheckbox, "BOTTOMLEFT", 0, -20)
-    _G["BadStormsAutoMLCheckboxText"]:SetText("Enable Auto-Switch to Master Looter (Requires Group Leader)")
+    _G["BadStormsAutoMLCheckboxText"]:SetText("Enable Auto-Switch to Master Looter (Raid Only, Requires Leader/Officer)")
     autoMLCheckbox:SetChecked(BadStormsSettings.autoMasterLoot)
     autoMLCheckbox:SetScript("OnClick", function(self)
         BadStormsSettings.autoMasterLoot = self:GetChecked()
@@ -1023,7 +1026,7 @@ local function CreateConfigFrame()
     autoMLHelp:SetPoint("TOPLEFT", autoMLCheckbox, "BOTTOMLEFT", 24, 0)
     autoMLHelp:SetWidth(440)
     autoMLHelp:SetJustifyH("LEFT")
-    autoMLHelp:SetText("Attempts set Master Looter when targeting a boss.")
+    autoMLHelp:SetText("Attempts to set Master Looter when targeting a boss in a raid.")
     autoMLHelp:SetTextColor(1, 0.82, 0)
 
     local disenchanterCheckbox

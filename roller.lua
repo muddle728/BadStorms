@@ -102,7 +102,7 @@ scrollFrame:SetScript("OnMouseWheel", function(self, delta)
     self:SetVerticalScroll(math.max(0, math.min(val, range)))
 end)
 scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -106)
-scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, -68)
+scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 35)
 frame.scrollFrame = scrollFrame
 
 local scrollChild = CreateFrame("Frame", nil, scrollFrame)

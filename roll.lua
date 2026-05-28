@@ -60,17 +60,11 @@ local function UpdateRollDisplay(frame)
 
             btn.rollText:SetText(tostring(data.roll))
             btn.rollText:SetTextColor(r, g, b)
-            btn.specText:SetText(hasSR > 0 and spec .. " SR" or spec)
+            btn.specText:SetText(hasSR > 0 and (hasSR > 1 and "SR x" .. hasSR or "SR") or spec)
             btn.specText:SetTextColor(r, g, b)
+            btn.srText:SetText("")
 
-            if hasSR > 0 then
-                btn.srText:SetText(hasSR > 1 and "SR x" .. hasSR or "SR")
-                btn.srText:SetTextColor(1, 0.82, 0)
-            else
-                btn.srText:SetText("")
-            end
-
-            if data.max == 100 and plusOnes > 0 then
+            if data.max == 100 and plusOnes > 0 and hasSR == 0 then
                 btn.plusText:SetText("+" .. plusOnes)
                 btn.plusText:SetTextColor(0, 1, 0)
             else

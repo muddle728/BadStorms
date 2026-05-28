@@ -185,6 +185,7 @@ local function HideRollTracker(gen)
     itemIcon:SetScript("OnLeave", nil)
     frame:Hide()
 end
+BadStorms.HideRollTracker = HideRollTracker
 
 local passBtn = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
 passBtn:SetSize(80, 24)

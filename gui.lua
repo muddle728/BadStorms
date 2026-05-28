@@ -213,14 +213,24 @@ local function CreateMinimapButton()
         UpdatePosition(BadStormsSettings.minimapPos)
     end)
 
-    btn:SetScript("OnClick", function()
-        BadStorms:ToggleConfigFrame()
+    btn:SetScript("OnClick", function(self, button)
+        if button == "LeftButton" then
+            BadStorms:ToggleConfigFrame()
+        else
+            local roller = BadStorms.lootRoller
+            if roller:IsShown() then
+                BadStorms.HideRollTracker()
+            else
+                roller:Show()
+            end
+        end
     end)
 
     btn:SetScript("OnEnter", function()
         GameTooltip:SetOwner(btn, "ANCHOR_LEFT")
-        GameTooltip:SetText("Bad Storms Loot Assistant")
-        GameTooltip:AddLine("Click to open menu", 0.82, 0.82, 0.82)
+        GameTooltip:SetText("Bad Storms")
+        GameTooltip:AddLine("Left-click: Open loot assistant", 0.82, 0.82, 0.82)
+        GameTooltip:AddLine("Right-click: Open loot roller", 0.82, 0.82, 0.82)
         GameTooltip:Show()
     end)
     btn:SetScript("OnLeave", function()

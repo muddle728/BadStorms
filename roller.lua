@@ -225,7 +225,6 @@ local function ShowRollTracker(link)
     end
 
     BadStorms.isRolling = true
-    BadStorms.currentRolls = {}
     frame.data = {
         link = link
     }

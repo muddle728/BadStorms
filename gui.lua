@@ -54,7 +54,6 @@ local function CheckItemExists(data)
 end
 
 local function ResetRollPanel(frame)
-    BadStorms.currentRolls = {}
     frame.selectedRollLabel:SetText("Player: None")
     for _, btn in ipairs(frame.rollButtons) do
         btn.selectedTexture:Hide()
@@ -377,8 +376,6 @@ local function CreateConfigFrame()
                 return
             end
             UpdateItemSelection(frame, link)
-            ResetRollPanel(frame)
-            frame.startRollButton:Disable()
             frame:SelectTab("roll")
             frame:Show()
         end

@@ -262,14 +262,6 @@ hooksecurefunc("ContainerFrameItemButton_OnModifiedClick", function(self, button
                 return
             end
             BadStorms.UpdateItemSelection(f, link, bag, slot)
-            BadStorms.currentRolls = {}
-            f.selectedRollLabel:SetText("Player: None")
-            for _, btn in ipairs(f.rollButtons) do
-                btn.selectedTexture:Hide()
-                btn.rollData = nil
-                btn:Hide()
-            end
-            f.rollAssignButton:Disable()
             f:SelectTab("roll")
             f:Show()
         end

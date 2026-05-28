@@ -2682,6 +2682,34 @@ function BadStorms.ShowAssignDialog(data)
     end, nil, true)
 end
 
+hooksecurefunc("HandleModifiedItemClick", function(link)
+    if not BadStormsSettings.enabled and not IsAltKeyDown() then
+        return
+    end
+    if not CheckLootPermissionSpam("You do not have permission to manage loot.") then
+        return
+    end
+    if not link then
+        return
+    end
+    for i = 1, GetNumLootItems() do
+        local slotLink = GetLootSlotLink(i)
+        if slotLink and slotLink == link then
+            CloseDropDownMenus()
+            local _, _, _, quality = GetLootSlotInfo(i)
+            if quality and quality < 2 then
+                break
+            end
+            if IsShiftKeyDown() then
+                BadStorms.ShowAwardDialogForLoot(i, link)
+            else
+                BadStorms.ShowRollDialogForLoot(link, i)
+            end
+            break
+        end
+    end
+end)
+
 function BadStorms.ShowDisenchantDialog(data)
     BadStorms.ShowDialog("Send " .. data.link .. " to " .. data.disenchanter .. " to be disenchanted?", data,
         function(d)

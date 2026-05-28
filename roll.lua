@@ -256,7 +256,18 @@ local function StartRoll(frame)
         end
         if #names > 0 then
             table.sort(names)
-            SendToChannel("SR: " .. table.concat(names, ", "))
+            local MAX_LINE = 240
+            local line = "SR: "
+            for _, entry in ipairs(names) do
+                local add = (#line > 4 and ", " or "") .. entry
+                if #line + #add > MAX_LINE then
+                    SendToChannel(line)
+                    line = "SR: " .. entry
+                else
+                    line = line .. add
+                end
+            end
+            SendToChannel(line)
         end
     end
 

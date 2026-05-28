@@ -185,6 +185,7 @@ local function HideRollTracker(gen)
     itemIcon:SetScript("OnLeave", nil)
     frame:Hide()
 end
+BadStorms.HideRollTracker = HideRollTracker
 
 local passBtn = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
 passBtn:SetSize(80, 24)
@@ -325,7 +326,7 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
         if reRollNames then
             statusText:SetText("Re-Roll: " .. reRollNames)
         else
-            local winnerName, winnerRoll, winnerSpec = msg:match("Winner: (.+) %[(%d+)%] %((%a+)%)")
+            local winnerName, winnerRoll, winnerSpec = msg:match("Winner: (.+) %[(%d+)%] %((.+)%)")
             if winnerName then
                 statusText:SetText("Winner: " .. winnerName .. " [" .. winnerRoll .. "] (" .. winnerSpec .. ")")
             else

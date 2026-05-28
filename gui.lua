@@ -24,12 +24,6 @@ local function CheckLootPermissionSpam(msg)
             if UIErrorsFrame then
                 local errMsg = "BadStorms: " .. msg
                 UIErrorsFrame:AddMessage(errMsg, 1.0, 0.82, 0, 1.0)
-                C_Timer.After(1, function()
-                    UIErrorsFrame:AddMessage(errMsg, 1.0, 0.82, 0, 1.0)
-                end)
-                C_Timer.After(2, function()
-                    UIErrorsFrame:AddMessage(errMsg, 1.0, 0.82, 0, 1.0)
-                end)
             end
         end
         return false
@@ -128,17 +122,22 @@ function BadStorms.ShowRollDialogForLoot(link, lootSlot)
 end
 
 local function CheckAutoMasterLoot()
-    if not BadStormsSettings.autoMasterLoot then
+    if not UnitExists("target") then
         return
     end
-    if not UnitExists("target") then
+    if not BadStormsSettings.enabled and not BadStormsSettings.autoMasterLoot then
+        return
+    end
+    if not BadStorms.InGroup() or GetNumRaidMembers() == 0 then
+        return
+    end
+    if not IsPartyLeader() or not IsRaidLeader() then
         return
     end
     local guid = UnitGUID("target")
     if not guid then
         return
     end
-
     local isBoss
     if guid:find("-") then
         local _, _, _, _, _, mobID = strsplit("-", guid)
@@ -154,17 +153,7 @@ local function CheckAutoMasterLoot()
             isBoss = UnitClassification("target") == "worldboss" or UnitLevel("target") == -1
         end
     end
-
     if not isBoss then
-        return
-    end
-    if not BadStorms.InGroup() then
-        return
-    end
-    if GetNumRaidMembers() == 0 then
-        return
-    end
-    if not IsPartyLeader() and not IsRaidLeader() and not IsRaidOfficer() then
         return
     end
     if GetLootMethod() == "master" then
@@ -2204,7 +2193,7 @@ local function CreateConfigFrame()
             awardTab:Disable()
             rollTab:Disable()
         end
-        if readOnly then 
+        if readOnly then
             srAnnounceBtn:Disable()
         end
         UpdateDisenchantButtons(frame)
@@ -2837,16 +2826,12 @@ hooksecurefunc("SetItemRef", function(link, text, button, ...)
     if not link or not string.find(link, "^item:") then
         return
     end
-    if not IsAltKeyDown() then
-        return
-    end
-    if not BadStormsSettings.enabled then
+    if not BadStormsSettings.enabled and not IsAltKeyDown() then
         return
     end
     if not CheckLootPermissionSpam("You do not have permission to manage loot.") then
         return
     end
-
     local itemLink = BadStorms.NormalizeItemLink(link)
     if not itemLink then
         local itemId = BadStorms.GetItemID(link)
@@ -2878,10 +2863,7 @@ customLootFrame:SetScript("OnEvent", function()
 end)
 
 hooksecurefunc("HandleModifiedItemClick", function(link)
-    if not BadStormsSettings.enabled then
-        return
-    end
-    if not IsAltKeyDown() then
+    if not BadStormsSettings.enabled and not IsAltKeyDown() then
         return
     end
     if not CheckLootPermissionSpam("You do not have permission to manage loot.") then
@@ -2890,7 +2872,6 @@ hooksecurefunc("HandleModifiedItemClick", function(link)
     if not link then
         return
     end
-
     for i = 1, GetNumLootItems() do
         local slotLink = GetLootSlotLink(i)
         if slotLink and slotLink == link then

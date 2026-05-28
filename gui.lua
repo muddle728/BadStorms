@@ -2781,7 +2781,7 @@ local function HookCustomLootButtons()
                     return
                 end
 
-                if IsAltKeyDown() and BadStormsSettings.enabled then
+                if BadStormsSettings.enabled and IsAltKeyDown() then
                     if not CheckPermission(BadStorms.CanManageLoot, "You do not have permission to manage loot.") then
                         return
                     end
@@ -2826,7 +2826,7 @@ hooksecurefunc("SetItemRef", function(link, text, button, ...)
     if not link or not string.find(link, "^item:") then
         return
     end
-    if not BadStormsSettings.enabled and not IsAltKeyDown() then
+    if not BadStormsSettings.enabled or not IsAltKeyDown() then
         return
     end
     if not CheckLootPermissionSpam("You do not have permission to manage loot.") then
@@ -2860,34 +2860,6 @@ customLootFrame:RegisterEvent("LOOT_OPENED")
 customLootFrame:RegisterEvent("LOOT_READY")
 customLootFrame:SetScript("OnEvent", function()
     C_Timer.After(0.4, HookCustomLootButtons)
-end)
-
-hooksecurefunc("HandleModifiedItemClick", function(link)
-    if not BadStormsSettings.enabled and not IsAltKeyDown() then
-        return
-    end
-    if not CheckLootPermissionSpam("You do not have permission to manage loot.") then
-        return
-    end
-    if not link then
-        return
-    end
-    for i = 1, GetNumLootItems() do
-        local slotLink = GetLootSlotLink(i)
-        if slotLink and slotLink == link then
-            CloseDropDownMenus()
-            local _, _, _, quality = GetLootSlotInfo(i)
-            if quality and quality < 2 then
-                break
-            end
-            if IsShiftKeyDown() then
-                BadStorms.ShowAwardDialogForLoot(i, link)
-            else
-                BadStorms.ShowRollDialogForLoot(link, i)
-            end
-            break
-        end
-    end
 end)
 
 SLASH_BADSTORMS1 = "/badstorms"

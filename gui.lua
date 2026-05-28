@@ -58,9 +58,12 @@ local function ResetRollPanel(frame)
 end
 
 local function UpdateDisenchantButtons(frame)
+    local link = frame.data and frame.data.link
+    local quality = link and select(3, GetItemInfo(link))
     local canDisenchant =
-        BadStormsSettings.disenchantEnabled and BadStormsSettings.disenchanter ~= "" and frame.data and frame.data.link and
-            BadStorms.IsItemEquippable(frame.data.link)
+        BadStorms.IsMasterLooter() and
+            BadStormsSettings.disenchantEnabled and BadStormsSettings.disenchanter ~= "" and link and quality and quality >= 2 and
+            BadStorms.IsItemEquippable(link)
     if frame.disenchantRollButton then
         if canDisenchant then
             frame.disenchantRollButton:Enable()
@@ -76,6 +79,7 @@ local function UpdateDisenchantButtons(frame)
         end
     end
 end
+BadStorms.UpdateDisenchantButtons = UpdateDisenchantButtons
 
 local function CreateListButton(parent, index, height, clickHandler)
     local btn = CreateFrame("Button", nil, parent)

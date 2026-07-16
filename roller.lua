@@ -79,6 +79,7 @@ itemIcon.texture = itemIcon:CreateTexture(nil, "BACKGROUND")
 itemIcon.texture:SetAllPoints()
 itemIcon.texture:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
 frame.itemIcon = itemIcon
+itemIcon:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 
 local itemName = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 itemName:SetPoint("TOP", itemIcon, "BOTTOM", 0, -6)
@@ -261,6 +262,9 @@ local function ShowRollTracker(link)
         end)
     end
 
+    itemIcon:SetScript("OnClick", function()
+        DressUpItemLink(link)
+    end)
     itemIcon:SetScript("OnEnter", function(self)
         if link then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -326,7 +330,7 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
         if reRollNames then
             statusText:SetText("Re-Roll: " .. reRollNames)
         else
-            local winnerName, winnerRoll, winnerSpec = msg:match("Winner: (.+) %[(%d+)%] %((.+)%)")
+            local winnerName, winnerRoll, winnerSpec = msg:match("Winner: (.+) %[(%d+)%] %((.-)%)")
             if winnerName then
                 statusText:SetText("Winner: " .. winnerName .. " [" .. winnerRoll .. "] (" .. winnerSpec .. ")")
             else

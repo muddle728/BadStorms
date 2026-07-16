@@ -61,7 +61,7 @@ local function UpdateDisenchantButtons(frame)
     local link = frame.data and frame.data.link
     local quality = link and select(3, GetItemInfo(link))
     local canDisenchant =
-        BadStorms.IsMasterLooter() and
+        BadStorms.CanManageLoot() and
             BadStormsSettings.disenchantEnabled and BadStormsSettings.disenchanter ~= "" and link and quality and quality >= 2 and
             BadStorms.IsItemEquippable(link)
     if frame.disenchantRollButton then
@@ -2120,6 +2120,22 @@ local function CreateConfigFrame()
         end)
     end)
 
+    frame.versionLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    frame.versionLabel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 10)
+    frame.versionLabel:SetText("v" .. GetAddOnMetadata("BadStorms", "Version") or "1.0")
+
+    --[[
+    frame.reloadButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
+    frame.reloadButton:SetSize(26, 24)
+    frame.reloadButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -65, -15)
+    frame.reloadButton:SetText("R")
+    frame.reloadButton:SetNormalFontObject("GameFontNormalSmall")
+    frame.reloadButton:SetHighlightFontObject("GameFontHighlightSmall")
+    frame.reloadButton:SetScript("OnClick", function()
+        ReloadUI()
+    end)
+    ]]
+
     frame.closeButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
     frame.closeButton:SetSize(26, 24)
     frame.closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -15, -15)
@@ -2201,9 +2217,9 @@ local function CreateConfigFrame()
     end
 
     local function UpdateLootMasterState()
-        local isLM = BadStorms.IsMasterLooter()
+        local canManage = BadStorms.CanManageLoot()
         local inGroup = BadStorms.InGroup()
-        local tabsEnabled = not inGroup or isLM
+        local tabsEnabled = not inGroup or canManage
         local text = _G["BadStormsEnableCheckboxText"]
         local readOnly = inGroup and not isLM
         if tabsEnabled then
@@ -2227,13 +2243,13 @@ local function CreateConfigFrame()
         frame:SelectTab("settings")
     end)
     awardTab:SetScript("OnClick", function()
-        if not CheckPermission(BadStorms.IsMasterLooter, "You must be the Master Looter to award items.") then
+        if not CheckPermission(BadStorms.CanManageLoot, "You must be the Master Looter to award items.") then
             return
         end
         frame:SelectTab("award")
     end)
     rollTab:SetScript("OnClick", function()
-        if not CheckPermission(BadStorms.IsMasterLooter, "You must be the Master Looter to roll items.") then
+        if not CheckPermission(BadStorms.CanManageLoot, "You must be the Master Looter to roll items.") then
             return
         end
         frame:SelectTab("roll")
@@ -2449,6 +2465,8 @@ lootFrame:SetScript("OnEvent", function()
     local isML = BadStorms.IsMasterLooter()
     local playerCI = BadStorms.GetPlayerCandidateIndex()
     local deCI = BadStorms.GetDisenchanterCandidateIndex()
+    local lootItems = {}
+    local deItems = {}
     for i = GetNumLootItems(), 1, -1 do
         local texture, name, quantity, quality = GetLootSlotInfo(i)
         local item = GetLootSlotLink(i)
@@ -2465,29 +2483,35 @@ lootFrame:SetScript("OnEvent", function()
             if quality == 2 and BadStorms.IsItemEquippable(item) and BadStormsSettings.disenchantEnabled and
                 BadStormsSettings.disenchanter ~= "" and isML then
                 if deCI then
-                    SendToChannel("LOOT: " .. item .. " (disenchant) sent to " .. BadStormsSettings.disenchanter)
+                    tinsert(deItems, item .. " sent to " .. BadStormsSettings.disenchanter)
                     GiveMasterLoot(i, deCI)
                 elseif playerCI then
                     if BadStorms.IsItemEquippable(item) then
-                        SendToChannel("LOOT: " .. item)
+                        tinsert(lootItems, item)
                     end
                     GiveMasterLoot(i, playerCI)
                 end
             elseif isML then
                 if playerCI then
                     if BadStorms.IsItemEquippable(item) then
-                        SendToChannel("LOOT: " .. item)
+                        tinsert(lootItems, item)
                     end
                     GiveMasterLoot(i, playerCI)
                 end
             else
                 if item then
-                    SendToChannel("LOOT: " .. item)
+                    tinsert(lootItems, item)
                 end
                 LootSlot(i)
             end
 
         end
+    end
+    if #lootItems > 0 then
+        SendToChannel("LOOT: " .. table.concat(lootItems, ", "))
+    end
+    for _, msg in ipairs(deItems) do
+        SendToChannel("DISENCHANT: " .. msg)
     end
     C_Timer.After(0.10, function()
         CloseLoot()
@@ -2738,7 +2762,7 @@ function BadStorms.ShowDisenchantDialog(data)
             if not CheckItemExists(d) then
                 return
             end
-            SendToChannel("LOOT: " .. d.link .. " sent to " .. d.disenchanter .. " (disenchant)")
+            SendToChannel("DISENCHANT: " .. d.link .. " sent to " .. d.disenchanter)
             if d.lootSlot then
                 for ci = 1, 40 do
                     local candidate = GetMasterLootCandidate(ci)

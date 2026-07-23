@@ -2507,8 +2507,8 @@ lootFrame:SetScript("OnEvent", function()
 
         end
     end
-    if #lootItems > 0 then
-        SendToChannel("LOOT: " .. table.concat(lootItems, ", "))
+    for _, item in ipairs(lootItems) do
+        SendToChannel("LOOT: " .. item)
     end
     for _, msg in ipairs(deItems) do
         SendToChannel("DISENCHANT: " .. msg)

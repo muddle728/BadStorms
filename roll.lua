@@ -116,6 +116,7 @@ local function EndRoll(frame)
         return
     end
     BadStorms.isRolling = false
+    BadStorms._activeRollFrame = nil
     if BadStorms.rollTimerActive then
         BadStorms.rollTimerActive:Cancel()
         BadStorms.rollTimerActive = nil
@@ -216,6 +217,7 @@ local function StartRoll(frame)
 
     BadStorms.currentRolls = {}
     BadStorms.isRolling = true
+    BadStorms._activeRollFrame = frame
     BadStorms.rollRemaining = BadStormsSettings.rollTimer or 10
 
     UpdateRollDisplay(frame)
@@ -296,7 +298,11 @@ local function StartRoll(frame)
         frame.rollTimerText:SetTextColor(1, 0, 0)
 
         if BadStorms.rollRemaining <= 0 then
-            EndRoll(frame)
+            BadStorms.rollTimerActive:Cancel()
+            BadStorms.rollTimerActive = nil
+            C_Timer.After(0.5, function()
+                EndRoll(frame)
+            end)
         end
     end)
 end

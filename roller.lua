@@ -180,8 +180,6 @@ local function HideRollTracker(gen)
     if not frame:IsShown() then
         return
     end
-    BadStorms.isRolling = false
-    BadStorms.currentRolls = {}
     itemIcon:SetScript("OnEnter", nil)
     itemIcon:SetScript("OnLeave", nil)
     frame:Hide()
@@ -360,6 +358,9 @@ chatListener:SetScript("OnEvent", function(self, event, msg)
                         statusText:SetText("ROLLS CLOSED")
                         BadStorms.currentRollTimer:Cancel()
                         BadStorms.currentRollTimer = nil
+                        if BadStorms._activeRollFrame then
+                            BadStorms.EndRoll(BadStorms._activeRollFrame)
+                        end
                     end
                 end)
             end

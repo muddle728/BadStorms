@@ -180,8 +180,6 @@ local function HideRollTracker(gen)
     if not frame:IsShown() then
         return
     end
-    BadStorms.isRolling = false
-    BadStorms.currentRolls = {}
     itemIcon:SetScript("OnEnter", nil)
     itemIcon:SetScript("OnLeave", nil)
     frame:Hide()

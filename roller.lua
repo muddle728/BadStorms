@@ -43,22 +43,16 @@ end)
 frame:EnableMouseWheel(true)
 frame:SetScript("OnMouseWheel", function(self, delta)
     if IsControlKeyDown() then
-        local s = (tonumber(BadStormsSettings.frameScale) or 1.0) + delta * 0.05
+        local s = (tonumber(BadStormsSettings.lootRollerScale) or 1.0) + delta * 0.05
         s = math.max(0.60, math.min(1.25, s))
-        BadStormsSettings.frameScale = s
+        BadStormsSettings.lootRollerScale = s
         self:SetScale(s)
-        if BadStorms.configFrame then
-            BadStorms.configFrame:SetScale(s)
-        end
     end
 end)
 frame:SetScript("OnMouseDown", function(self, button)
     if button == "RightButton" and IsControlKeyDown() then
-        BadStormsSettings.frameScale = 1.0
+        BadStormsSettings.lootRollerScale = 1.0
         self:SetScale(1.0)
-        if BadStorms.configFrame then
-            BadStorms.configFrame:SetScale(1.0)
-        end
     end
 end)
 frame:Hide()

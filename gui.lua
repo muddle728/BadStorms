@@ -218,7 +218,14 @@ local function CreateMinimapButton()
     end)
 
     btn:SetScript("OnClick", function(self, button)
-        if button == "LeftButton" then
+        if button == "LeftButton" and IsShiftKeyDown() then
+            local f = _G.BadStormsTradeTimer
+            if f:IsShown() then
+                BadStorms.HideTradeTimerPanel()
+            else
+                BadStorms.ShowTradeTimerPanel()
+            end
+        elseif button == "LeftButton" then
             BadStorms:ToggleConfigFrame()
         else
             local roller = BadStorms.lootRoller
@@ -234,6 +241,7 @@ local function CreateMinimapButton()
         GameTooltip:SetOwner(btn, "ANCHOR_LEFT")
         GameTooltip:SetText("Bad Storms")
         GameTooltip:AddLine("Left-click: Open loot assistant", 0.82, 0.82, 0.82)
+        GameTooltip:AddLine("Shift+Left-click: Open trade timer", 0.82, 0.82, 0.82)
         GameTooltip:AddLine("Right-click: Open loot roller", 0.82, 0.82, 0.82)
         GameTooltip:Show()
     end)

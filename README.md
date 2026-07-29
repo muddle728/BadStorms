@@ -10,6 +10,7 @@ Raid helper for master loot management, soft reserves, and rolls.
 
 - `/badstorms` or `/bs` — Toggle the config frame
 - `/bsr` — Toggle the loot roller frame
+- `/bst` or `/tradetimer` — Toggle the trade timer panel
 
 ## Shortcuts
 
@@ -57,6 +58,18 @@ The floating loot roller provides a compact roll interface:
 - **Pass** button to dismiss
 - Closes automatically after the configured timeout
 - Tracks winner announcements from chat
+
+## Trade Timer
+
+A floating panel that tracks equippable BoP items with active 2-hour trade timers, sorted by expiry ascending (soonest first). Master looter only.
+
+| Trigger | Action |
+|---|---|
+| **Loot a tradeable item** | Panel auto-opens |
+| **Click an item** | Opens Award tab with the item pre-selected |
+| **`/bst` or `/tradetimer`** | Toggle the panel manually |
+
+The panel refreshes every 60 seconds while visible. Trade timer detection uses tooltip text scanning (`BIND_TRADE_TIME_REMAINING`), not `GetItemCooldown`, avoiding false positives from on-use trinkets or gear.
 
 ## Auto-Loot
 

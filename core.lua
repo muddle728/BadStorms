@@ -178,6 +178,26 @@ function BadStorms.GetPlayerUnit(name)
     return nil
 end
 
+function BadStorms.CountItemsInBags(itemId)
+    if not itemId then
+        return 0
+    end
+    local count = 0
+    for bag = 0, 4 do
+        local numSlots = GetContainerNumSlots(bag)
+        for slot = 1, numSlots do
+            local link = GetContainerItemLink(bag, slot)
+            if link then
+                local id = tonumber(link:match("Hitem:(%d+)"))
+                if id == itemId then
+                    count = count + 1
+                end
+            end
+        end
+    end
+    return count
+end
+
 function BadStorms.FindItemInBags(itemId)
     if not itemId then
         return nil, nil, nil

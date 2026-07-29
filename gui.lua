@@ -2387,24 +2387,21 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
         self.tradingPartner = name
         self.placedItems = {}
 
+        self.preTradeCounts = {}
+        for _, itemData in ipairs(items) do
+            local id = itemData.itemId
+            if id and not self.preTradeCounts[id] then
+                self.preTradeCounts[id] = BadStorms.CountItemsInBags(id)
+            end
+        end
+
         for i, itemData in ipairs(items) do
             if i > 6 then
                 break
             end
-            local bag, slot = itemData.bag, itemData.slot
-            local link = bag and GetContainerItemLink(bag, slot)
-            local id = link and tonumber(link:match("Hitem:(%d+)"))
-            if not id or id ~= itemData.itemId then
-                bag, slot, link = BadStorms.FindItemInBags(itemData.itemId)
-            end
+            local bag, slot, link = BadStorms.FindItemInBags(itemData.itemId)
             if bag and slot then
                 local idx = i
-                self.placedItems[idx] = {
-                    bag = bag,
-                    slot = slot,
-                    itemId = itemData.itemId,
-                    link = link
-                }
                 C_Timer.After((idx - 1) * 0.4, function()
                     if TradeFrame:IsVisible() then
                         PickupContainerItem(bag, slot)
@@ -2415,10 +2412,11 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
         end
     elseif event == "TRADE_CLOSED" then
         local partner = self.tradingPartner
-        local placed = self.placedItems
+        local preCounts = self.preTradeCounts
         self.tradingPartner = nil
         self.tradingUnit = nil
         self.placedItems = nil
+        self.preTradeCounts = nil
         if not partner then
             return
         end
@@ -2428,22 +2426,39 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
             return
         end
 
-        local remaining = {}
-        local tradedCount = 0
+        local postCounts = {}
+        for bag = 0, 4 do
+            local numSlots = GetContainerNumSlots(bag)
+            for slot = 1, numSlots do
+                local link = GetContainerItemLink(bag, slot)
+                if link then
+                    local id = tonumber(link:match("Hitem:(%d+)"))
+                    if id then
+                        postCounts[id] = (postCounts[id] or 0) + 1
+                    end
+                end
+            end
+        end
 
-        for i, itemData in ipairs(pending) do
-            local slotInfo = placed and placed[i]
-            if slotInfo then
-                local currentLink = GetContainerItemLink(slotInfo.bag, slotInfo.slot)
-                local currentId = currentLink and tonumber(currentLink:match("Hitem:(%d+)"))
-                if not currentId or currentId ~= slotInfo.itemId then
-                    tradedCount = tradedCount + 1
-                    BadStorms.SendToChannel("LOOT: " .. slotInfo.link .. " traded to " .. partner)
+        local remaining = {}
+        local toSkip = {}
+
+        for _, itemData in ipairs(pending) do
+            local id = itemData.itemId
+            if not id then
+                table.insert(remaining, itemData)
+            else
+                local preCount = preCounts and preCounts[id] or 0
+                local postCount = postCounts[id] or 0
+                local traded = preCount - postCount
+                local skipped = toSkip[id] or 0
+
+                if traded > 0 and skipped < traded then
+                    toSkip[id] = skipped + 1
+                    BadStorms.SendToChannel("LOOT: " .. (itemData.link or "?") .. " traded to " .. partner)
                 else
                     table.insert(remaining, itemData)
                 end
-            else
-                table.insert(remaining, itemData)
             end
         end
 
@@ -2721,8 +2736,6 @@ function BadStorms.ShowAssignDialog(data)
                 itemId = itemId,
                 link = d.link,
                 itemName = itemName,
-                bag = d.bag,
-                slot = d.slot,
                 date = dateTime
             })
             if not CheckInteractDistance(d.unit, 2) then
@@ -2793,8 +2806,6 @@ function BadStorms.ShowDisenchantDialog(data)
                     itemId = itemId,
                     link = d.link,
                     itemName = itemName,
-                    bag = d.bag,
-                    slot = d.slot,
                     date = date("%Y-%m-%d %H:%M:%S")
                 })
                 local unit = BadStorms.GetPlayerUnit(d.disenchanter)

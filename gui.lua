@@ -2509,16 +2509,12 @@ lootFrame:SetScript("OnEvent", function()
                     tinsert(deItems, item .. " sent to " .. BadStormsSettings.disenchanter)
                     GiveMasterLoot(i, deCI)
                 elseif playerCI then
-                    if BadStorms.IsItemEquippable(item) then
-                        tinsert(lootItems, item)
-                    end
+                    tinsert(lootItems, item)
                     GiveMasterLoot(i, playerCI)
                 end
             elseif isML then
                 if playerCI then
-                    if BadStorms.IsItemEquippable(item) then
-                        tinsert(lootItems, item)
-                    end
+                    tinsert(lootItems, item)
                     GiveMasterLoot(i, playerCI)
                 end
             else

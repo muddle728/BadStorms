@@ -218,7 +218,14 @@ local function CreateMinimapButton()
     end)
 
     btn:SetScript("OnClick", function(self, button)
-        if button == "LeftButton" then
+        if button == "LeftButton" and IsShiftKeyDown() then
+            local f = _G.BadStormsTradeTimer
+            if f:IsShown() then
+                BadStorms.HideTradeTimerPanel()
+            else
+                BadStorms.ShowTradeTimerPanel()
+            end
+        elseif button == "LeftButton" then
             BadStorms:ToggleConfigFrame()
         else
             local roller = BadStorms.lootRoller
@@ -234,6 +241,7 @@ local function CreateMinimapButton()
         GameTooltip:SetOwner(btn, "ANCHOR_LEFT")
         GameTooltip:SetText("Bad Storms")
         GameTooltip:AddLine("Left-click: Open loot assistant", 0.82, 0.82, 0.82)
+        GameTooltip:AddLine("Shift+Left-click: Open trade timer", 0.82, 0.82, 0.82)
         GameTooltip:AddLine("Right-click: Open loot roller", 0.82, 0.82, 0.82)
         GameTooltip:Show()
     end)
@@ -1133,9 +1141,18 @@ local function CreateConfigFrame()
         ToggleDropDownMenu(1, nil, disenchanterMenu, self:GetName(), 0, 0)
     end)
 
+    local tradeTimerCheckbox = CreateFrame("CheckButton", "BadStormsTradeTimerCheckbox", settingsPanel,
+        "InterfaceOptionsCheckButtonTemplate")
+    tradeTimerCheckbox:SetPoint("TOPLEFT", disenchanterCheckbox, "BOTTOMLEFT", 0, -25)
+    _G["BadStormsTradeTimerCheckboxText"]:SetText("Enable Trade Timer Auto-Open")
+    tradeTimerCheckbox:SetChecked(BadStormsSettings.tradeTimerEnabled)
+    tradeTimerCheckbox:SetScript("OnClick", function(self)
+        BadStormsSettings.tradeTimerEnabled = self:GetChecked()
+    end)
+
     local lootRollerCheckbox = CreateFrame("CheckButton", "BadStormsLootRollerCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
-    lootRollerCheckbox:SetPoint("TOPLEFT", disenchanterCheckbox, "BOTTOMLEFT", 0, -25)
+    lootRollerCheckbox:SetPoint("TOPLEFT", tradeTimerCheckbox, "BOTTOMLEFT", 0, 0)
     _G["BadStormsLootRollerCheckboxText"]:SetText("Enable Loot Roller (Loot Blare)")
     lootRollerCheckbox:SetChecked(BadStormsSettings.lootRollerEnabled)
     lootRollerCheckbox:SetScript("OnClick", function(self)
@@ -1265,7 +1282,9 @@ local function CreateConfigFrame()
     end)
 
     local notes = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    notes:SetPoint("TOPLEFT", hideMinimapCheckbox, "BOTTOMLEFT", 25, 5)
+    local notesFont, notesSize, notesFlags = notes:GetFont()
+    notes:SetFont(notesFont, (notesSize or 12) - 3, notesFlags)
+    notes:SetPoint("TOPLEFT", hideMinimapCheckbox, "BOTTOMLEFT", 25, 10)
     notes:SetWidth(520)
     notes:SetJustifyH("LEFT")
     notes:SetText(
@@ -2123,18 +2142,15 @@ local function CreateConfigFrame()
     frame.versionLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     frame.versionLabel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 10)
     frame.versionLabel:SetText("v" .. GetAddOnMetadata("BadStorms", "Version") or "1.0")
-
-    --[[
     frame.reloadButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
     frame.reloadButton:SetSize(26, 24)
-    frame.reloadButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -65, -15)
+    frame.reloadButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -45, -15)
     frame.reloadButton:SetText("R")
     frame.reloadButton:SetNormalFontObject("GameFontNormalSmall")
     frame.reloadButton:SetHighlightFontObject("GameFontHighlightSmall")
     frame.reloadButton:SetScript("OnClick", function()
         ReloadUI()
     end)
-    ]]
 
     frame.closeButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
     frame.closeButton:SetSize(26, 24)
@@ -2379,24 +2395,30 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
         self.tradingPartner = name
         self.placedItems = {}
 
+        self.preTradeCounts = {}
+        for _, itemData in ipairs(items) do
+            local id = itemData.itemId
+            if id and not self.preTradeCounts[id] then
+                self.preTradeCounts[id] = BadStorms.CountItemsInBags(id)
+            end
+        end
+
+        local usedSlots = {}
         for i, itemData in ipairs(items) do
             if i > 6 then
                 break
             end
-            local bag, slot = itemData.bag, itemData.slot
-            local link = bag and GetContainerItemLink(bag, slot)
-            local id = link and tonumber(link:match("Hitem:(%d+)"))
-            if not id or id ~= itemData.itemId then
-                bag, slot, link = BadStorms.FindItemInBags(itemData.itemId)
+            local bag, slot, link
+            for _, s in ipairs(BadStorms.FindAllItemSlots(itemData.itemId)) do
+                local key = s.bag .. ":" .. s.slot
+                if not usedSlots[key] then
+                    usedSlots[key] = true
+                    bag, slot, link = s.bag, s.slot, s.link
+                    break
+                end
             end
             if bag and slot then
                 local idx = i
-                self.placedItems[idx] = {
-                    bag = bag,
-                    slot = slot,
-                    itemId = itemData.itemId,
-                    link = link
-                }
                 C_Timer.After((idx - 1) * 0.4, function()
                     if TradeFrame:IsVisible() then
                         PickupContainerItem(bag, slot)
@@ -2407,10 +2429,11 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
         end
     elseif event == "TRADE_CLOSED" then
         local partner = self.tradingPartner
-        local placed = self.placedItems
+        local preCounts = self.preTradeCounts
         self.tradingPartner = nil
         self.tradingUnit = nil
         self.placedItems = nil
+        self.preTradeCounts = nil
         if not partner then
             return
         end
@@ -2420,22 +2443,39 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
             return
         end
 
-        local remaining = {}
-        local tradedCount = 0
+        local postCounts = {}
+        for bag = 0, 4 do
+            local numSlots = GetContainerNumSlots(bag)
+            for slot = 1, numSlots do
+                local link = GetContainerItemLink(bag, slot)
+                if link then
+                    local id = tonumber(link:match("Hitem:(%d+)"))
+                    if id then
+                        postCounts[id] = (postCounts[id] or 0) + 1
+                    end
+                end
+            end
+        end
 
-        for i, itemData in ipairs(pending) do
-            local slotInfo = placed and placed[i]
-            if slotInfo then
-                local currentLink = GetContainerItemLink(slotInfo.bag, slotInfo.slot)
-                local currentId = currentLink and tonumber(currentLink:match("Hitem:(%d+)"))
-                if not currentId or currentId ~= slotInfo.itemId then
-                    tradedCount = tradedCount + 1
-                    BadStorms.SendToChannel("LOOT: " .. slotInfo.link .. " traded to " .. partner)
+        local remaining = {}
+        local toSkip = {}
+
+        for _, itemData in ipairs(pending) do
+            local id = itemData.itemId
+            if not id then
+                table.insert(remaining, itemData)
+            else
+                local preCount = preCounts and preCounts[id] or 0
+                local postCount = postCounts[id] or 0
+                local traded = preCount - postCount
+                local skipped = toSkip[id] or 0
+
+                if traded > 0 and skipped < traded then
+                    toSkip[id] = skipped + 1
+                    BadStorms.SendToChannel("LOOT: " .. (itemData.link or "?") .. " traded to " .. partner)
                 else
                     table.insert(remaining, itemData)
                 end
-            else
-                table.insert(remaining, itemData)
             end
         end
 
@@ -2443,6 +2483,13 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
             BadStormsSettings.pendingTrades[partner] = nil
         else
             BadStormsSettings.pendingTrades[partner] = remaining
+        end
+
+        for id, preCount in pairs(preCounts) do
+            local postCount = postCounts[id] or 0
+            if preCount - postCount > 0 and postCount == 0 then
+                BadStorms.RemoveAllPendingTrades(id)
+            end
         end
     end
 end)
@@ -2486,16 +2533,12 @@ lootFrame:SetScript("OnEvent", function()
                     tinsert(deItems, item .. " sent to " .. BadStormsSettings.disenchanter)
                     GiveMasterLoot(i, deCI)
                 elseif playerCI then
-                    if BadStorms.IsItemEquippable(item) then
-                        tinsert(lootItems, item)
-                    end
+                    tinsert(lootItems, item)
                     GiveMasterLoot(i, playerCI)
                 end
             elseif isML then
                 if playerCI then
-                    if BadStorms.IsItemEquippable(item) then
-                        tinsert(lootItems, item)
-                    end
+                    tinsert(lootItems, item)
                     GiveMasterLoot(i, playerCI)
                 end
             else
@@ -2713,8 +2756,6 @@ function BadStorms.ShowAssignDialog(data)
                 itemId = itemId,
                 link = d.link,
                 itemName = itemName,
-                bag = d.bag,
-                slot = d.slot,
                 date = dateTime
             })
             if not CheckInteractDistance(d.unit, 2) then
@@ -2785,8 +2826,6 @@ function BadStorms.ShowDisenchantDialog(data)
                     itemId = itemId,
                     link = d.link,
                     itemName = itemName,
-                    bag = d.bag,
-                    slot = d.slot,
                     date = date("%Y-%m-%d %H:%M:%S")
                 })
                 local unit = BadStorms.GetPlayerUnit(d.disenchanter)

@@ -1,6 +1,6 @@
 local BadStorms = _G.BadStorms
 
-local _knownItems = {}
+local _knownCounts = {}
 local _userDismissed = false
 local _refreshTicker
 local _bagUpdateTimer
@@ -334,38 +334,60 @@ frame:SetScript("OnHide", function()
     StopRefreshTicker()
 end)
 
+local function AutoShowIfNewItems()
+    if not BadStormsSettings.tradeTimerEnabled then
+        return
+    end
+    if not BadStorms.IsMasterLooter() then
+        return
+    end
+    local items = BadStorms.ScanBoPTradeItems()
+    local counts = {}
+    local hasNew = false
+    for _, item in ipairs(items) do
+        local id = item.itemId
+        counts[id] = (counts[id] or 0) + 1
+        if not hasNew and (counts[id] > (_knownCounts[id] or 0)) then
+            hasNew = true
+        end
+    end
+    _knownCounts = counts
+    if hasNew and #items > 0 then
+        _userDismissed = false
+        frame:Show()
+    end
+end
+
 local eventFrame = CreateFrame("Frame")
+eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("LOOT_CLOSED")
 eventFrame:RegisterEvent("BAG_UPDATE")
 eventFrame:RegisterEvent("PARTY_LOOT_METHOD_CHANGED")
 eventFrame:SetScript("OnEvent", function(self, event)
-    if event == "LOOT_CLOSED" then
+    if event == "PLAYER_ENTERING_WORLD" then
         if not BadStorms.IsMasterLooter() then
             return
         end
         local items = BadStorms.ScanBoPTradeItems()
-        local currentSet = {}
-        local hasNew = false
+        local counts = {}
         for _, item in ipairs(items) do
-            local key = item.bag .. ":" .. item.slot
-            currentSet[key] = true
-            if not _knownItems[key] then
-                hasNew = true
-            end
+            counts[item.itemId] = (counts[item.itemId] or 0) + 1
         end
-        _knownItems = currentSet
-        if hasNew and #items > 0 and not _userDismissed then
-            frame:Show()
-        end
+        _knownCounts = counts
+    elseif event == "LOOT_CLOSED" then
+        AutoShowIfNewItems()
     elseif event == "BAG_UPDATE" then
-        if not BadStorms.IsMasterLooter() or not frame:IsShown() then
+        if not BadStorms.IsMasterLooter() then
             return
         end
         if _bagUpdateTimer then
             _bagUpdateTimer:Cancel()
         end
         _bagUpdateTimer = C_Timer.After(0.5, function()
-            BadStorms.PopulateTradeTimerList()
+            AutoShowIfNewItems()
+            if frame:IsShown() then
+                BadStorms.PopulateTradeTimerList()
+            end
         end)
     elseif event == "PARTY_LOOT_METHOD_CHANGED" then
         if frame:IsShown() and not BadStorms.IsMasterLooter() then

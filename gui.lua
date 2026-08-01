@@ -1141,9 +1141,18 @@ local function CreateConfigFrame()
         ToggleDropDownMenu(1, nil, disenchanterMenu, self:GetName(), 0, 0)
     end)
 
+    local tradeTimerCheckbox = CreateFrame("CheckButton", "BadStormsTradeTimerCheckbox", settingsPanel,
+        "InterfaceOptionsCheckButtonTemplate")
+    tradeTimerCheckbox:SetPoint("TOPLEFT", disenchanterCheckbox, "BOTTOMLEFT", 0, -25)
+    _G["BadStormsTradeTimerCheckboxText"]:SetText("Enable Trade Timer Auto-Open")
+    tradeTimerCheckbox:SetChecked(BadStormsSettings.tradeTimerEnabled)
+    tradeTimerCheckbox:SetScript("OnClick", function(self)
+        BadStormsSettings.tradeTimerEnabled = self:GetChecked()
+    end)
+
     local lootRollerCheckbox = CreateFrame("CheckButton", "BadStormsLootRollerCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
-    lootRollerCheckbox:SetPoint("TOPLEFT", disenchanterCheckbox, "BOTTOMLEFT", 0, -25)
+    lootRollerCheckbox:SetPoint("TOPLEFT", tradeTimerCheckbox, "BOTTOMLEFT", 0, 0)
     _G["BadStormsLootRollerCheckboxText"]:SetText("Enable Loot Roller (Loot Blare)")
     lootRollerCheckbox:SetChecked(BadStormsSettings.lootRollerEnabled)
     lootRollerCheckbox:SetScript("OnClick", function(self)
@@ -1273,7 +1282,9 @@ local function CreateConfigFrame()
     end)
 
     local notes = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    notes:SetPoint("TOPLEFT", hideMinimapCheckbox, "BOTTOMLEFT", 25, 5)
+    local notesFont, notesSize, notesFlags = notes:GetFont()
+    notes:SetFont(notesFont, (notesSize or 12) - 3, notesFlags)
+    notes:SetPoint("TOPLEFT", hideMinimapCheckbox, "BOTTOMLEFT", 25, 10)
     notes:SetWidth(520)
     notes:SetJustifyH("LEFT")
     notes:SetText(

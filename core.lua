@@ -28,6 +28,9 @@ BadStormsSettings.lootRollerCloseTime = BadStormsSettings.lootRollerCloseTime or
 if BadStormsSettings.lootRollerEnabled == nil then
     BadStormsSettings.lootRollerEnabled = true
 end
+if BadStormsSettings.tradeTimerEnabled == nil then
+    BadStormsSettings.tradeTimerEnabled = true
+end
 
 if not C_Timer then
     C_Timer = {}

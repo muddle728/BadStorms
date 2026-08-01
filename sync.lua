@@ -168,6 +168,10 @@ AceComm:RegisterComm("BadStorms", function(prefix, payload, distribution, sender
         return
     end
 
+    if UnitAffectingCombat("player") then
+        return
+    end
+
     local ok, rp = Decode(payload)
     if not ok or not rp then
         return

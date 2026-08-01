@@ -77,8 +77,15 @@ function BadStorms.RefreshUIAfterSync(payload)
     end
     for _, name in pairs(_syncFields) do
         if payload[name] ~= nil then
-            BadStormsSettings[name] = payload[name]
-            _syncPrevious[name] = AceSerializer:Serialize(BadStormsSettings[name])
+            if name == "exportData" then
+                BadStormsSettings.exportData = BadStormsSettings.exportData or {}
+                for exportDate, entries in pairs(payload[name]) do
+                    BadStormsSettings.exportData[exportDate] = entries
+                end
+            else
+                BadStormsSettings[name] = payload[name]
+            end
+            _syncPrevious[name] = AceSerializer:Serialize(payload[name])
         end
     end
     if payload["plusOnes"] ~= nil then
@@ -118,12 +125,23 @@ function BadStorms.SyncToAll()
     }
 
     local send = false
+    local today = date("%Y-%m-%d")
 
     for _, name in ipairs(_syncFields) do
-        local serialized = AceSerializer:Serialize(BadStormsSettings[name] or {})
+        local current
+        if name == "exportData" then
+            current = (BadStormsSettings.exportData or {})[today] or {}
+        else
+            current = BadStormsSettings[name] or {}
+        end
+        local serialized = AceSerializer:Serialize(current)
         if _syncPrevious[name] ~= serialized then
             _syncPrevious[name] = serialized
-            payload[name] = BadStormsSettings[name]
+            if name == "exportData" then
+                payload[name] = { [today] = current }
+            else
+                payload[name] = current
+            end
             send = true
         end
     end
@@ -173,7 +191,15 @@ AceComm:RegisterComm("BadStorms", function(prefix, payload, distribution, sender
             }
             for _, name in ipairs(_syncFields) do
                 if BadStormsSettings[name] ~= nil then
-                    restorePayload[name] = BadStormsSettings[name]
+                    if name == "exportData" then
+                        local today = date("%Y-%m-%d")
+                        local bucket = (BadStormsSettings.exportData or {})[today]
+                        if bucket then
+                            restorePayload[name] = { [today] = bucket }
+                        end
+                    else
+                        restorePayload[name] = BadStormsSettings[name]
+                    end
                 end
             end
             AceComm:SendCommMessage("BadStorms", Encode(restorePayload), "WHISPER", sender)

@@ -217,6 +217,26 @@ function BadStorms.FindItemInBags(itemId)
     return nil, nil, nil
 end
 
+function BadStorms.FindAllItemSlots(itemId)
+    local slots = {}
+    if not itemId then
+        return slots
+    end
+    for bag = 0, 4 do
+        local numSlots = GetContainerNumSlots(bag)
+        for slot = 1, numSlots do
+            local link = GetContainerItemLink(bag, slot)
+            if link then
+                local id = tonumber(link:match("Hitem:(%d+)"))
+                if id == itemId then
+                    table.insert(slots, { bag = bag, slot = slot, link = link })
+                end
+            end
+        end
+    end
+    return slots
+end
+
 function BadStorms.ItemExistsInSlot(data)
     if not data then
         return false
@@ -300,6 +320,25 @@ function BadStorms.ParseDateTime(str)
         min = mi,
         sec = s
     })
+end
+
+function BadStorms.RemoveAllPendingTrades(itemId)
+    if not itemId or not BadStormsSettings.pendingTrades then
+        return
+    end
+    for player, items in pairs(BadStormsSettings.pendingTrades) do
+        local remaining = {}
+        for _, itemData in ipairs(items) do
+            if itemData.itemId ~= itemId then
+                table.insert(remaining, itemData)
+            end
+        end
+        if #remaining == 0 then
+            BadStormsSettings.pendingTrades[player] = nil
+        else
+            BadStormsSettings.pendingTrades[player] = remaining
+        end
+    end
 end
 
 function BadStorms.CleanupPendingTrades()

@@ -2395,11 +2395,20 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
             end
         end
 
+        local usedSlots = {}
         for i, itemData in ipairs(items) do
             if i > 6 then
                 break
             end
-            local bag, slot, link = BadStorms.FindItemInBags(itemData.itemId)
+            local bag, slot, link
+            for _, s in ipairs(BadStorms.FindAllItemSlots(itemData.itemId)) do
+                local key = s.bag .. ":" .. s.slot
+                if not usedSlots[key] then
+                    usedSlots[key] = true
+                    bag, slot, link = s.bag, s.slot, s.link
+                    break
+                end
+            end
             if bag and slot then
                 local idx = i
                 C_Timer.After((idx - 1) * 0.4, function()
@@ -2466,6 +2475,13 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
             BadStormsSettings.pendingTrades[partner] = nil
         else
             BadStormsSettings.pendingTrades[partner] = remaining
+        end
+
+        for id, preCount in pairs(preCounts) do
+            local postCount = postCounts[id] or 0
+            if preCount - postCount > 0 and postCount == 0 then
+                BadStorms.RemoveAllPendingTrades(id)
+            end
         end
     end
 end)

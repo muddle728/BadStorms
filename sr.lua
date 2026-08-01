@@ -354,8 +354,7 @@ function BadStorms.AppendItemTooltipInfo(itemId)
             if playerName ~= myName then
                 for _, itemData in ipairs(items) do
                     if itemData.itemId == itemId then
-                        pendingPlayers[playerName] = true
-                        break
+                        pendingPlayers[playerName] = (pendingPlayers[playerName] or 0) + 1
                     end
                 end
             end
@@ -370,8 +369,12 @@ function BadStorms.AppendItemTooltipInfo(itemId)
     if srText ~= "" then
         GameTooltip:AddLine(srText, 0.82, 0.82, 0.82)
     end
-    for playerName in pairs(pendingPlayers) do
-        GameTooltip:AddLine("  Pending award: " .. playerName, 1, 1, 0)
+    for playerName, count in pairs(pendingPlayers) do
+        if count and count > 1 then
+            GameTooltip:AddLine("  Pending award: " .. playerName .. " (x" .. count .. ")", 1, 1, 0)
+        else
+            GameTooltip:AddLine("  Pending award: " .. playerName, 1, 1, 0)
+        end
     end
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine("  |cff66ccffALT+CLICK|r to roll", 0.82, 0.82, 0.82)

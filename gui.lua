@@ -2142,18 +2142,15 @@ local function CreateConfigFrame()
     frame.versionLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     frame.versionLabel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 10)
     frame.versionLabel:SetText("v" .. GetAddOnMetadata("BadStorms", "Version") or "1.0")
-
-    --[[
     frame.reloadButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
     frame.reloadButton:SetSize(26, 24)
-    frame.reloadButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -65, -15)
+    frame.reloadButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -45, -15)
     frame.reloadButton:SetText("R")
     frame.reloadButton:SetNormalFontObject("GameFontNormalSmall")
     frame.reloadButton:SetHighlightFontObject("GameFontHighlightSmall")
     frame.reloadButton:SetScript("OnClick", function()
         ReloadUI()
     end)
-    ]]
 
     frame.closeButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
     frame.closeButton:SetSize(26, 24)

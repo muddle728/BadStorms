@@ -82,23 +82,40 @@ local function ApplySRPlusFromNotes()
         end
         local itemCount = #items
 
+        local allPriority = true
+        for _, r in ipairs(entries) do
+            if (tonumber(r.plus) or 0) == 0 then
+                allPriority = false
+                break
+            end
+        end
+        if allPriority then
+            return
+        end
+
         if #seq == 0 then
             for _, r in ipairs(entries) do
-                r.plus = "0"
+                if (tonumber(r.plus) or 0) == 0 then
+                    r.plus = "0"
+                end
             end
         elseif #seq >= itemCount then
             for _, r in ipairs(entries) do
-                for i, itemKey in ipairs(items) do
-                    if tostring(r.itemId) == itemKey then
-                        r.plus = tostring(seq[i])
-                        break
+                if (tonumber(r.plus) or 0) == 0 then
+                    for i, itemKey in ipairs(items) do
+                        if tostring(r.itemId) == itemKey then
+                            r.plus = tostring(seq[i])
+                            break
+                        end
                     end
                 end
             end
         else
             local value = tostring(seq[1])
             for _, r in ipairs(entries) do
-                r.plus = value
+                if (tonumber(r.plus) or 0) == 0 then
+                    r.plus = value
+                end
             end
         end
     end

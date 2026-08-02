@@ -473,9 +473,9 @@ function BadStorms.AppendItemTooltipInfo(itemId)
     end
     for playerName, count in pairs(pendingPlayers) do
         if count and count > 1 then
-            GameTooltip:AddLine("  Pending award: " .. playerName .. " (x" .. count .. ")", 1, 1, 0)
+            GameTooltip:AddLine("  Pending Trade: " .. playerName .. " (x" .. count .. ")", 1, 1, 0)
         else
-            GameTooltip:AddLine("  Pending award: " .. playerName, 1, 1, 0)
+            GameTooltip:AddLine("  Pending Trade: " .. playerName, 1, 1, 0)
         end
     end
     GameTooltip:AddLine(" ")

@@ -6,6 +6,7 @@ local _refreshTicker
 local _bagUpdateTimer
 local VISIBLE_ROWS = 30
 local ROW_HEIGHT = 22
+local PREFIX_WIDTH = 34
 
 local scanner = CreateFrame("GameTooltip", "BadStorms_TradeScanner", UIParent, "GameTooltipTemplate")
 
@@ -186,8 +187,11 @@ scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 8)
 frame.scrollFrame = scrollFrame
 
 local scrollChild = CreateFrame("Frame", nil, scrollFrame)
-scrollChild:SetSize(284, VISIBLE_ROWS * ROW_HEIGHT)
+scrollChild:SetSize(frame:GetWidth() - 16, VISIBLE_ROWS * ROW_HEIGHT)
 scrollFrame:SetScrollChild(scrollChild)
+scrollFrame:SetScript("OnSizeChanged", function(self)
+    scrollChild:SetWidth(self:GetWidth())
+end)
 frame.scrollChild = scrollChild
 
 local emptyText = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -213,8 +217,13 @@ for i = 1, VISIBLE_ROWS do
     hl:SetAllPoints()
     btn:SetHighlightTexture(hl)
 
+    btn.prefixText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    btn.prefixText:SetPoint("LEFT", btn, "LEFT", 6, 0)
+    btn.prefixText:SetJustifyH("LEFT")
+    btn.prefixText:SetTextColor(1, 0.82, 0)
+
     btn.nameText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    btn.nameText:SetPoint("LEFT", btn, "LEFT", 6, 0)
+    btn.nameText:SetPoint("LEFT", btn, "LEFT", 6 + PREFIX_WIDTH, 0)
     btn.nameText:SetJustifyH("LEFT")
 
     btn.timeText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -296,17 +305,21 @@ function BadStorms.PopulateTradeTimerList()
     for i, btn in ipairs(frame.rows) do
         local data = items[i]
         if data then
+            local prefix = ""
+            if IsItemPendingTrade(data.itemId) then
+                prefix = "[PT]"
+                btn.prefixText:SetTextColor(1, 0.1, 0.1)
+            elseif BadStorms.ItemHasReservation(data.itemId) then
+                prefix = "[SR]"
+                btn.prefixText:SetTextColor(1, 0.82, 0)
+            else
+                btn.prefixText:SetTextColor(1, 0.82, 0)
+            end
+            btn.prefixText:SetText(prefix)
+
             local name = GetItemInfo(data.link)
             if not name then
                 name = data.link:match("%[(.-)%]") or "Item"
-            end
-            if IsItemPendingTrade(data.itemId) then
-                name = "* " .. name
-            else 
-                name = "  " .. name
-            end
-            if BadStorms.ItemHasReservation(data.itemId) then
-                name = name .. " |cffffd100[SR]|r"
             end
             local _, _, quality = GetItemInfo(data.link)
             if quality then

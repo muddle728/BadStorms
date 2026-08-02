@@ -2526,8 +2526,9 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
         end
 
         local usedSlots = {}
-        for i, itemData in ipairs(items) do
-            if i > 6 then
+        local placed = 0
+        for _, itemData in ipairs(items) do
+            if placed >= 6 then
                 break
             end
             local bag, slot, link
@@ -2540,11 +2541,17 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
                 end
             end
             if bag and slot then
-                local idx = i
-                C_Timer.After((idx - 1) * 0.4, function()
+                placed = placed + 1
+                local idx = placed
+                C_Timer.After((idx - 1) * 0.15, function()
                     if TradeFrame:IsVisible() then
                         PickupContainerItem(bag, slot)
-                        ClickTradeButton(idx)
+                        for s = 1, 6 do
+                            if not GetTradePlayerItemInfo(s) then
+                                ClickTradeButton(s)
+                                break
+                            end
+                        end
                     end
                 end)
             end

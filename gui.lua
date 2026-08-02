@@ -1,6 +1,7 @@
 local BadStorms = _G.BadStorms
 local GetItemID = BadStorms.GetItemID
 local SendToChannel = BadStorms.SendToChannel
+local SyncSoftReserves = BadStorms.SyncSoftReserves
 local ShowSRImportDialog = BadStorms.ShowSRImportDialog
 local AppendSRTooltip = BadStorms.AppendSRTooltip
 local UpdateRollDisplay = BadStorms.UpdateRollDisplay
@@ -427,6 +428,21 @@ local function CreateConfigFrame()
         end)
     end)
 
+    local srClearPlusOnesBtn = CreateFrame("Button", nil, srPanel, "GameMenuButtonTemplate")
+    srClearPlusOnesBtn:SetSize(110, 24)
+    srClearPlusOnesBtn:SetPoint("LEFT", srClearBtn, "RIGHT", 4, 0)
+    srClearPlusOnesBtn:SetText("Clear SR+")
+    srClearPlusOnesBtn:SetScript("OnClick", function()
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear all SR+ values on soft reserves?", nil, function()
+            for _, r in ipairs(BadStormsSettings.softReserves or {}) do
+                r.plus = "0"
+            end
+            BadStorms.SyncSoftReserves()
+            frame.PopulateSRList()
+            print("|cff00ff00BadStorms:|r SR+ values cleared.")
+        end)
+    end)
+
     local srCountText = srPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     srCountText:SetPoint("TOPLEFT", srPanel, "TOPRIGHT", -200, 0)
     srCountText:SetText("")
@@ -500,6 +516,36 @@ local function CreateConfigFrame()
         frame.PopulateSRList()
     end)
 
+    local function UpdateSRPlus(name, itemId, value)
+        if not name or not itemId then
+            return false
+        end
+        value = tonumber(value) or 0
+        if value < 0 then
+            value = 0
+        end
+        if value > 99 then
+            value = 99
+        end
+        local playerLower = name:lower()
+        local changed = false
+        for _, r in ipairs(BadStormsSettings.softReserves) do
+            if r.itemId == itemId and r.name and r.name:lower() == playerLower then
+                if (tonumber(r.plus) or 0) ~= value then
+                    r.plus = tostring(value)
+                    changed = true
+                end
+            end
+        end
+        return changed
+    end
+
+    local function SyncSRPlus()
+        if SyncSoftReserves then
+            SyncSoftReserves()
+        end
+    end
+
     frame.srButtons = {}
     for i = 1, SR_VISIBLE do
         local btn = CreateFrame("Button", nil, srPanel)
@@ -557,6 +603,71 @@ local function CreateConfigFrame()
 
             btn.itemButtons[j] = itemBtn
         end
+
+        btn.plusBtn = CreateFrame("Button", nil, btn, "GameMenuButtonTemplate")
+        btn.plusBtn:SetSize(18, 18)
+        btn.plusBtn:SetPoint("RIGHT", btn, "RIGHT", -4, 0)
+        btn.plusBtn:SetText("+")
+        btn.plusBtn:SetNormalFontObject("GameFontNormalSmall")
+        btn.plusBtn:SetHighlightFontObject("GameFontHighlightSmall")
+
+        btn.editBox = CreateFrame("EditBox", "BadStormsSREdit" .. i, btn, "InputBoxTemplate")
+        btn.editBox:SetSize(24, 18)
+        btn.editBox:SetPoint("RIGHT", btn.plusBtn, "LEFT", -2, 0)
+        btn.editBox:SetAutoFocus(false)
+        btn.editBox:SetNumeric(true)
+        btn.editBox:SetMaxLetters(2)
+        btn.editBox:SetJustifyH("CENTER")
+        btn.editBox:SetTextInsets(-5, 0, 0, 0)
+        btn.editBox:SetText("0")
+
+        btn.minusBtn = CreateFrame("Button", nil, btn, "GameMenuButtonTemplate")
+        btn.minusBtn:SetSize(18, 18)
+        btn.minusBtn:SetPoint("RIGHT", btn.editBox, "LEFT", -8, 0)
+        btn.minusBtn:SetText("-")
+        btn.minusBtn:SetNormalFontObject("GameFontNormalSmall")
+        btn.minusBtn:SetHighlightFontObject("GameFontHighlightSmall")
+
+        btn.minusBtn:SetScript("OnClick", function()
+            local val = tonumber(btn.editBox:GetText()) or 0
+            if val > 0 then
+                btn.editBox:SetText(tostring(val - 1))
+            end
+        end)
+
+        btn.plusBtn:SetScript("OnClick", function()
+            local val = tonumber(btn.editBox:GetText()) or 0
+            if val < 99 then
+                btn.editBox:SetText(tostring(val + 1))
+            end
+        end)
+
+        btn.editBox:SetScript("OnTextChanged", function()
+            if btn.updating then
+                return
+            end
+            local text = btn.editBox:GetText()
+            local cleaned = text:gsub("%D", "")
+            if cleaned ~= text then
+                btn.editBox:SetText(cleaned)
+                btn.editBox:SetCursorPosition(#cleaned)
+            end
+            UpdateSRPlus(btn.rowName, btn.rowItemId, tonumber(cleaned) or 0)
+            SyncSRPlus()
+        end)
+
+        btn.editBox:SetScript("OnEditFocusLost", function()
+            UpdateSRPlus(btn.rowName, btn.rowItemId, tonumber(btn.editBox:GetText()) or 0)
+            frame.PopulateSRList()
+        end)
+
+        btn.editBox:SetScript("OnEscapePressed", function(self)
+            self:ClearFocus()
+        end)
+
+        btn.editBox:SetScript("OnTabPressed", function(self)
+            self:ClearFocus()
+        end)
 
         btn:Hide()
         frame.srButtons[i] = btn
@@ -692,9 +803,6 @@ local function CreateConfigFrame()
 
                     local displayName = itemName
                     local extra = ""
-                    if data.plus > 0 then
-                        extra = " (+" .. data.plus .. ")"
-                    end
                     if data.count > 1 then
                         extra = extra .. " x" .. data.count
                     end
@@ -719,7 +827,7 @@ local function CreateConfigFrame()
                     itemBtn.text:SetText(displayName)
                     itemBtn.text:SetWidth(0)
                     local textWidth = itemBtn.text:GetStringWidth() or 10
-                    local maxWidth = btn:GetWidth() - 216
+                    local maxWidth = btn:GetWidth() - 288
                     local btnWidth = math.min(textWidth + 8, math.max(maxWidth, 20))
                     itemBtn:SetSize(btnWidth, 22)
                     itemBtn.text:SetWidth(btnWidth - 4)
@@ -728,8 +836,22 @@ local function CreateConfigFrame()
                     itemBtn.itemLink = itemLink
                     itemBtn.itemId = data.itemId
                     itemBtn:Show()
+
+                    btn.rowName = entry.name
+                    btn.rowItemId = data.itemId
+                    btn.minusBtn:Show()
+                    btn.editBox:Show()
+                    btn.plusBtn:Show()
+                    btn.updating = true
+                    btn.editBox:SetText(tostring(data.plus))
+                    btn.updating = false
                 else
                     btn.itemButtons[1]:Hide()
+                    btn.rowName = nil
+                    btn.rowItemId = nil
+                    btn.minusBtn:Hide()
+                    btn.editBox:Hide()
+                    btn.plusBtn:Hide()
                 end
 
                 btn:Show()
@@ -1143,7 +1265,7 @@ local function CreateConfigFrame()
 
     local tradeTimerCheckbox = CreateFrame("CheckButton", "BadStormsTradeTimerCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
-    tradeTimerCheckbox:SetPoint("TOPLEFT", disenchanterCheckbox, "BOTTOMLEFT", 0, -25)
+    tradeTimerCheckbox:SetPoint("TOPLEFT", disenchanterCheckbox, "BOTTOMLEFT", 0, -20)
     _G["BadStormsTradeTimerCheckboxText"]:SetText("Enable Trade Timer Auto-Open")
     tradeTimerCheckbox:SetChecked(BadStormsSettings.tradeTimerEnabled)
     tradeTimerCheckbox:SetScript("OnClick", function(self)
@@ -1152,7 +1274,7 @@ local function CreateConfigFrame()
 
     local lootRollerCheckbox = CreateFrame("CheckButton", "BadStormsLootRollerCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
-    lootRollerCheckbox:SetPoint("TOPLEFT", tradeTimerCheckbox, "BOTTOMLEFT", 0, 0)
+    lootRollerCheckbox:SetPoint("TOPLEFT", tradeTimerCheckbox, "BOTTOMLEFT", 0, -5)
     _G["BadStormsLootRollerCheckboxText"]:SetText("Enable Loot Roller (Loot Blare)")
     lootRollerCheckbox:SetChecked(BadStormsSettings.lootRollerEnabled)
     lootRollerCheckbox:SetScript("OnClick", function(self)
@@ -2404,8 +2526,9 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
         end
 
         local usedSlots = {}
-        for i, itemData in ipairs(items) do
-            if i > 6 then
+        local placed = 0
+        for _, itemData in ipairs(items) do
+            if placed >= 6 then
                 break
             end
             local bag, slot, link
@@ -2418,11 +2541,17 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
                 end
             end
             if bag and slot then
-                local idx = i
-                C_Timer.After((idx - 1) * 0.4, function()
+                placed = placed + 1
+                local idx = placed
+                C_Timer.After((idx - 1) * 0.15, function()
                     if TradeFrame:IsVisible() then
                         PickupContainerItem(bag, slot)
-                        ClickTradeButton(idx)
+                        for s = 1, 6 do
+                            if not GetTradePlayerItemInfo(s) then
+                                ClickTradeButton(s)
+                                break
+                            end
+                        end
                     end
                 end)
             end
@@ -2491,6 +2620,7 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
                 BadStorms.RemoveAllPendingTrades(id)
             end
         end
+        BadStorms.RefreshTradeTimerList()
     end
 end)
 
@@ -2758,6 +2888,7 @@ function BadStorms.ShowAssignDialog(data)
                 itemName = itemName,
                 date = dateTime
             })
+            BadStorms.RefreshTradeTimerList()
             if not CheckInteractDistance(d.unit, 2) then
                 SendChatMessage("WARNING: " .. d.name .. " is out of trade range. Please open trade with me for " ..
                                     d.link .. "!", "WHISPER", nil, d.name)
@@ -2828,6 +2959,7 @@ function BadStorms.ShowDisenchantDialog(data)
                     itemName = itemName,
                     date = date("%Y-%m-%d %H:%M:%S")
                 })
+                BadStorms.RefreshTradeTimerList()
                 local unit = BadStorms.GetPlayerUnit(d.disenchanter)
                 if unit and not UnitIsUnit(unit, "player") then
                     if not CheckInteractDistance(unit, 2) then

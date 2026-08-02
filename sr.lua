@@ -13,6 +13,14 @@ function BadStorms.PlayerHasReservation(itemId, playerName)
     return total
 end
 
+function BadStorms.ItemHasReservation(itemId)
+    if not itemId or not BadStormsSettings.softReserves then return false end
+    for _, r in ipairs(BadStormsSettings.softReserves) do
+        if r.itemId == itemId and not r.received then return true end
+    end
+    return false
+end
+
 function BadStorms.GetPlayerSRPlus(itemId, playerName)
     if not itemId or not BadStormsSettings.softReserves then return 0 end
     local playerLower = playerName:lower()
@@ -24,35 +32,126 @@ function BadStorms.GetPlayerSRPlus(itemId, playerName)
     return 0
 end
 
+local function ParseCSVLine(line)
+    local fields = {}
+    local current = ""
+    local inQuotes = false
+    for i = 1, #line do
+        local c = line:sub(i, i)
+        if c == '"' then
+            inQuotes = not inQuotes
+        elseif c == ',' and not inQuotes then
+            table.insert(fields, current)
+            current = ""
+        else
+            current = current .. c
+        end
+    end
+    table.insert(fields, current)
+
+    for i, f in ipairs(fields) do
+        fields[i] = f:match("^%s*(.-)%s*$")
+    end
+    return fields
+end
+
+local function ApplySRPlusFromNotes()
+    local reservations = BadStormsSettings.softReserves or {}
+    local playerOrder = {}
+    local byPlayer = {}
+    for _, r in ipairs(reservations) do
+        local key = (r.name or ""):lower()
+        if not byPlayer[key] then
+            byPlayer[key] = {}
+            table.insert(playerOrder, key)
+        end
+        table.insert(byPlayer[key], r)
+    end
+
+    for _, key in ipairs(playerOrder) do
+        local entries = byPlayer[key]
+
+        local seq = {}
+        for _, r in ipairs(entries) do
+            for num in (r.note or ""):gmatch("%d+") do
+                table.insert(seq, tonumber(num))
+            end
+            if #seq > 0 then break end
+        end
+
+        local seen = {}
+        local items = {}
+        for _, r in ipairs(entries) do
+            local itemKey = tostring(r.itemId)
+            if not seen[itemKey] then
+                seen[itemKey] = true
+                table.insert(items, itemKey)
+            end
+        end
+        local itemCount = #items
+
+        local allPriority = true
+        for _, r in ipairs(entries) do
+            if (tonumber(r.plus) or 0) == 0 then
+                allPriority = false
+                break
+            end
+        end
+        if allPriority then
+            return
+        end
+
+        if #seq == 0 then
+            for _, r in ipairs(entries) do
+                if (tonumber(r.plus) or 0) == 0 then
+                    r.plus = "0"
+                end
+            end
+        elseif #seq >= itemCount then
+            for _, r in ipairs(entries) do
+                if (tonumber(r.plus) or 0) == 0 then
+                    for i, itemKey in ipairs(items) do
+                        if tostring(r.itemId) == itemKey then
+                            r.plus = tostring(seq[i])
+                            break
+                        end
+                    end
+                end
+            end
+        else
+            local value = tostring(seq[1])
+            for _, r in ipairs(entries) do
+                if (tonumber(r.plus) or 0) == 0 then
+                    r.plus = value
+                end
+            end
+        end
+    end
+end
+
 local function ParseSRCSV(csvText)
     local lines = {}
     for line in csvText:gmatch("[^\r\n]+") do
         if line ~= "" then table.insert(lines, line) end
     end
 
-    if #lines > 0 and lines[1]:lower():match("^item,") then
-        table.remove(lines, 1)
+    local format = "legacy"
+    if #lines > 0 then
+        local header = ParseCSVLine(lines[1])
+        if tonumber(header[2]) == nil then
+            table.remove(lines, 1)
+            local extraHeader = (header[8] or ""):lower()
+            if extraHeader == "extra reserves" then
+                format = "new"
+            end
+        end
     end
 
     BadStormsSettings.softReserves = {}
     local count = 0
 
     for _, line in ipairs(lines) do
-        local fields = {}
-        local current = ""
-        local inQuotes = false
-        for i = 1, #line do
-            local c = line:sub(i, i)
-            if c == '"' then
-                inQuotes = not inQuotes
-            elseif c == ',' and not inQuotes then
-                table.insert(fields, current)
-                current = ""
-            else
-                current = current .. c
-            end
-        end
-        table.insert(fields, current)
+        local fields = ParseCSVLine(line)
 
         if #fields >= 4 then
             table.insert(BadStormsSettings.softReserves, {
@@ -63,12 +162,15 @@ local function ParseSRCSV(csvText)
                 class = fields[5] or "",
                 spec = fields[6] or "",
                 note = fields[7] or "",
-                plus = fields[8] or "",
+                plus = format == "new" and "" or (fields[8] or ""),
+                extraReserves = format == "new" and (fields[8] or "") or "",
                 date = fields[9] or ""
             })
             count = count + 1
         end
     end
+
+    ApplySRPlusFromNotes()
 
     BadStormsSettings.softReservesCsv = csvText
     print("|cff00ff00BadStorms:|r Imported " .. count .. " soft reserve(s).")
@@ -371,9 +473,9 @@ function BadStorms.AppendItemTooltipInfo(itemId)
     end
     for playerName, count in pairs(pendingPlayers) do
         if count and count > 1 then
-            GameTooltip:AddLine("  Pending award: " .. playerName .. " (x" .. count .. ")", 1, 1, 0)
+            GameTooltip:AddLine("  Pending Trade: " .. playerName .. " (x" .. count .. ")", 1, 1, 0)
         else
-            GameTooltip:AddLine("  Pending award: " .. playerName, 1, 1, 0)
+            GameTooltip:AddLine("  Pending Trade: " .. playerName, 1, 1, 0)
         end
     end
     GameTooltip:AddLine(" ")

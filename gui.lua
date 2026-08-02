@@ -1265,7 +1265,7 @@ local function CreateConfigFrame()
 
     local tradeTimerCheckbox = CreateFrame("CheckButton", "BadStormsTradeTimerCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
-    tradeTimerCheckbox:SetPoint("TOPLEFT", disenchanterCheckbox, "BOTTOMLEFT", 0, -25)
+    tradeTimerCheckbox:SetPoint("TOPLEFT", disenchanterCheckbox, "BOTTOMLEFT", 0, -20)
     _G["BadStormsTradeTimerCheckboxText"]:SetText("Enable Trade Timer Auto-Open")
     tradeTimerCheckbox:SetChecked(BadStormsSettings.tradeTimerEnabled)
     tradeTimerCheckbox:SetScript("OnClick", function(self)
@@ -1274,7 +1274,7 @@ local function CreateConfigFrame()
 
     local lootRollerCheckbox = CreateFrame("CheckButton", "BadStormsLootRollerCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
-    lootRollerCheckbox:SetPoint("TOPLEFT", tradeTimerCheckbox, "BOTTOMLEFT", 0, 0)
+    lootRollerCheckbox:SetPoint("TOPLEFT", tradeTimerCheckbox, "BOTTOMLEFT", 0, -5)
     _G["BadStormsLootRollerCheckboxText"]:SetText("Enable Loot Roller (Loot Blare)")
     lootRollerCheckbox:SetChecked(BadStormsSettings.lootRollerEnabled)
     lootRollerCheckbox:SetScript("OnClick", function(self)

@@ -305,6 +305,9 @@ function BadStorms.PopulateTradeTimerList()
             else 
                 name = "  " .. name
             end
+            if BadStorms.ItemHasReservation(data.itemId) then
+                name = name .. " |cffffd100[SR]|r"
+            end
             local _, _, quality = GetItemInfo(data.link)
             if quality then
                 local qColor = ITEM_QUALITY_COLORS[quality]

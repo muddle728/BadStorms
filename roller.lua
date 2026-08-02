@@ -212,6 +212,10 @@ local function ShowRollTracker(link)
 
     local itemNameStr, _, quality, _, _, _, _, _, _, texture = GetItemInfo(link)
     if itemNameStr then
+        local itemId = BadStorms.GetItemID(link)
+        if BadStorms.ItemHasReservation(itemId) then
+            itemNameStr = itemNameStr .. " |cffffd100[SR]|r"
+        end
         local qColor = quality and ITEM_QUALITY_COLORS[quality]
         if qColor then
             local hex = string.format("|cff%02x%02x%02x", qColor.r * 255, qColor.g * 255, qColor.b * 255)
@@ -239,6 +243,10 @@ local function ShowRollTracker(link)
             end
             local n2, _, q2, _, _, _, _, _, _, t2 = GetItemInfo(link)
             if n2 then
+                local itemId2 = BadStorms.GetItemID(link)
+                if BadStorms.ItemHasReservation(itemId2) then
+                    n2 = n2 .. " |cffffd100[SR]|r"
+                end
                 local qc = q2 and ITEM_QUALITY_COLORS[q2]
                 if qc then
                     local h2 = string.format("|cff%02x%02x%02x", qc.r * 255, qc.g * 255, qc.b * 255)

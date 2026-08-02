@@ -13,6 +13,14 @@ function BadStorms.PlayerHasReservation(itemId, playerName)
     return total
 end
 
+function BadStorms.ItemHasReservation(itemId)
+    if not itemId or not BadStormsSettings.softReserves then return false end
+    for _, r in ipairs(BadStormsSettings.softReserves) do
+        if r.itemId == itemId and not r.received then return true end
+    end
+    return false
+end
+
 function BadStorms.GetPlayerSRPlus(itemId, playerName)
     if not itemId or not BadStormsSettings.softReserves then return 0 end
     local playerLower = playerName:lower()

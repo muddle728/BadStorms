@@ -47,6 +47,63 @@ local function ParseCSVLine(line)
     return fields
 end
 
+local function ApplySRPlusFromNotes()
+    local reservations = BadStormsSettings.softReserves or {}
+    local playerOrder = {}
+    local byPlayer = {}
+    for _, r in ipairs(reservations) do
+        local key = (r.name or ""):lower()
+        if not byPlayer[key] then
+            byPlayer[key] = {}
+            table.insert(playerOrder, key)
+        end
+        table.insert(byPlayer[key], r)
+    end
+
+    for _, key in ipairs(playerOrder) do
+        local entries = byPlayer[key]
+
+        local seq = {}
+        for _, r in ipairs(entries) do
+            for num in (r.note or ""):gmatch("%d+") do
+                table.insert(seq, tonumber(num))
+            end
+            if #seq > 0 then break end
+        end
+
+        local seen = {}
+        local items = {}
+        for _, r in ipairs(entries) do
+            local itemKey = tostring(r.itemId)
+            if not seen[itemKey] then
+                seen[itemKey] = true
+                table.insert(items, itemKey)
+            end
+        end
+        local itemCount = #items
+
+        if #seq == 0 then
+            for _, r in ipairs(entries) do
+                r.plus = "0"
+            end
+        elseif #seq >= itemCount then
+            for _, r in ipairs(entries) do
+                for i, itemKey in ipairs(items) do
+                    if tostring(r.itemId) == itemKey then
+                        r.plus = tostring(seq[i])
+                        break
+                    end
+                end
+            end
+        else
+            local value = tostring(seq[1])
+            for _, r in ipairs(entries) do
+                r.plus = value
+            end
+        end
+    end
+end
+
 local function ParseSRCSV(csvText)
     local lines = {}
     for line in csvText:gmatch("[^\r\n]+") do
@@ -87,6 +144,8 @@ local function ParseSRCSV(csvText)
             count = count + 1
         end
     end
+
+    ApplySRPlusFromNotes()
 
     BadStormsSettings.softReservesCsv = csvText
     print("|cff00ff00BadStorms:|r Imported " .. count .. " soft reserve(s).")

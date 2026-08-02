@@ -268,6 +268,12 @@ function BadStorms.HideTradeTimerPanel()
     frame:Hide()
 end
 
+function BadStorms.RefreshTradeTimerList()
+    if BadStorms.IsMasterLooter() and frame:IsShown() then
+        BadStorms.PopulateTradeTimerList()
+    end
+end
+
 function BadStorms.PopulateTradeTimerList()
     local items = BadStorms.ScanBoPTradeItems()
     local list = frame.scrollChild

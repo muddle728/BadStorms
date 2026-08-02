@@ -2613,6 +2613,7 @@ tradeWatchFrame:SetScript("OnEvent", function(self, event)
                 BadStorms.RemoveAllPendingTrades(id)
             end
         end
+        BadStorms.RefreshTradeTimerList()
     end
 end)
 
@@ -2880,6 +2881,7 @@ function BadStorms.ShowAssignDialog(data)
                 itemName = itemName,
                 date = dateTime
             })
+            BadStorms.RefreshTradeTimerList()
             if not CheckInteractDistance(d.unit, 2) then
                 SendChatMessage("WARNING: " .. d.name .. " is out of trade range. Please open trade with me for " ..
                                     d.link .. "!", "WHISPER", nil, d.name)
@@ -2950,6 +2952,7 @@ function BadStorms.ShowDisenchantDialog(data)
                     itemName = itemName,
                     date = date("%Y-%m-%d %H:%M:%S")
                 })
+                BadStorms.RefreshTradeTimerList()
                 local unit = BadStorms.GetPlayerUnit(d.disenchanter)
                 if unit and not UnitIsUnit(unit, "player") then
                     if not CheckInteractDistance(unit, 2) then

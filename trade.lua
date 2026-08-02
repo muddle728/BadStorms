@@ -18,6 +18,20 @@ if not tradeTimerPrefix then
 end
 tradeTimerPrefix = tradeTimerPrefix:lower()
 
+local function IsItemPendingTrade(itemId)
+    if not itemId or not BadStormsSettings.pendingTrades then
+        return false
+    end
+    for _, items in pairs(BadStormsSettings.pendingTrades) do
+        for _, itemData in ipairs(items) do
+            if itemData.itemId == itemId then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 local function ParseRemaining(text)
     text = text:gsub("|c%x+", ""):gsub("|r", "")
     local hours = tonumber(text:match("(%d+)%s*h")) or 0
@@ -279,6 +293,11 @@ function BadStorms.PopulateTradeTimerList()
             local name = GetItemInfo(data.link)
             if not name then
                 name = data.link:match("%[(.-)%]") or "Item"
+            end
+            if IsItemPendingTrade(data.itemId) then
+                name = "* " .. name
+            else 
+                name = "  " .. name
             end
             local _, _, quality = GetItemInfo(data.link)
             if quality then

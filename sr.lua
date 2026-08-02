@@ -24,35 +24,52 @@ function BadStorms.GetPlayerSRPlus(itemId, playerName)
     return 0
 end
 
+local function ParseCSVLine(line)
+    local fields = {}
+    local current = ""
+    local inQuotes = false
+    for i = 1, #line do
+        local c = line:sub(i, i)
+        if c == '"' then
+            inQuotes = not inQuotes
+        elseif c == ',' and not inQuotes then
+            table.insert(fields, current)
+            current = ""
+        else
+            current = current .. c
+        end
+    end
+    table.insert(fields, current)
+
+    for i, f in ipairs(fields) do
+        fields[i] = f:match("^%s*(.-)%s*$")
+    end
+    return fields
+end
+
 local function ParseSRCSV(csvText)
     local lines = {}
     for line in csvText:gmatch("[^\r\n]+") do
         if line ~= "" then table.insert(lines, line) end
     end
 
-    if #lines > 0 and lines[1]:lower():match("^item,") then
-        table.remove(lines, 1)
+    local format = "legacy"
+    if #lines > 0 then
+        local header = ParseCSVLine(lines[1])
+        if tonumber(header[2]) == nil then
+            table.remove(lines, 1)
+            local extraHeader = (header[8] or ""):lower()
+            if extraHeader == "extra reserves" then
+                format = "new"
+            end
+        end
     end
 
     BadStormsSettings.softReserves = {}
     local count = 0
 
     for _, line in ipairs(lines) do
-        local fields = {}
-        local current = ""
-        local inQuotes = false
-        for i = 1, #line do
-            local c = line:sub(i, i)
-            if c == '"' then
-                inQuotes = not inQuotes
-            elseif c == ',' and not inQuotes then
-                table.insert(fields, current)
-                current = ""
-            else
-                current = current .. c
-            end
-        end
-        table.insert(fields, current)
+        local fields = ParseCSVLine(line)
 
         if #fields >= 4 then
             table.insert(BadStormsSettings.softReserves, {
@@ -63,7 +80,8 @@ local function ParseSRCSV(csvText)
                 class = fields[5] or "",
                 spec = fields[6] or "",
                 note = fields[7] or "",
-                plus = fields[8] or "",
+                plus = format == "new" and "" or (fields[8] or ""),
+                extraReserves = format == "new" and (fields[8] or "") or "",
                 date = fields[9] or ""
             })
             count = count + 1

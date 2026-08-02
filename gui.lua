@@ -428,6 +428,21 @@ local function CreateConfigFrame()
         end)
     end)
 
+    local srClearPlusOnesBtn = CreateFrame("Button", nil, srPanel, "GameMenuButtonTemplate")
+    srClearPlusOnesBtn:SetSize(110, 24)
+    srClearPlusOnesBtn:SetPoint("LEFT", srClearBtn, "RIGHT", 4, 0)
+    srClearPlusOnesBtn:SetText("Clear SR+")
+    srClearPlusOnesBtn:SetScript("OnClick", function()
+        BadStorms.ShowDialog("|cffff0000WARNING:|r Clear all SR+ values on soft reserves?", nil, function()
+            for _, r in ipairs(BadStormsSettings.softReserves or {}) do
+                r.plus = "0"
+            end
+            BadStorms.SyncSoftReserves()
+            frame.PopulateSRList()
+            print("|cff00ff00BadStorms:|r SR+ values cleared.")
+        end)
+    end)
+
     local srCountText = srPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     srCountText:SetPoint("TOPLEFT", srPanel, "TOPRIGHT", -200, 0)
     srCountText:SetText("")

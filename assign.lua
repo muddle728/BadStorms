@@ -70,6 +70,11 @@ function BadStorms.UpdateItemSelection(frame, link, bag, slot)
     local itemName, _, quality, _, _, _, _, _, _, texture = GetItemInfo(data.link)
     frame.data = data
 
+    local itemID = GetItemID(data.link)
+    if BadStorms.ItemHasReservation(itemID) and itemName then
+        itemName = itemName .. " |cffffd100[SR]|r"
+    end
+
     local qColor = quality and ITEM_QUALITY_COLORS[quality]
     if frame.itemIcon and frame.linkText then
         frame.linkText.text:SetText(itemName or data.link)

@@ -163,6 +163,21 @@ function BadStorms.SyncPlusOnes()
     AceComm:SendCommMessage("BadStorms", Encode(payload), BadStorms.GetChannel(), nil, "ALERT")
 end
 
+function BadStorms.SyncSoftReserves()
+    if not BadStormsSettings.enabled then
+        return
+    end
+    if not BadStorms.IsMasterLooter() then
+        return
+    end
+    local payload = {
+        action = "sync",
+        softReserves = BadStormsSettings.softReserves or {},
+        softReservesCsv = BadStormsSettings.softReservesCsv or ""
+    }
+    AceComm:SendCommMessage("BadStorms", Encode(payload), BadStorms.GetChannel(), nil, "ALERT")
+end
+
 AceComm:RegisterComm("BadStorms", function(prefix, payload, distribution, sender)
     if sender == UnitName("player") then
         return

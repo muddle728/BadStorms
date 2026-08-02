@@ -80,13 +80,13 @@ local function UpdateRollDisplay(frame)
                         btn.specText:SetText("SR")
                     end
                 end
-                btn.srText:SetText(tostring(data.roll))
+                btn.srText:SetText("[" .. data.roll .. "]")
             else
                 btn.specText:SetText(spec)
                 btn.srText:SetText("")
             end
             btn.specText:SetTextColor(r, g, b)
-            btn.srText:SetTextColor(r, g, b)
+            btn.srText:SetTextColor(0.6, 0.6, 0.6)
 
             if data.max == 100 and plusOnes > 0 and hasSR == 0 then
                 btn.plusText:SetText("+" .. plusOnes)
@@ -359,7 +359,7 @@ rollListener:SetScript("OnEvent", function(self, event, msg)
         unit = unit,
         roll = roll,
         srPlus = srPlus,
-        effectiveRoll = roll + srPlus,
+        effectiveRoll = roll + srPlus * 10,
         max = max,
         class = class
     })

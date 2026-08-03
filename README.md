@@ -44,7 +44,7 @@ Raid helper for master loot management, soft reserves, and rolls.
 
 1. Go to the Soft-Reserves tab
 2. Click **Import**
-3. Paste CSV data from softres.it
+3. Paste CSV data from softres.it or raidres.top
 4. Click **Import**
 
 The SR tab shows all raid/party members — players with SR (class-colored) and players missing SR (red).

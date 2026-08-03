@@ -1,7 +1,7 @@
 ## Interface: 30300
 ## Title: BadStorms
 ## Notes: Raid Helper Tools
-## Version: 1.0.8
+## Version: 1.0.9
 ## SavedVariables: BadStormsSettings
 
 Libs\LibStub\LibStub.lua

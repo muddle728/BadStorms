@@ -136,9 +136,15 @@ local function ParseSRCSV(csvText)
     end
 
     local format = "legacy"
+    local raidres = false
     if #lines > 0 then
         local header = ParseCSVLine(lines[1])
-        if tonumber(header[2]) == nil then
+        local h1 = (header[1] or ""):lower()
+        local h4 = (header[4] or ""):lower()
+        if h1 == "id" and h4 == "attendee" then
+            raidres = true
+            table.remove(lines, 1)
+        elseif tonumber(header[2]) == nil then
             table.remove(lines, 1)
             local extraHeader = (header[8] or ""):lower()
             if extraHeader == "extra reserves" then
@@ -154,23 +160,40 @@ local function ParseSRCSV(csvText)
         local fields = ParseCSVLine(line)
 
         if #fields >= 4 then
-            table.insert(BadStormsSettings.softReserves, {
-                item = fields[1] or "",
-                itemId = tonumber(fields[2]) or 0,
-                from = fields[3] or "",
-                name = fields[4] or "",
-                class = fields[5] or "",
-                spec = fields[6] or "",
-                note = fields[7] or "",
-                plus = format == "new" and "" or (fields[8] or ""),
-                extraReserves = format == "new" and (fields[8] or "") or "",
-                date = fields[9] or ""
-            })
+            if raidres then
+                table.insert(BadStormsSettings.softReserves, {
+                    item = fields[2] or "",
+                    itemId = tonumber(fields[1]) or 0,
+                    from = fields[3] or "",
+                    name = fields[4] or "",
+                    class = fields[5] or "",
+                    spec = fields[6] or "",
+                    note = fields[7] or "",
+                    plus = string.format("%g", (tonumber(fields[9]) or 0) / 10),
+                    extraReserves = "",
+                    date = fields[8] or ""
+                })
+            else
+                table.insert(BadStormsSettings.softReserves, {
+                    item = fields[1] or "",
+                    itemId = tonumber(fields[2]) or 0,
+                    from = fields[3] or "",
+                    name = fields[4] or "",
+                    class = fields[5] or "",
+                    spec = fields[6] or "",
+                    note = fields[7] or "",
+                    plus = format == "new" and "" or (fields[8] or ""),
+                    extraReserves = format == "new" and (fields[8] or "") or "",
+                    date = fields[9] or ""
+                })
+            end
             count = count + 1
         end
     end
 
-    ApplySRPlusFromNotes()
+    if not raidres then
+        ApplySRPlusFromNotes()
+    end
 
     BadStormsSettings.softReservesCsv = csvText
     print("|cff00ff00BadStorms:|r Imported " .. count .. " soft reserve(s).")
@@ -217,7 +240,7 @@ local function ShowSRImportDialog()
 
         local instr = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         instr:SetPoint("TOPLEFT", dialog, "TOPLEFT", 20, -40)
-        instr:SetText("Paste CSV data from softres.it below (Ctrl+V):")
+        instr:SetText("Paste CSV data from softres.it or raidres.top below (Ctrl+V):")
         instr:SetWidth(420)
         instr:SetJustifyH("LEFT")
 

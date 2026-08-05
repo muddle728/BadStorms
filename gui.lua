@@ -41,7 +41,10 @@ local function CheckNotRolling(msg)
 end
 
 local function CheckItemExists(data)
-    if not BadStorms.ItemExistsInSlot(data) then
+    if not data then
+        return false
+    end
+    if not BadStorms.LocateItem(data) then
         print("|cff00ff00BadStorms:|r Item is no longer available.")
         return false
     end

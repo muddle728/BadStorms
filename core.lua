@@ -257,6 +257,47 @@ function BadStorms.ItemExistsInSlot(data)
     return false
 end
 
+function BadStorms.LocateItem(data)
+    if not data then
+        return false
+    end
+    if data.lootSlot and GetLootSlotLink(data.lootSlot) then
+        return true
+    end
+    if data.bag and data.slot then
+        if GetContainerItemLink(data.bag, data.slot) then
+            return true
+        end
+        data.lootSlot = nil
+    end
+    local link = data.link
+    if not link then
+        return false
+    end
+    local linkStr = type(link) == "number" and tostring(link) or link
+    local linkID = BadStorms.GetItemID(link)
+    for b = 0, 4 do
+        local numSlots = GetContainerNumSlots(b)
+        for s = 1, numSlots do
+            local itemLink = GetContainerItemLink(b, s)
+            if itemLink then
+                local match = itemLink == linkStr
+                if not match and linkID then
+                    match = linkID == BadStorms.GetItemID(itemLink)
+                end
+                if match then
+                    data.bag = b
+                    data.slot = s
+                    data.link = itemLink
+                    data.lootSlot = nil
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
 function BadStorms.IsItemEquippable(link)
     if not link then
         return false

@@ -1266,10 +1266,97 @@ local function CreateConfigFrame()
     local tradeTimerCheckbox = CreateFrame("CheckButton", "BadStormsTradeTimerCheckbox", settingsPanel,
         "InterfaceOptionsCheckButtonTemplate")
     tradeTimerCheckbox:SetPoint("TOPLEFT", disenchanterCheckbox, "BOTTOMLEFT", 0, -20)
-    _G["BadStormsTradeTimerCheckboxText"]:SetText("Enable Trade Timer Auto-Open")
+    _G["BadStormsTradeTimerCheckboxText"]:SetText("Enable Trade Timer Auto-Open (Requires Master Looter)")
     tradeTimerCheckbox:SetChecked(BadStormsSettings.tradeTimerEnabled)
     tradeTimerCheckbox:SetScript("OnClick", function(self)
         BadStormsSettings.tradeTimerEnabled = self:GetChecked()
+    end)
+
+    local visibleRowsLabel = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    visibleRowsLabel:SetPoint("LEFT", tradeTimerCheckbox, "RIGHT", 350, 0)
+    visibleRowsLabel:SetText("Visible Rows:")
+
+    local visibleRowsMinus = CreateFrame("Button", nil, settingsPanel, "GameMenuButtonTemplate")
+    visibleRowsMinus:SetSize(18, 18)
+    visibleRowsMinus:SetPoint("LEFT", visibleRowsLabel, "RIGHT", 8, 0)
+    visibleRowsMinus:SetText("-")
+    visibleRowsMinus:SetNormalFontObject("GameFontNormalSmall")
+    visibleRowsMinus:SetHighlightFontObject("GameFontHighlightSmall")
+
+    local visibleRowsEdit = CreateFrame("EditBox", "BadStormsVisibleRowsEdit", settingsPanel, "InputBoxTemplate")
+    visibleRowsEdit:SetSize(30, 18)
+    visibleRowsEdit:SetPoint("LEFT", visibleRowsMinus, "RIGHT", 4, 0)
+    visibleRowsEdit:SetAutoFocus(false)
+    visibleRowsEdit:SetNumeric(true)
+    visibleRowsEdit:SetMaxLetters(3)
+    visibleRowsEdit:SetJustifyH("CENTER")
+    visibleRowsEdit:SetTextInsets(-5, 0, 0, 0)
+    visibleRowsEdit:SetText(tostring(BadStormsSettings.visibleRolls or 30))
+
+    local visibleRowsPlus = CreateFrame("Button", nil, settingsPanel, "GameMenuButtonTemplate")
+    visibleRowsPlus:SetSize(18, 18)
+    visibleRowsPlus:SetPoint("LEFT", visibleRowsEdit, "RIGHT", 2, 0)
+    visibleRowsPlus:SetText("+")
+    visibleRowsPlus:SetNormalFontObject("GameFontNormalSmall")
+    visibleRowsPlus:SetHighlightFontObject("GameFontHighlightSmall")
+
+    local visibleRowsUpdating = false
+    local function UpdateVisibleRows(val)
+        val = tonumber(val) or 30
+        if val < 1 then
+            val = 1
+        end
+        if val > 100 then
+            val = 100
+        end
+        BadStormsSettings.visibleRolls = val
+        visibleRowsUpdating = true
+        visibleRowsEdit:SetText(tostring(val))
+        visibleRowsUpdating = false
+        if BadStorms.RefreshTradeTimerList then
+            BadStorms.RefreshTradeTimerList()
+        end
+    end
+
+    visibleRowsMinus:SetScript("OnClick", function()
+        local val = tonumber(visibleRowsEdit:GetText()) or 30
+        if val > 1 then
+            UpdateVisibleRows(val - 1)
+        end
+    end)
+
+    visibleRowsPlus:SetScript("OnClick", function()
+        local val = tonumber(visibleRowsEdit:GetText()) or 30
+        if val < 100 then
+            UpdateVisibleRows(val + 1)
+        end
+    end)
+
+    visibleRowsEdit:SetScript("OnTextChanged", function(self)
+        if visibleRowsUpdating then
+            return
+        end
+        local text = self:GetText()
+        local cleaned = text:gsub("%D", "")
+        if cleaned ~= text then
+            self:SetText(cleaned)
+            self:SetCursorPosition(#cleaned)
+        end
+        UpdateVisibleRows(tonumber(cleaned) or 30)
+    end)
+
+    visibleRowsEdit:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
+        CloseDropDownMenus()
+    end)
+    visibleRowsEdit:SetScript("OnEnterPressed", function(self)
+        UpdateVisibleRows(tonumber(self:GetText()) or 30)
+        self:ClearFocus()
+        CloseDropDownMenus()
+    end)
+    visibleRowsEdit:SetScript("OnTabPressed", function(self)
+        self:ClearFocus()
+        CloseDropDownMenus()
     end)
 
     local lootRollerCheckbox = CreateFrame("CheckButton", "BadStormsLootRollerCheckbox", settingsPanel,

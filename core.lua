@@ -25,6 +25,7 @@ BadStormsSettings.softReserves = BadStormsSettings.softReserves or {}
 BadStormsSettings.softReservesCsv = BadStormsSettings.softReservesCsv or ""
 BadStormsSettings.rollTimer = BadStormsSettings.rollTimer or 10
 BadStormsSettings.lootRollerCloseTime = BadStormsSettings.lootRollerCloseTime or 15
+BadStormsSettings.visibleRolls = BadStormsSettings.visibleRolls or 30
 if BadStormsSettings.lootRollerEnabled == nil then
     BadStormsSettings.lootRollerEnabled = true
 end

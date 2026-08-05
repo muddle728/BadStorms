@@ -4,9 +4,17 @@ local _knownCounts = {}
 local _userDismissed = false
 local _refreshTicker
 local _bagUpdateTimer
-local VISIBLE_ROWS = 30
+local MAX_ROWS = 100
 local ROW_HEIGHT = 22
 local PREFIX_WIDTH = 34
+
+local function GetVisibleRolls()
+    local v = tonumber(BadStormsSettings.visibleRolls)
+    if not v then
+        return 30
+    end
+    return math.floor(math.max(1, math.min(100, v)))
+end
 
 local scanner = CreateFrame("GameTooltip", "BadStorms_TradeScanner", UIParent, "GameTooltipTemplate")
 
@@ -187,7 +195,7 @@ scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -8, 8)
 frame.scrollFrame = scrollFrame
 
 local scrollChild = CreateFrame("Frame", nil, scrollFrame)
-scrollChild:SetSize(frame:GetWidth() - 16, VISIBLE_ROWS * ROW_HEIGHT)
+scrollChild:SetSize(frame:GetWidth() - 16, MAX_ROWS * ROW_HEIGHT)
 scrollFrame:SetScrollChild(scrollChild)
 scrollFrame:SetScript("OnSizeChanged", function(self)
     scrollChild:SetWidth(self:GetWidth())
@@ -201,7 +209,7 @@ emptyText:SetTextColor(0.6, 0.6, 0.6)
 frame.emptyText = emptyText
 
 frame.rows = {}
-for i = 1, VISIBLE_ROWS do
+for i = 1, MAX_ROWS do
     local btn = CreateFrame("Button", nil, scrollChild)
     btn:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -(i - 1) * ROW_HEIGHT)
     btn:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", 0, -(i - 1) * ROW_HEIGHT)
@@ -288,7 +296,8 @@ function BadStorms.PopulateTradeTimerList()
     local list = frame.scrollChild
     local scroll = frame.scrollFrame
 
-    local totalHeight = math.max(#items, VISIBLE_ROWS) * ROW_HEIGHT
+    local visible = GetVisibleRolls()
+    local totalHeight = math.max(#items, visible) * ROW_HEIGHT
     list:SetHeight(totalHeight)
     scroll:SetVerticalScroll(0)
 
@@ -303,44 +312,51 @@ function BadStorms.PopulateTradeTimerList()
     frame.emptyText:Hide()
 
     for i, btn in ipairs(frame.rows) do
-        local data = items[i]
-        if data then
-            local prefix = ""
-            if IsItemPendingTrade(data.itemId) then
-                prefix = "[PT]"
-                btn.prefixText:SetTextColor(1, 0.1, 0.1)
-            elseif BadStorms.ItemHasReservation(data.itemId) then
-                prefix = "[SR]"
-                btn.prefixText:SetTextColor(1, 0.82, 0)
-            else
-                btn.prefixText:SetTextColor(1, 0.82, 0)
-            end
-            btn.prefixText:SetText(prefix)
-
-            local name = GetItemInfo(data.link)
-            if not name then
-                name = data.link:match("%[(.-)%]") or "Item"
-            end
-            local _, _, quality = GetItemInfo(data.link)
-            if quality then
-                local qColor = ITEM_QUALITY_COLORS[quality]
-                local hex = string.format("|cff%02x%02x%02x", qColor.r * 255, qColor.g * 255, qColor.b * 255)
-                btn.nameText:SetText(hex .. name .. "|r")
-            else
-                btn.nameText:SetText(name)
-            end
-
-            btn.timeText:SetText(BadStorms.FormatTradeTime(data.remaining))
-
-            btn.itemLink = data.link
-            btn.itemBag = data.bag
-            btn.itemSlot = data.slot
-            btn:Show()
-        else
+        if i > visible then
             btn.itemLink = nil
             btn.itemBag = nil
             btn.itemSlot = nil
             btn:Hide()
+        else
+            local data = items[i]
+            if data then
+                local prefix = ""
+                if IsItemPendingTrade(data.itemId) then
+                    prefix = "[PT]"
+                    btn.prefixText:SetTextColor(1, 0.1, 0.1)
+                elseif BadStorms.ItemHasReservation(data.itemId) then
+                    prefix = "[SR]"
+                    btn.prefixText:SetTextColor(1, 0.82, 0)
+                else
+                    btn.prefixText:SetTextColor(1, 0.82, 0)
+                end
+                btn.prefixText:SetText(prefix)
+
+                local name = GetItemInfo(data.link)
+                if not name then
+                    name = data.link:match("%[(.-)%]") or "Item"
+                end
+                local _, _, quality = GetItemInfo(data.link)
+                if quality then
+                    local qColor = ITEM_QUALITY_COLORS[quality]
+                    local hex = string.format("|cff%02x%02x%02x", qColor.r * 255, qColor.g * 255, qColor.b * 255)
+                    btn.nameText:SetText(hex .. name .. "|r")
+                else
+                    btn.nameText:SetText(name)
+                end
+
+                btn.timeText:SetText(BadStorms.FormatTradeTime(data.remaining))
+
+                btn.itemLink = data.link
+                btn.itemBag = data.bag
+                btn.itemSlot = data.slot
+                btn:Show()
+            else
+                btn.itemLink = nil
+                btn.itemBag = nil
+                btn.itemSlot = nil
+                btn:Hide()
+            end
         end
     end
 end

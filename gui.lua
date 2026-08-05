@@ -2830,11 +2830,44 @@ do
     noBtn:SetText("No")
 
     local plusOneCb = CreateFrame("CheckButton", nil, dialog, "InterfaceOptionsCheckButtonTemplate")
-    plusOneCb:SetPoint("TOPLEFT", yesBtn, "TOPRIGHT", -30, 35)
+    plusOneCb:SetSize(26, 26)
+    plusOneCb:SetHitRectInsets(0, 0, 0, 0)
     plusOneCb:Hide()
     local cbText = plusOneCb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     cbText:SetPoint("LEFT", plusOneCb, "RIGHT", 4, 0)
     cbText:SetText("Add +1?")
+    local cbTextW = cbText:GetStringWidth() or 48
+    if cbTextW <= 0 then
+        cbTextW = 48
+    end
+
+    local osCb = CreateFrame("CheckButton", nil, dialog, "InterfaceOptionsCheckButtonTemplate")
+    osCb:SetSize(26, 26)
+    osCb:SetHitRectInsets(0, 0, 0, 0)
+    osCb:Hide()
+    local osText = osCb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    osText:SetPoint("LEFT", osCb, "RIGHT", 4, 0)
+    osText:SetText("OS")
+    local osTextW = osText:GetStringWidth() or 20
+    if osTextW <= 0 then
+        osTextW = 20
+    end
+
+    local rowW = 26 + 4 + cbTextW + 16 + 26 + 4 + osTextW
+    plusOneCb:SetPoint("TOP", dialog, "TOP", -rowW / 2 + 13, -50)
+    osCb:SetPoint("TOP", dialog, "TOP", -rowW / 2 + 26 + 4 + cbTextW + 16 + 13, -50)
+
+    plusOneCb:SetScript("OnClick", function(self)
+        if self:GetChecked() then
+            osCb:SetChecked(false)
+        end
+    end)
+
+    osCb:SetScript("OnClick", function(self)
+        if self:GetChecked() then
+            plusOneCb:SetChecked(false)
+        end
+    end)
 
     local dialogData, onAccept, onCancel
 
@@ -2845,11 +2878,18 @@ do
 
         text:SetText(msg)
 
-        if showPlusOne and BadStormsSettings.plusOnesEnabled then
-            plusOneCb:SetChecked(data and data.note and data.note:find("^Roll .- MS"))
-            plusOneCb:Show()
+        if showPlusOne then
+            if BadStormsSettings.plusOnesEnabled then
+                plusOneCb:SetChecked(data and data.note and data.note:find("^Roll .- MS"))
+                plusOneCb:Show()
+            else
+                plusOneCb:Hide()
+            end
+            osCb:SetChecked(data and data.note and data.note:find("^Roll .- OS"))
+            osCb:Show()
         else
             plusOneCb:Hide()
+            osCb:Hide()
         end
 
         if BadStorms.configFrame then
@@ -2864,11 +2904,16 @@ do
         return plusOneCb:GetChecked()
     end
 
+    function BadStorms.GetDialogOSChecked()
+        return osCb:GetChecked()
+    end
+
     yesBtn:SetScript("OnClick", function()
         local fn = onAccept
         local data = dialogData
         dialog:Hide()
         plusOneCb:Hide()
+        osCb:Hide()
         dialogData = nil
         onAccept = nil
         onCancel = nil
@@ -2885,6 +2930,7 @@ do
         local data = dialogData
         dialog:Hide()
         plusOneCb:Hide()
+        osCb:Hide()
         dialogData = nil
         onAccept = nil
         onCancel = nil
@@ -2903,6 +2949,7 @@ do
             local data = dialogData
             dialog:Hide()
             plusOneCb:Hide()
+            osCb:Hide()
             dialogData = nil
             onAccept = nil
             onCancel = nil
@@ -2921,7 +2968,8 @@ function BadStorms.ShowAssignDialog(data)
         if not CheckItemExists(d) then
             return
         end
-        SendToChannel("LOOT: " .. d.link .. " awarded to " .. d.name)
+        local osAward = BadStorms.GetDialogOSChecked()
+        SendToChannel("LOOT: " .. d.link .. " awarded to " .. d.name .. (osAward and " (OS)" or ""))
         local itemId = BadStorms.GetItemID(d.link)
         local itemName = d.link:match("%[(.-)%]") or "Unknown"
         local dateKey = date("%Y-%m-%d")
@@ -2932,15 +2980,28 @@ function BadStorms.ShowAssignDialog(data)
         if not BadStormsSettings.exportData[dateKey] then
             BadStormsSettings.exportData[dateKey] = {}
         end
+        local publicNote
+        if d.note and d.note:find("^Roll") then
+            local rollValue = d.note:match("(%d+)%s*$") or ""
+            publicNote = "Roll (" .. (osAward and "OS" or "MS") .. ")"
+            if rollValue ~= "" then
+                publicNote = publicNote .. " " .. rollValue
+            end
+        else
+            publicNote = d.note or "Award"
+            if osAward and not publicNote:find("OS") then
+                publicNote = publicNote .. " (OS)"
+            end
+        end
         table.insert(BadStormsSettings.exportData[dateKey], {
             character = d.name,
             item_id = tostring(itemId or ""),
             item_name = itemName,
             date_time = dateTime,
-            public_note = d.note or "Award",
+            public_note = publicNote,
             officer_note = ""
         })
-        if BadStorms.GetDialogPlusOneChecked() then
+        if not osAward and BadStorms.GetDialogPlusOneChecked() then
             local hasSR = itemId and BadStorms.PlayerHasReservation(itemId, d.name) or 0
             if hasSR == 0 then
                 BadStormsSettings.plusOnes[d.name] = (BadStormsSettings.plusOnes[d.name] or 0) + 1

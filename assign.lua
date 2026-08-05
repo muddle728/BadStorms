@@ -29,7 +29,6 @@ function BadStorms.UpdateItemSelection(frame, link, bag, slot)
     end
 
     local linkStr = type(link) == "number" and tostring(link) or link
-    local linkID = GetItemID(link)
 
     local data = {
         link = linkStr,
@@ -37,27 +36,7 @@ function BadStorms.UpdateItemSelection(frame, link, bag, slot)
         slot = slot
     }
     if not bag or not slot then
-        for b = 0, 4 do
-            local numSlots = GetContainerNumSlots(b)
-            for s = 1, numSlots do
-                local itemLink = GetContainerItemLink(b, s)
-                if itemLink then
-                    local match = itemLink == linkStr
-                    if not match and linkID then
-                        match = linkID == GetItemID(itemLink)
-                    end
-                    if match then
-                        data.bag = b
-                        data.slot = s
-                        data.link = itemLink
-                        break
-                    end
-                end
-            end
-            if data.bag then
-                break
-            end
-        end
+        BadStorms.LocateItem(data)
     end
 
     if type(data.link) ~= "string" or not data.link:find("^|c") then

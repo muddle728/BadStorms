@@ -72,11 +72,15 @@ local function ApplySRPlusFromNotes()
         local entries = byPlayer[key]
 
         local seq = {}
+        local seenNotes = {}
         for _, r in ipairs(entries) do
-            for num in (r.note or ""):gmatch("%d+") do
-                table.insert(seq, tonumber(num))
+            local note = r.note or ""
+            if note ~= "" and not seenNotes[note] then
+                seenNotes[note] = true
+                for num in note:gmatch("%d+") do
+                    table.insert(seq, tonumber(num))
+                end
             end
-            if #seq > 0 then break end
         end
 
         local seen = {}
@@ -88,41 +92,19 @@ local function ApplySRPlusFromNotes()
                 table.insert(items, itemKey)
             end
         end
-        local itemCount = #items
 
-        local allPriority = true
+        local indexOf = {}
+        for i, itemKey in ipairs(items) do
+            indexOf[itemKey] = i
+        end
+
         for _, r in ipairs(entries) do
             if (tonumber(r.plus) or 0) == 0 then
-                allPriority = false
-                break
-            end
-        end
-        if allPriority then
-            return
-        end
-
-        if #seq == 0 then
-            for _, r in ipairs(entries) do
-                if (tonumber(r.plus) or 0) == 0 then
+                local seqIdx = indexOf[tostring(r.itemId)]
+                if seqIdx and seq[seqIdx] then
+                    r.plus = tostring(seq[seqIdx])
+                else
                     r.plus = "0"
-                end
-            end
-        elseif #seq >= itemCount then
-            for _, r in ipairs(entries) do
-                if (tonumber(r.plus) or 0) == 0 then
-                    for i, itemKey in ipairs(items) do
-                        if tostring(r.itemId) == itemKey then
-                            r.plus = tostring(seq[i])
-                            break
-                        end
-                    end
-                end
-            end
-        else
-            local value = tostring(seq[1])
-            for _, r in ipairs(entries) do
-                if (tonumber(r.plus) or 0) == 0 then
-                    r.plus = value
                 end
             end
         end

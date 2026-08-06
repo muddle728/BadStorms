@@ -4,7 +4,7 @@ local AceSerializer = LibStub:GetLibrary("AceSerializer-3.0")
 local LibDeflate = LibStub:GetLibrary("LibDeflate")
 
 local _syncFields = {"exportData", "pendingTrades", "plusOnes", "softReserves", "softReservesCsv"}
-local _lastPushed
+local _lastPushedByKey = {}
 
 local function Encode(data)
     return LibDeflate:EncodeForWoWAddonChannel(LibDeflate:CompressDeflate(AceSerializer:Serialize(data)))
@@ -40,10 +40,15 @@ function BadStorms.PushToHistory(payload)
         parts[#parts + 1] = v ~= nil and AceSerializer:Serialize(v) or ""
     end
     local serialized = table.concat(parts, "|")
-    if serialized == _lastPushed then
-        return
+    local key = payload.key or ""
+    if _lastPushedByKey[key] == serialized then
+        return false
     end
-    _lastPushed = serialized
+    _lastPushedByKey[key] = serialized
+    if payload.version == nil then
+        local current = BadStorms.GetLatestHistoryEntry(key) or {}
+        payload.version = (current.version or -1) + 1
+    end
 
     local history = BadStormsSettings.syncHistory or {}
     table.insert(history, 1, {
@@ -56,6 +61,11 @@ function BadStorms.PushToHistory(payload)
         history[i] = nil
     end
     BadStormsSettings.syncHistory = history
+    local frame = BadStorms.configFrame
+    if frame and frame.PopulateSyncHistoryList and frame.syncHistoryPanel and frame.syncHistoryPanel:IsVisible() then
+        frame.PopulateSyncHistoryList()
+    end
+    return true
 end
 
 function BadStorms.RestoreFromHistory(entry)
@@ -132,7 +142,6 @@ function BadStorms.SyncToAll()
     local payload = {
         action = "sync",
         key = myKey,
-        version = (currentPayload.version or -1) + 1,
         plusOnes = BadStormsSettings.plusOnes or {},
         pendingTrades = BadStormsSettings.pendingTrades or {},
         softReserves = BadStormsSettings.softReserves or {},
@@ -141,6 +150,10 @@ function BadStorms.SyncToAll()
     }
 
     BadStorms.PushToHistory(payload)
+    
+    if payload.version == nil then
+        payload.version = currentPayload.version or 0
+    end
 
     local encoded = Encode(payload)
     if encoded then
@@ -215,6 +228,9 @@ AceComm:RegisterComm("BadStorms", function(prefix, payload, distribution, sender
                 end
             end
             AceComm:SendCommMessage("BadStorms", Encode(restorePayload), "WHISPER", sender)
+            return
+        end
+        if rp.version and currentPayload.key == rp.key and currentPayload.version and rp.version <= currentPayload.version then
             return
         end
         BadStorms.RefreshUIAfterSync(rp)

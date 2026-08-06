@@ -61,6 +61,10 @@ function BadStorms.PushToHistory(payload)
         history[i] = nil
     end
     BadStormsSettings.syncHistory = history
+    local frame = BadStorms.configFrame
+    if frame and frame.PopulateSyncHistoryList and frame.syncHistoryPanel and frame.syncHistoryPanel:IsVisible() then
+        frame.PopulateSyncHistoryList()
+    end
     return true
 end
 

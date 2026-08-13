@@ -200,8 +200,8 @@ AceComm:RegisterComm("BadStorms", function(prefix, payload, distribution, sender
         return
     end
 
-    local ok, rp = Decode(payload)
-    if not ok or not rp then
+    local ok, _, rp = pcall(Decode, payload)
+    if not ok or type(rp) ~= "table" then
         return
     end
 

@@ -26,6 +26,10 @@ BadStormsSettings.softReservesCsv = BadStormsSettings.softReservesCsv or ""
 BadStormsSettings.rollTimer = BadStormsSettings.rollTimer or 10
 BadStormsSettings.lootRollerCloseTime = BadStormsSettings.lootRollerCloseTime or 15
 BadStormsSettings.visibleRolls = BadStormsSettings.visibleRolls or 30
+BadStormsSettings.autolootExclude = BadStormsSettings.autolootExclude
+if BadStormsSettings.autolootExclude == nil or BadStormsSettings.autolootExclude == "" then
+    BadStormsSettings.autolootExclude = "Fragment of Val'anyr"
+end
 if BadStormsSettings.lootRollerEnabled == nil then
     BadStormsSettings.lootRollerEnabled = true
 end
@@ -75,6 +79,42 @@ function BadStorms.GetItemID(link)
     if type(link) == "string" then
         return tonumber(link:match("Hitem:(%d+)")) or tonumber(link)
     end
+end
+
+function BadStorms.ParseAutolootExclude(raw)
+    local byId, byName = {}, {}
+    if type(raw) ~= "string" then
+        return byId, byName
+    end
+    for line in raw:gmatch("[^\n\r]+") do
+        for part in (line .. ","):gmatch("([^,]*),") do
+            part = part:match("^%s*(.*%S)%s*$") or ""
+            if part ~= "" then
+                local id = tonumber(part)
+                if id then
+                    byId[id] = true
+                else
+                    byName[part:lower()] = true
+                end
+            end
+        end
+    end
+    return byId, byName
+end
+
+function BadStorms.IsAutolootExcluded(itemId, itemName)
+    local raw = BadStormsSettings.autolootExclude or ""
+    if raw == "" then
+        return false
+    end
+    local byId, byName = BadStorms.ParseAutolootExclude(raw)
+    if itemId and byId[tonumber(itemId)] then
+        return true
+    end
+    if itemName and byName[itemName:lower()] then
+        return true
+    end
+    return false
 end
 
 function BadStorms.GetChannel()

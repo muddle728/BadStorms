@@ -1147,6 +1147,14 @@ local function CreateConfigFrame()
         BadStormsSettings.autoloot = self:GetChecked()
     end)
 
+    local autoLootExcludeBtn = CreateFrame("Button", nil, settingsPanel, "GameMenuButtonTemplate")
+    autoLootExcludeBtn:SetSize(74, 26)
+    autoLootExcludeBtn:SetPoint("LEFT", autoLootCheckbox, "RIGHT", 380, 0)
+    autoLootExcludeBtn:SetText("Exclusions")
+    autoLootExcludeBtn:SetScript("OnClick", function()
+        BadStorms.ShowAutolootExcludeDialog()
+    end)
+
     local autoLootWarning = settingsPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     autoLootWarning:SetPoint("TOPLEFT", autoLootCheckbox, "BOTTOMLEFT", 24, 0)
     autoLootWarning:SetWidth(440)
@@ -2716,6 +2724,130 @@ end)
 
 local BadStormsMenuFrame = CreateFrame("Frame", "BadStormsTradeMenuFrame", UIParent, "UIDropDownMenuTemplate")
 
+local function ShowAutolootExcludeDialog()
+    local dialog = BadStorms.autolootExcludeDialog
+    if not dialog then
+        dialog = CreateFrame("Frame", "BadStormsAutolootExcludeDialog", UIParent)
+        dialog:SetSize(460, 400)
+        dialog:SetPoint("TOPLEFT", BadStorms.configFrame, "TOPRIGHT", 10, 0)
+        dialog:SetBackdrop({
+            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+            edgeFile = "Interface\\Buttons\\WHITE8X8",
+            tile = true,
+            tileSize = 32,
+            edgeSize = 1,
+            insets = {
+                left = 1,
+                right = 1,
+                top = 1,
+                bottom = 1
+            }
+        })
+        dialog:SetBackdropColor(0, 0, 0, 0.9)
+        dialog:SetBackdropBorderColor(0, 0, 0, 1)
+        dialog:SetMovable(true)
+        dialog:EnableMouse(true)
+        dialog:EnableMouseWheel(true)
+        dialog:RegisterForDrag("LeftButton")
+        dialog:SetScript("OnDragStart", dialog.StartMoving)
+        dialog:SetScript("OnDragStop", dialog.StopMovingOrSizing)
+        dialog:SetScript("OnHide", function()
+            if BadStorms.configFrame then
+                BadStorms.configFrame:SetAlpha(1.0)
+            end
+        end)
+
+        local title = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        title:SetPoint("TOP", dialog, "TOP", 0, -15)
+        title:SetText("Auto-Loot Exclusion List")
+
+        local instr = dialog:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        instr:SetPoint("TOPLEFT", dialog, "TOPLEFT", 20, -40)
+        instr:SetText(
+            "Enter item names or item IDs to exclude from auto-loot.\nOne per line (or comma separated). Names match case-insensitively.")
+        instr:SetWidth(420)
+        instr:SetJustifyH("LEFT")
+
+        local editBoxBg = dialog:CreateTexture(nil, "BACKGROUND")
+        editBoxBg:SetPoint("TOPLEFT", dialog, "TOPLEFT", 25, -80)
+        editBoxBg:SetSize(410, 265)
+        editBoxBg:SetTexture(0.05, 0.05, 0.05, 0.9)
+
+        local editScroll = CreateFrame("ScrollFrame", nil, dialog)
+        editScroll:SetPoint("TOPLEFT", dialog, "TOPLEFT", 25, -80)
+        editScroll:SetSize(410, 265)
+        editScroll:EnableMouse(true)
+
+        local editBox = CreateFrame("EditBox", nil, editScroll)
+        editBox:SetMultiLine(true)
+        editBox:SetFontObject("GameFontHighlightSmall")
+        editBox:SetAutoFocus(false)
+        editBox:SetTextInsets(4, 4, 4, 4)
+        editBox:SetWidth(410)
+
+        editScroll:SetScrollChild(editBox)
+        editScroll:SetScript("OnMouseDown", function()
+            editBox:SetFocus()
+        end)
+        dialog.editBox = editBox
+
+        dialog:SetScript("OnMouseWheel", function(self, delta)
+            local val = editScroll:GetVerticalScroll()
+            local range = editScroll:GetVerticalScrollRange()
+            editScroll:SetVerticalScroll(math.max(0, math.min(val - delta * 40, range)))
+        end)
+
+        editBox:SetScript("OnEscapePressed", function(self)
+            self:ClearFocus()
+        end)
+
+        local saveBtn = CreateFrame("Button", nil, dialog, "GameMenuButtonTemplate")
+        saveBtn:SetSize(80, 24)
+        saveBtn:SetPoint("BOTTOMRIGHT", dialog, "BOTTOM", -20, 15)
+        saveBtn:SetText("Save")
+        saveBtn:SetScript("OnClick", function()
+            BadStormsSettings.autolootExclude = editBox:GetText()
+            dialog:Hide()
+            print("|cff00ff00BadStorms:|r Auto-loot exclusion list saved.")
+        end)
+
+        local closeBtn = CreateFrame("Button", nil, dialog, "GameMenuButtonTemplate")
+        closeBtn:SetSize(80, 24)
+        closeBtn:SetPoint("RIGHT", saveBtn, "LEFT", -4, 0)
+        closeBtn:SetText("Close")
+        closeBtn:SetScript("OnClick", function()
+            editBox:SetText("")
+            dialog:Hide()
+        end)
+
+        local clearBtn = CreateFrame("Button", nil, dialog, "GameMenuButtonTemplate")
+        clearBtn:SetSize(80, 24)
+        clearBtn:SetPoint("BOTTOMLEFT", dialog, "BOTTOM", 20, 15)
+        clearBtn:SetText("Clear All")
+        clearBtn:SetScript("OnClick", function()
+            BadStorms.ShowDialog("|cffff0000WARNING:|r Clear the auto-loot exclusion list?", nil, function()
+                editBox:SetText("")
+            end)
+        end)
+
+        dialog:Hide()
+        BadStorms.autolootExcludeDialog = dialog
+    end
+
+    local excludeText = BadStormsSettings.autolootExclude
+    if excludeText == nil or excludeText == "" then
+        excludeText = "Fragment of Val'anyr"
+    end
+    dialog.editBox:SetText(excludeText)
+    if BadStorms.configFrame then
+        dialog:ClearAllPoints()
+        dialog:SetPoint("TOPLEFT", BadStorms.configFrame, "TOPRIGHT", 10, 0)
+        BadStorms.configFrame:SetAlpha(0.3)
+    end
+    dialog:Show()
+end
+BadStorms.ShowAutolootExcludeDialog = ShowAutolootExcludeDialog
+
 local lootFrame = CreateFrame("Frame")
 lootFrame:RegisterEvent("LOOT_OPENED")
 lootFrame:SetScript("OnEvent", function()
@@ -2734,10 +2866,17 @@ lootFrame:SetScript("OnEvent", function()
     local deCI = BadStorms.GetDisenchanterCandidateIndex()
     local lootItems = {}
     local deItems = {}
+    local excludedItems = {}
+    local excludedLeft = false
     for i = GetNumLootItems(), 1, -1 do
         local texture, name, quantity, quality = GetLootSlotInfo(i)
         local item = GetLootSlotLink(i)
-        if quality < 2 then
+        local slotExcluded = (quality and quality > 4) or
+            BadStorms.IsAutolootExcluded(BadStorms.GetItemID(item), name)
+        if slotExcluded then
+            excludedLeft = true
+            tinsert(excludedItems, item or name or ("slot " .. i))
+        elseif quality < 2 then
             LootSlot(i)
             if GetLootSlotLink(i) then
                 -- work around odd bug when master looting quest items
@@ -2776,11 +2915,16 @@ lootFrame:SetScript("OnEvent", function()
     for _, msg in ipairs(deItems) do
         SendToChannel("DISENCHANT: " .. msg)
     end
+    for _, link in ipairs(excludedItems) do
+        SendToChannel("AUTOLOOT SKIP: " .. link .. " left for manual loot")
+    end
     C_Timer.After(0.10, function()
-        CloseLoot()
-        local elf = _G["ElvLootFrame"]
-        if elf and elf:IsVisible() then
-            ElvLootFrame:Hide()
+        if not excludedLeft then
+            CloseLoot()
+            local elf = _G["ElvLootFrame"]
+            if elf and elf:IsVisible() then
+                ElvLootFrame:Hide()
+            end
         end
     end)
 end)
